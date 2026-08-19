@@ -3,31 +3,42 @@
  * Personalização de perfil.
  *
  * EMBLEMA é liberado em QUALQUER TIER (inclusive Free — pedido do dono).
- * Foto de perfil, plano de fundo, título e esconder KDA continuam exigindo
- * Player Premium Compy (foto/fundo/esconder KDA) ou Raptor (+ upload
- * próprio + título).
+ * Foto de perfil: liberada em QUALQUER TIER também, mas só via Loja
+ * (`/loja`, com Caçadas) pro Free/Compy — só o Raptor pode enviar um
+ * upload próprio. Plano de fundo: exclusivo do Compy (via Loja) e Raptor
+ * (upload OU Loja); Free não tem acesso a plano de fundo de jeito nenhum
+ * (pedido do dono, 2026-08-19: "Tier Free... não pode ter plano de fundo
+ * no perfil, somente personalização de foto de perfil"). Título e
+ * esconder KDA continuam exigindo Player Premium Compy (esconder KDA) ou
+ * Raptor (+ upload próprio + título).
  *
  * Sem nenhum anexo, mostra um PAINEL (ConfigSystem.buildPerfilEditPanelPayload)
- * com tudo que o tier do jogador permite personalizar. Foto/plano de fundo
- * continuam exigindo rodar este comando DE NOVO com o anexo — Discord não
- * permite pedir upload de arquivo a partir de um botão ou modal, só da
- * própria slash command; os botões do painel para esses dois, no caso do
- * Raptor, só explicam isso. Pro Compy (sem upload próprio), os mesmos
- * botões abrem um menu de escolha entre fotos/fundos pré-definidos (ver
+ * com tudo que o tier do jogador permite personalizar. Upload de foto/plano
+ * de fundo continua exigindo rodar este comando DE NOVO com o anexo —
+ * Discord não permite pedir upload de arquivo a partir de um botão ou
+ * modal, só da própria slash command; os botões do painel pra esses dois,
+ * no caso do Raptor, explicam isso E também abrem o mesmo menu de escolha
+ * da Loja (ver abaixo) — Raptor tem as duas opções. Pro Free/Compy (sem
+ * upload próprio), os mesmos botões só abrem o menu de escolha entre
+ * itens comprados na Loja (ver
  * ConfigSystem.buildPlayerPhotoPickerPayload/buildPlayerBackgroundPickerPayload
- * — o pool de plano de fundo reaproveita as mesmas 12 fotos do pool de foto
- * de perfil).
+ * — pool único de "personalização" compartilhado entre foto e fundo, cada
+ * item com seu próprio tier mínimo configurável pelo dono via /perfil-pool).
  *
- * Compy: escolhe entre um menu de fotos/fundos pré-definidos (mesmo pool
- * usado no banner do /config reportchat) — nenhum upload próprio. Os
- * parâmetros `avatar`/`plano_de_fundo` são ignorados pra esse tier (mostra
- * o painel de qualquer forma).
- * Raptor: upload próprio via `avatar` (foto de perfil) e/ou `plano_de_fundo`.
- * Sem anexo enviado em `avatar`: usa o AVATAR do próprio Discord como foto
- * (pedido do dono, 2026-08-15). Sem anexo em `plano_de_fundo`: usa o BANNER
- * do próprio Discord, se o jogador tiver um configurado. Com anexo: a
- * imagem enviada vira a foto/fundo (ver playerRegistrationSystem.js
- * _resolveCardPhotoBuffer/_resolveBackgroundBuffer).
+ * Free: só escolhe entre itens de foto comprados na Loja — sem plano de
+ * fundo, sem upload. Compy: escolhe entre itens de foto E fundo comprados
+ * na Loja — nenhum upload próprio. Os parâmetros `avatar`/`plano_de_fundo`
+ * são ignorados pra Free/Compy (mostra o painel de qualquer forma).
+ * Raptor: upload próprio via `avatar` (foto de perfil) e/ou `plano_de_fundo`,
+ * OU escolha pela Loja como qualquer outro tier. Sem anexo enviado em
+ * `avatar`: usa o AVATAR do próprio Discord como foto (pedido do dono,
+ * 2026-08-15). Sem anexo em `plano_de_fundo`: usa o BANNER do próprio
+ * Discord, se o jogador tiver um configurado. Com anexo: a imagem enviada
+ * vira a foto/fundo, com prioridade sobre qualquer escolha feita na Loja
+ * (ver playerRegistrationSystem.js
+ * _resolveCardPhotoBuffer/_resolveBackgroundBuffer — trocar pra uma
+ * escolha da Loja limpa o upload anterior, e vice-versa, pra evitar que um
+ * dado antigo fique escondido "vencendo" silenciosamente por prioridade).
  *
  * A composição de verdade (moldura, nome, badges, estrelas de honra em cima
  * da foto) acontece na hora que o /perfil é exibido, não aqui — ver
@@ -67,22 +78,23 @@ async function _uploadAndStore(client, user, arquivo, label) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('perfil-edit')
-        .setDescription('🖼️ Personaliza seu perfil (emblema pra todos; foto, plano de fundo e título são Compy/Raptor).')
+        .setDescription('🖼️ Personaliza seu perfil (emblema e foto pra todos; plano de fundo é Compy/Raptor).')
         .addAttachmentOption(opt => opt.setName('avatar')
-            .setDescription('[Raptor] Avatar/foto de perfil (vazio = remove a atual). Ignorado no Compy.')
+            .setDescription('[Raptor] Avatar/foto de perfil (vazio = remove a atual). Ignorado fora do Raptor.')
             .setRequired(false))
         .addAttachmentOption(opt => opt.setName('plano_de_fundo')
-            .setDescription('[Raptor] Plano de fundo (ideal 1300x300, máximo aceito). Vazio = remove atual. Ignorado no Compy.')
+            .setDescription('[Raptor] Plano de fundo (ideal 1300x300, máximo aceito). Vazio = remove atual. Ignorado fora do Raptor.')
             .setRequired(false)),
 
     async execute(interaction, client) {
         const { user } = interaction;
 
-        // Sem gate de tier aqui de propósito — Emblema é liberado pra
-        // QUALQUER tier (pedido do dono), então até o Free precisa
-        // conseguir abrir o painel. Foto/plano de fundo/título/esconder KDA
-        // continuam Compy+/Raptor — checados individualmente mais abaixo e
-        // dentro de cada handler do painel (ConfigSystem), não aqui.
+        // Sem gate de tier aqui de propósito — Emblema E foto de perfil são
+        // liberados pra QUALQUER tier (pedido do dono, foto via Loja pro
+        // Free/Compy), então até o Free precisa conseguir abrir o painel.
+        // Plano de fundo (Compy+)/título/esconder KDA (Raptor) continuam
+        // restritos — checados individualmente mais abaixo e dentro de
+        // cada handler do painel (ConfigSystem), não aqui.
         const link = PlayerRegistry.getPlayerByDiscordId(user.id);
         if (!link) {
             return await ResponseManager.error(interaction, 'Use **/registrar** primeiro para vincular sua conta do Path of Titans.');

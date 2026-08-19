@@ -1781,23 +1781,25 @@ function loadDashboard(client) {
             // abaixo é a lista separada de "ainda dá pra resgatar").
             badgeOptions = ConfigSystem.getUsableBadgeOptions(userId);
             redeemableItems = ImageShopSystem.getRedeemableItems(userId);
-            // Foto/fundo: por POSSE (item comprado na Loja com Caçadas) pra
-            // QUALQUER tier que não seja Raptor — Free e Compy seguem a
-            // MESMA regra desde 2026-08-15 (Compy tinha acesso livre ao
-            // pool inteiro aqui, era bug, pedido do dono: "somente raptor
-            // pode alterar a imagem sem gastar caçadas"; corrigido igual do
-            // lado do Discord, ver ConfigSystem.buildPerfilEditPanelPayload).
-            // Raptor não usa este seletor (upload próprio, ver
-            // avatarPreviewUrl/backgroundPreviewUrl abaixo). Foto e plano de
-            // fundo unificados num tipo só (personalizacao, reforma
-            // 2026-08-12) — a mesma imagem comprada aparece nos dois
-            // seletores.
-            if (!isRaptor) {
-                avatarOptions = ConfigSystem.getOwnedUsableOptions(userId, 'personalizacao');
-                backgroundOptions = avatarOptions;
-            }
+            // Foto: por POSSE (item comprado na Loja com Caçadas) pra
+            // QUALQUER tier — Free e Compy seguem a MESMA regra desde
+            // 2026-08-15 (Compy tinha acesso livre ao pool inteiro aqui,
+            // era bug, pedido do dono: "somente raptor pode alterar a
+            // imagem sem gastar caçadas"; corrigido igual do lado do
+            // Discord, ver ConfigSystem.buildPerfilEditPanelPayload).
+            // Raptor TAMBÉM usa este seletor desde 2026-08-19 (pedido do
+            // dono: "usar a loja se quiser"), além do upload próprio (ver
+            // avatarPreviewUrl/backgroundPreviewUrl abaixo). Plano de
+            // fundo: igual à foto, EXCETO Free — nunca tem acesso (pedido
+            // do dono, 2026-08-19: "Tier Free... não pode ter plano de
+            // fundo no perfil"). Foto e plano de fundo unificados num tipo
+            // só (personalizacao, reforma 2026-08-12) — a mesma imagem
+            // comprada aparece nos dois seletores.
+            const isFree = !isCompyPlus;
+            avatarOptions = ConfigSystem.getOwnedUsableOptions(userId, 'personalizacao');
+            backgroundOptions = isFree ? [] : avatarOptions;
             avatarPreviewUrl = await resolvePlayerImageUrl('personalizacao', link.selected_photo_key, isRaptor ? link.banner_message_id : null);
-            backgroundPreviewUrl = await resolvePlayerImageUrl('personalizacao', link.selected_background_key, isRaptor ? link.background_message_id : null);
+            backgroundPreviewUrl = isFree ? null : await resolvePlayerImageUrl('personalizacao', link.selected_background_key, isRaptor ? link.background_message_id : null);
 
             // "Seus Itens" (pedido do dono, 2026-08-10: "Adicionar itens de
             // jogo no perfil do site") — inventário REAL de compras da Loja
@@ -2290,21 +2292,55 @@ function loadDashboard(client) {
                     PlayerRegistry.setHideKda(userId, body.hide_kda === 'on');
                 }
 
+                // Foto: qualquer tier pode escolher pela Loja (item já
+                // comprado e usável, ver imageShopSystem.js#canUseImage) —
+                // Free/Compy/Raptor seguem a MESMA fonte agora (pedido do
+                // dono, 2026-08-19: "usar a loja se quiser" pro Raptor,
+                // além do upload). Plano de fundo: igual à foto, EXCETO
+                // Free — nunca tem acesso (pedido do dono, 2026-08-19:
+                // "Tier Free... não pode ter plano de fundo no perfil").
+                const isFree = !isCompyPlus;
+                const ownedPhotoOptions = ConfigSystem.getOwnedUsableOptions(userId, 'personalizacao');
+                const ownedBackgroundOptions = isFree ? [] : ownedPhotoOptions;
+
                 if (isRaptor) {
-                    // Upload próprio tem prioridade sobre "remover" no mesmo
-                    // submit (mesma regra já usada pros banners de
-                    // Strike/Unstrike em /moderacao/:guildID/save).
+                    // Upload próprio tem prioridade de EXIBIÇÃO sobre a
+                    // escolha da Loja quando os dois existem (ver
+                    // resolvePlayerImageUrl) — por isso, ao processar um
+                    // upload novo aqui, não faz sentido também tentar ler
+                    // photo_key/background_key no mesmo submit (o picker
+                    // some da tela assim que um upload é enviado, mas um
+                    // POST manual/replay poderia mandar os dois). Escolher
+                    // pela Loja (sem upload novo) LIMPA o upload anterior —
+                    // senão a escolha ficaria salva mas invisível atrás de
+                    // um upload antigo (mesma regra do lado Discord, ver
+                    // ConfigSystem.handlePlayerPhotoSelect/
+                    // handlePlayerBackgroundSelect).
                     const avatarFile = files.avatar_file?.[0];
                     const backgroundFile = files.background_file?.[0];
                     if (avatarFile) {
                         const result = await storeImageBuffer(client, avatarFile.buffer, `Foto de perfil de \`${req.user.username}\` (\`${userId}\`) via dashboard`);
                         if (result.ok) PlayerRegistry.setBannerMessageId(userId, result.messageId);
+                    } else if ('photo_key' in body) {
+                        const key = body.photo_key || null;
+                        const valid = !key || ownedPhotoOptions.some(opt => opt.value === key);
+                        if (valid) {
+                            PlayerRegistry.setSelectedPhotoKey(userId, key);
+                            PlayerRegistry.setBannerMessageId(userId, null);
+                        }
                     }
                     if (backgroundFile) {
                         const result = await storeImageBuffer(client, backgroundFile.buffer, `Plano de fundo de \`${req.user.username}\` (\`${userId}\`) via dashboard`);
                         if (result.ok) PlayerRegistry.setBackgroundMessageId(userId, result.messageId);
                     } else if (body.remove_background === 'on') {
                         PlayerRegistry.setBackgroundMessageId(userId, null);
+                    } else if ('background_key' in body) {
+                        const key = body.background_key || null;
+                        const valid = !key || ownedBackgroundOptions.some(opt => opt.value === key);
+                        if (valid) {
+                            PlayerRegistry.setSelectedBackgroundKey(userId, key);
+                            PlayerRegistry.setBackgroundMessageId(userId, null);
+                        }
                     }
                     if ('profile_title' in body) {
                         PlayerRegistry.setProfileTitle(userId, (body.profile_title || '').trim() || null);
@@ -2315,10 +2351,9 @@ function loadDashboard(client) {
                     // dono, 2026-08-07 pro Free — e 2026-08-15 estendido pro
                     // Compy, que tinha acesso livre ao pool inteiro aqui até
                     // então, era bug: "somente raptor pode alterar a imagem
-                    // sem gastar caçadas"). Mesma fonte usada pelo
-                    // /perfil-edit do Discord, ver imageShopSystem.js.
-                    const ownedPhotoOptions = ConfigSystem.getOwnedUsableOptions(userId, 'personalizacao');
-                    const ownedBackgroundOptions = ownedPhotoOptions;
+                    // sem gastar caçadas"). Free nunca tem background_key
+                    // válido (ownedBackgroundOptions sempre [] acima), então
+                    // esse bloco só grava plano de fundo pra Compy de fato.
                     if (body.remove_background === 'on') {
                         PlayerRegistry.setSelectedBackgroundKey(userId, null);
                     } else if ('background_key' in body) {

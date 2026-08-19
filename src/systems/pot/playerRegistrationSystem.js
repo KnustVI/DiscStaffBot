@@ -228,14 +228,18 @@ class PlayerRegistrationSystem {
      * raptor se não conseguir carregar o profile dele configurado, puxe a
      * imagem de avatar do discord como imagem de perfil" — corrigido de
      * bannerURL para avatarURL/displayAvatarURL, era o campo errado do
-     * Discord) → foto padrão do tier. Free/Compy NUNCA tocam Discord —
-     * já era assim antes desta revisão, confirmado correto.
-     * Compy: foto escolhida num menu pré-definido (/perfil-edit,
-     * selected_photo_key) → foto padrão do tier. A chave escolhida pode vir
-     * do pool estático (imageManager) ou do pool dinâmico adicionado via
-     * /perfil-pool (prefixo "pool:<id>" — ver profileImagePool.js).
-     * Nunca guarda a URL de um anexo do Discord no banco (expira em ~24h) —
-     * só o ID da mensagem de armazenamento, resolvido de novo a cada /perfil.
+     * Discord) → item da Loja (selected_photo_key, pedido do dono,
+     * 2026-08-19: "Tier raptor pode... usar a loja se quiser") → foto
+     * padrão do tier.
+     * Compy: foto escolhida na Loja (/perfil-edit, selected_photo_key) →
+     * foto padrão do tier. Compy NUNCA toca Discord.
+     * Free: só item da Loja (selected_photo_key) → foto padrão do tier.
+     * Free NUNCA toca Discord.
+     * A chave escolhida pode vir do pool estático (imageManager) ou do
+     * pool dinâmico adicionado via /perfil-pool (prefixo "pool:<id>" — ver
+     * profileImagePool.js). Nunca guarda a URL de um anexo do Discord no
+     * banco (expira em ~24h) — só o ID da mensagem de armazenamento,
+     * resolvido de novo a cada /perfil.
      */
     async _resolveCardPhotoBuffer(interaction, targetUser, player, playerTier) {
         if (playerTier === 'raptor') {
@@ -267,18 +271,21 @@ class PlayerRegistrationSystem {
         // alterar as imagem sem gastar as cacadas") — Compy tinha acesso
         // LIVRE ao pool inteiro aqui, comportamento antigo de antes da Loja
         // existir (2026-08-07), nunca revisado depois que a compra por
-        // Caçadas foi implementada. Compy agora passa pela MESMA checagem
-        // de posse que o Free já usava (imageShopSystem.js#canUseImage) —
-        // só Raptor (upload próprio, branch acima) continua sem gastar
-        // Caçadas. Removida também a branch legada de imageManager só pra
-        // Compy (código morto: getPersonalizationOptions() não devolve
-        // mais chave legada nenhuma desde a reforma de 2026-08-12, então
+        // Caçadas foi implementada. Compy passa pela MESMA checagem de
+        // posse que o Free já usava (imageShopSystem.js#canUseImage).
+        // ATUALIZADO 2026-08-19 (pedido do dono: "Tier raptor pode... usar
+        // a loja se quiser") — Raptor agora TAMBÉM pode escolher pela Loja
+        // (upload, branch acima, continua tendo prioridade quando
+        // presente); canUseImage já cobre a checagem de posse+tier
+        // sozinha, então não precisa mais de whitelist de tier aqui.
+        // Removida também a branch legada de imageManager só pra Compy
+        // (código morto: getPersonalizationOptions() não devolve mais
+        // chave legada nenhuma desde a reforma de 2026-08-12, então
         // selected_photo_key nunca mais é preenchido com uma chave assim
         // pra ninguém que não seja de antes dessa data).
         if (player?.selected_photo_key && ProfileImagePool.isPoolValue(player.selected_photo_key)) {
             const poolId = ProfileImagePool.poolIdFromValue(player.selected_photo_key);
-            const allowed = (playerTier === 'compy' || playerTier === 'free')
-                && require('./imageShopSystem').canUseImage(player.user_id, 'personalizacao', poolId);
+            const allowed = require('./imageShopSystem').canUseImage(player.user_id, 'personalizacao', poolId);
             if (allowed) {
                 try {
                     const buffer = await ProfileImagePool.resolveImageBuffer(interaction.client, 'personalizacao', poolId);
@@ -302,14 +309,19 @@ class PlayerRegistrationSystem {
      * banner dele como plano de fundo se existir" — antes não existia
      * nenhum fallback de Discord aqui, sempre caía direto em null) > null
      * (sem plano de fundo, Raptor sem upload E sem banner no Discord).
-     * Free/Compy: item comprado na Loja (selected_background_key, ver
-     * imageShopSystem.js#canUseImage — MESMA regra pros dois desde
-     * 2026-08-15, Compy não tem mais acesso livre ao pool, ver docblock de
-     * _resolveCardPhotoBuffer) > null. Free/Compy NUNCA tocam Discord.
+     * Compy/Raptor: item comprado na Loja (selected_background_key, ver
+     * imageShopSystem.js#canUseImage) > null. Compy NUNCA toca Discord.
+     * Free: SEM plano de fundo, sempre (pedido do dono, 2026-08-19: "Tier
+     * Free... não pode ter plano de fundo no perfil, somente
+     * personalização de foto de perfil") — retorna null antes de checar
+     * qualquer coisa, mesmo que o jogador tenha um selected_background_key
+     * antigo de antes dessa mudança (dado órfão, nunca mais usado).
      *
      * @returns {Promise<Buffer|null>}
      */
     async _resolveBackgroundBuffer(interaction, player, playerTier) {
+        if (playerTier === 'free') return null;
+
         if (playerTier === 'raptor' && player?.background_message_id) {
             try {
                 const url = await require('../../utils/imageStorage').resolveStoredImageUrl(interaction.client, player.background_message_id);
@@ -341,15 +353,14 @@ class PlayerRegistrationSystem {
             }
         }
 
-        // Mesma regra do _resolveCardPhotoBuffer acima (corrigida
-        // 2026-08-15): Free E Compy passam pela MESMA checagem de posse —
-        // Compy não tem mais acesso livre ao pool. Removida também a
-        // branch legada de imageManager só pra Compy (código morto, mesmo
-        // motivo do outro resolver).
+        // Mesma regra do _resolveCardPhotoBuffer acima: canUseImage já
+        // cobre a checagem de posse+tier sozinha (Free já saiu por cima
+        // via early-return, então só Compy/Raptor chegam aqui). Removida
+        // também a branch legada de imageManager só pra Compy (código
+        // morto, mesmo motivo do outro resolver).
         if (player?.selected_background_key && ProfileImagePool.isPoolValue(player.selected_background_key)) {
             const poolId = ProfileImagePool.poolIdFromValue(player.selected_background_key);
-            const allowed = (playerTier === 'compy' || playerTier === 'free')
-                && require('./imageShopSystem').canUseImage(player.user_id, 'personalizacao', poolId);
+            const allowed = require('./imageShopSystem').canUseImage(player.user_id, 'personalizacao', poolId);
             if (allowed) {
                 const buffer = await ProfileImagePool.resolveImageBuffer(interaction.client, 'personalizacao', poolId);
                 if (buffer) return buffer;

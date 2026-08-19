@@ -962,6 +962,29 @@
                                 <div class="icon-box"><i data-lucide="upload"></i></div>
                                 <input type="file" name="avatar_file" accept="image/png,image/jpeg,image/webp" class="input-premium-field">
                             </div>
+                            <%# Raptor TAMBÉM pode escolher pela Loja (pedido do dono,
+                                2026-08-19: "usar a loja se quiser"), além do upload acima
+                                — as duas opções ficam disponíveis juntas, não uma no lugar
+                                da outra. Envio de arquivo novo tem prioridade sobre a
+                                escolha aqui embaixo se os dois vierem preenchidos no mesmo
+                                submit (ver dashboard.js POST /perfil/save). %>
+                            <% if (avatarOptions.length > 0) { %>
+                                <p class="text-xs opacity-40 mt-3 mb-2"><span data-i18n-pt>Ou escolha uma das fotos que você comprou na Loja:</span><span data-i18n-en>Or choose one of the photos you bought in the Shop:</span></p>
+                                <div class="banner-picker">
+                                    <label class="banner-picker-option is-narrow">
+                                        <input type="radio" name="photo_key" value="" <%= !link.selected_photo_key ? 'checked' : '' %>>
+                                        <span class="banner-picker-thumb is-square"></span>
+                                        <span class="banner-picker-label"><span data-i18n-pt>Nenhuma (upload/padrão)</span><span data-i18n-en>None (upload/default)</span></span>
+                                    </label>
+                                    <% avatarOptions.forEach(opt => { %>
+                                        <label class="banner-picker-option is-narrow">
+                                            <input type="radio" name="photo_key" value="<%= opt.value %>" <%= opt.value === link.selected_photo_key ? 'checked' : '' %>>
+                                            <span class="banner-picker-thumb is-square"></span>
+                                            <span class="banner-picker-label"><%= opt.label %></span>
+                                        </label>
+                                    <% }); %>
+                                </div>
+                            <% } %>
                         <% } else if (avatarOptions.length > 0) { %>
                             <%# Free e Compy chegam aqui igual — restrito ao que comprou na Loja (bug do Compy com acesso livre corrigido em 2026-08-15), ver dashboard.js GET /perfil. %>
                             <p class="text-xs opacity-40 mb-2"><span data-i18n-pt>Escolha uma das fotos que você comprou na Loja.</span><span data-i18n-en>Choose one of the photos you bought in the Shop.</span></p>
@@ -995,8 +1018,34 @@
                                 <div class="icon-box"><i data-lucide="upload"></i></div>
                                 <input type="file" name="background_file" accept="image/png,image/jpeg,image/webp" class="input-premium-field">
                             </div>
+                            <%# Raptor TAMBÉM pode escolher pela Loja, mesmo raciocínio
+                                da Foto de Perfil acima — ver comentário lá. %>
+                            <% if (backgroundOptions.length > 0) { %>
+                                <p class="text-xs opacity-40 mt-3 mb-2"><span data-i18n-pt>Ou escolha um dos planos de fundo que você comprou na Loja:</span><span data-i18n-en>Or choose one of the backgrounds you bought in the Shop:</span></p>
+                                <div class="banner-picker">
+                                    <label class="banner-picker-option">
+                                        <input type="radio" name="background_key" value="" <%= !link.selected_background_key ? 'checked' : '' %>>
+                                        <span class="banner-picker-thumb"></span>
+                                        <span class="banner-picker-label"><span data-i18n-pt>Nenhum (upload/padrão)</span><span data-i18n-en>None (upload/default)</span></span>
+                                    </label>
+                                    <% backgroundOptions.forEach(opt => { %>
+                                        <label class="banner-picker-option">
+                                            <input type="radio" name="background_key" value="<%= opt.value %>" <%= opt.value === link.selected_background_key ? 'checked' : '' %>>
+                                            <span class="banner-picker-thumb"></span>
+                                            <span class="banner-picker-label"><%= opt.label %></span>
+                                        </label>
+                                    <% }); %>
+                                </div>
+                            <% } %>
+                        <% } else if (!isCompyPlus) { %>
+                            <%# Free (pedido do dono, 2026-08-19: "Tier Free... não pode
+                                ter plano de fundo no perfil, somente personalização de
+                                foto de perfil") — mensagem explícita em vez de cair na
+                                "você ainda não comprou" (que erradamente insinuaria que
+                                dá pra comprar um). %>
+                            <p class="text-xs opacity-40"><span data-i18n-pt>Plano de fundo é um recurso do Player Premium Compy ou superior.</span><span data-i18n-en>Background is a Compy tier or higher Player Premium feature.</span></p>
                         <% } else if (backgroundOptions.length > 0) { %>
-                            <%# Free e Compy chegam aqui igual — restrito ao que comprou na Loja (bug do Compy com acesso livre corrigido em 2026-08-15), ver dashboard.js GET /perfil. %>
+                            <%# Compy — restrito ao que comprou na Loja (bug do acesso livre corrigido em 2026-08-15), ver dashboard.js GET /perfil. %>
                             <p class="text-xs opacity-40 mb-2"><span data-i18n-pt>Escolha um dos planos de fundo que você comprou na Loja.</span><span data-i18n-en>Choose one of the backgrounds you bought in the Shop.</span></p>
                             <div class="banner-picker">
                                 <label class="banner-picker-option">
@@ -1015,9 +1064,9 @@
                         <% } else { %>
                             <p class="text-xs opacity-40"><span data-i18n-pt>Você ainda não comprou nenhum plano de fundo na</span><span data-i18n-en>You haven't bought any background in the</span> <a href="/loja"><span data-i18n-pt>Loja</span><span data-i18n-en>Shop</span></a> <span data-i18n-pt>— compre um plano de fundo específico com Caçadas.</span><span data-i18n-en>yet — buy a specific background with Hunt.</span></p>
                         <% } %>
-                        <%# Checkbox de remoção — Raptor (upload) ou compra na Loja (Free/Compy), nunca no ramo sem acesso acima. %>
+                        <%# Checkbox de remoção — Raptor (upload OU Loja) ou compra na Loja (Compy), nunca Free (backgroundOptions sempre [] pra ele, ver dashboard.js). %>
                         <% if (isRaptor || backgroundOptions.length > 0) { %>
-                            <% const hasBackground = isRaptor ? !!link.background_message_id : !!link.selected_background_key; %>
+                            <% const hasBackground = !!link.background_message_id || !!link.selected_background_key; %>
                             <% if (hasBackground) { %>
                                 <label class="text-xs opacity-60 flex items-center gap-2 mt-2">
                                     <input type="checkbox" name="remove_background" value="on"> <span data-i18n-pt>Remover plano de fundo atual</span><span data-i18n-en>Remove current background</span>

@@ -160,9 +160,13 @@ FREE
   abaixo. Free JA PODE comprar/enviar imagens especificas na Loja de
   Personalizacao pagando Cacadas (sem gate de tier nenhum na COMPRA em
   si, ja implementado desde 2026-08-07/12 - ver Loja de Personalizacao
-  mais abaixo) e usar como foto/plano de fundo do card - EXATAMENTE o
-  mesmo mecanismo do Compy (ver abaixo); a UNICA forma de trocar imagem
-  sem gastar Cacadas e o Raptor, via upload de imagem PROPRIA (nao
+  mais abaixo) e usar como FOTO DE PERFIL do card. MUDANCA 2026-08-19
+  (pedido do dono: "Tier Free... nao pode ter plano de fundo no perfil,
+  somente personalizacao de foto de perfil") - Free NAO tem acesso a
+  PLANO DE FUNDO de jeito nenhum, nem pela Loja nem por upload; plano de
+  fundo passou a ser exclusivo Compy+ (Loja) e Raptor (upload OU Loja) -
+  ver secao Compy abaixo. A UNICA forma de trocar imagem sem gastar
+  Cacadas continua sendo o Raptor, via upload de imagem PROPRIA (nao
   compra de item do catalogo - CORRIGIDO 2026-08-15, antes o Compy tinha
   por engano acesso livre ao catalogo inteiro sem comprar nada, bug de
   codigo antigo de antes da Loja existir, nunca revisado - ver secao
@@ -172,7 +176,13 @@ FREE
   Caçada + 5 Bones + 1 XP) em qualquer servidor integrado ao bot - ver
   moeda Caçadas/Osso/Nível no topo desta seção. JÁ IMPLEMENTADO
   (2026-08-07, ver seção 135) - saldo real, visível em /loja e (Caçadas)
-  em /perfil.
+  em /perfil. SEM multiplicador por tier - Compy/Raptor ganham exatamente
+  a MESMA taxa por hora que o Free (CONFIRMADO 2026-08-19, pedido do
+  dono: "Vamos remover o buff de farm de cacadas por hora de todos os
+  tiers, todos vao farmar e ganhar igualmente" - investigacao confirmou
+  que esse multiplicador NUNCA existiu no codigo; o texto de marketing em
+  hero.ejs que sugeria o contrario foi corrigido no mesmo dia, ver seção
+  mais recente do changelog).
 
 COMPY - R$10/mes (Brasil, Pix manual) ou US$6/mes (fora do Brasil, via Ko-fi) ("Tudo do Free +")
 - Banner de perfil padrao do tier Compy (imagem fixa). No futuro, vai poder
@@ -184,15 +194,18 @@ COMPY - R$10/mes (Brasil, Pix manual) ou US$6/mes (fora do Brasil, via Ko-fi) ("
     - Foto de fundo do CARD (avatar) e Plano de fundo (banner atras da
       mensagem INTEIRA do /perfil, distinto da foto de dentro do card)
       escolhidos num menu, restrito ao que o jogador POSSUI (comprado na
-      Loja de Personalizacao com Cacadas - MESMO mecanismo do Free, sem
-      acesso livre ao catalogo por tier - CORRIGIDO 2026-08-15, ver secao
-      201) - MUDANCA 2026-08-12 (secao 183): os dois viraram um UNICO tipo
-      de imagem ("personalizacao") no pool - qualquer imagem comprada (ou
-      enviada por ele mesmo e aprovada, ver Loja de Personalizacao mais
-      abaixo) pode ser usada como foto OU como plano de fundo, sem
-      distincao. Alimentado pelo dono via /dev/Loja no site (antes
-      /perfil-pool add avatar/fundo no bot developer, removido - ver
-      secao 183). JA IMPLEMENTADO E FUNCIONAL.
+      Loja de Personalizacao com Cacadas - sem acesso livre ao catalogo
+      por tier - CORRIGIDO 2026-08-15, ver secao 201) - MUDANCA 2026-08-12
+      (secao 183): os dois viraram um UNICO tipo de imagem
+      ("personalizacao") no pool - qualquer imagem comprada (ou enviada
+      por ele mesmo e aprovada, ver Loja de Personalizacao mais abaixo)
+      pode ser usada como foto OU como plano de fundo, sem distincao.
+      MUDANCA 2026-08-19: a FOTO usa o MESMO mecanismo do Free (Free
+      tambem compra/usa foto pela Loja, ver bullet acima); o PLANO DE
+      FUNDO passou a ser EXCLUSIVO Compy+ - Free perdeu acesso a plano de
+      fundo por completo. Alimentado pelo dono via /dev/Loja no site
+      (antes /perfil-pool add avatar/fundo no bot developer, removido -
+      ver secao 183). JA IMPLEMENTADO E FUNCIONAL.
     - Esconder/mostrar a linha de Kills/Deaths/K-D do /perfil. JA
       IMPLEMENTADO.
 - Titulo do card (texto livre) NAO libera aqui - exclusivo do Raptor (ver
@@ -219,6 +232,17 @@ RAPTOR - R$25/mes (Brasil, Pix manual) ou US$12/mes (fora do Brasil, via Ko-fi) 
   upload, cai pro BANNER do proprio Discord se o jogador tiver um
   configurado (NOVO 2026-08-15 - antes nao existia fallback nenhum aqui,
   ficava sempre sem plano de fundo). JA IMPLEMENTADO.
+- MUDANCA 2026-08-19 (pedido do dono: "Tier raptor pode anexar qualquer
+  foto que quiser pelo comando no discord ou no site e usar a loja se
+  quiser") - Raptor agora TAMBEM pode escolher foto e plano de fundo pela
+  Loja de Personalizacao, pelo MESMO menu do Compy, como ALTERNATIVA ao
+  upload proprio (nao precisa gastar Cacadas se preferir enviar a propria
+  imagem, mas pode escolher a Loja se quiser). Upload proprio continua
+  tendo PRIORIDADE de exibicao quando presente (ver
+  playerRegistrationSystem.js#_resolveCardPhotoBuffer/
+  _resolveBackgroundBuffer); trocar pra uma escolha da Loja limpa
+  automaticamente o upload anterior (e vice-versa), pra nunca deixar um
+  dado antigo "vencendo" escondido por prioridade. JA IMPLEMENTADO.
 - Titulo do card (texto livre, ate 40 caracteres) via modal em
   /perfil-edit - substitui o placeholder fixo "Em breve (missoes)" pela
   badge superior do card. JA IMPLEMENTADO (exclusivo deste tier - sem
@@ -235,10 +259,13 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   conta (/registrar) - moldura/badges/icones vem dos SVGs reais de design
   em assets/cards/{tier}.svg (Free/Compy/Raptor, cada um com sua cor), sem
   nenhuma parte redesenhada a mao. O que o bot desenha por cima na hora:
-    - a FOTO, recortada exatamente na moldura do card (foto padrao do tier
-      pra Free/Compy - NUNCA Discord; no Raptor, pode ser a foto
-      personalizada via /perfil-edit, o AVATAR do proprio Discord, ou a
-      padrao, nessa ordem - corrigido 2026-08-15, era banner por engano);
+    - a FOTO, recortada exatamente na moldura do card: Free/Compy usam a
+      imagem escolhida na Loja de Personalizacao (se possuir uma) ou a
+      foto padrao do tier - NUNCA puxam nada do Discord; no Raptor, pode
+      ser a foto enviada via upload proprio (/perfil-edit), o AVATAR do
+      proprio Discord (corrigido 2026-08-15, era banner por engano), a
+      imagem escolhida na Loja (NOVO 2026-08-19 - Raptor tambem pode usar
+      a Loja, nao so upload) ou a padrao, nessa ordem de prioridade;
     - as 5 ESTRELAS DE HONRA - JA REAL, calculada de verdade (nao e
       placeholder): conta punicoes ATIVAS do jogador em TODOS os
       servidores (honra e global, nao por servidor) e converte em 1 a 5
@@ -274,18 +301,25 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   Guarda so o ID da mensagem, nao a URL - links de anexo do Discord expiram
   em ~24h, entao a URL e resolvida na hora (refazendo o fetch da mensagem)
   toda vez que o /perfil e exibido.
-- Foto/plano de fundo escolhidos por menu (Compy) via /perfil-edit - sem
-  upload do jogador, so seleciona entre as imagens que ele POSSUI
-  (comprado na Loja de Personalizacao com Cacadas - mesmo mecanismo do
-  Free, sem acesso livre ao pool por tier - CORRIGIDO 2026-08-15, ver
-  secao 201), dentro do que o dono ja tiver adicionado ao pool via
-  /dev/Loja no site (antes /perfil-pool add avatar/fundo, removido - ver
-  secao 183) - pool 100% dinamico, nao depende mais de nenhuma foto fixa
-  em assets/images. Guarda so a CHAVE
+- Foto (Free/Compy/Raptor) e plano de fundo (Compy/Raptor) escolhidos por
+  menu via /perfil-edit - sem upload do jogador, so seleciona entre as
+  imagens que ele POSSUI (comprado na Loja de Personalizacao com Cacadas
+  - sem acesso livre ao pool por tier - CORRIGIDO 2026-08-15, ver secao
+  201), dentro do que o dono ja tiver adicionado ao pool via /dev/Loja no
+  site (antes /perfil-pool add avatar/fundo, removido - ver secao 183) -
+  pool 100% dinamico, nao depende mais de nenhuma foto fixa em
+  assets/images. Guarda so a CHAVE
   "pool:<id>" (player_links.selected_photo_key/selected_background_key),
   nunca um arquivo proprio do jogador. MUDANCA 2026-08-12 (secao 183):
   foto e plano de fundo viraram um UNICO tipo de imagem no pool
-  ("personalizacao") - a mesma imagem serve pras duas coisas.
+  ("personalizacao") - a mesma imagem serve pras duas coisas. MUDANCA
+  2026-08-19 (ver bullets Free/Compy/Raptor acima): Free so pode escolher
+  FOTO por esse menu, nunca plano de fundo (perdeu acesso por completo);
+  Compy escolhe os dois; Raptor tambem escolhe os dois por esse MESMO
+  menu, como alternativa ao upload proprio (ver bullet Raptor acima) -
+  trocar de um pro outro (upload <-> escolha da Loja) limpa
+  automaticamente o dado anterior, pra nunca deixar um dado antigo
+  "vencendo" escondido por prioridade.
 - Pool dinamico de imagens (personalizacao/emblema/banner/titulo) via
   /dev/Loja no site (antes /perfil-pool no bot developer, removido - ver
   secao 183) - o dono adiciona/remove/lista imagens sem precisar editar
@@ -318,15 +352,20 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
 A LOJA DE PERSONALIZAÇÃO já é FUNCIONAL DE VERDADE desde 2026-08-07 (ver
 seção 138), e ganhou uma REFORMA GRANDE em 2026-08-12 (ver seção 183):
 QUALQUER jogador (qualquer tier) pode comprar uma imagem do pool com
-Caçadas e ela entra no INVENTÁRIO pessoal, usável como foto OU plano de
-fundo (unificados, sem distinção de compra) - Free e Compy compram pelo
-MESMO mecanismo, sem distinção de tier na compra em si (CORRIGIDO
-2026-08-15: até então o Compy tinha acesso livre a todo o pool sem
-precisar comprar nada - bug de código antigo de antes da Loja existir,
-nunca revisado depois da reforma de 2026-08-12, ver seção 201). Por item, o dono define
-(painel `/dev/Loja` no site): preço em Caçadas e o tier mínimo pra USAR
-o item depois de comprado (shop_min_tier) - COMPRAR nunca depende de
-tier, só de ter Caçadas suficientes. NOVO em 2026-08-12: qualquer jogador
+Caçadas e ela entra no INVENTÁRIO pessoal - a COMPRA em si nunca depende
+de tier, só de ter Caçadas suficientes, e é o MESMO mecanismo pra
+Free/Compy/Raptor (CORRIGIDO 2026-08-15: até então o Compy tinha acesso
+livre a todo o pool sem precisar comprar nada - bug de código antigo de
+antes da Loja existir, nunca revisado depois da reforma de 2026-08-12,
+ver seção 201). O USO de um item comprado é que varia por tier: qualquer
+tier pode usá-lo como FOTO de perfil, mas só Compy/Raptor podem usá-lo
+como PLANO DE FUNDO (MUDANÇA 2026-08-19, pedido do dono - Free perdeu
+acesso a plano de fundo por completo, ver bullet Free na seção acima) -
+antes dessa mudança os dois usos (foto/plano de fundo) eram
+intercambiáveis pra qualquer comprador. Por item, o dono TAMBÉM define
+(painel `/dev/Loja` no site) um tier mínimo pra USAR o item depois de
+comprado (shop_min_tier, independente da restrição foto/fundo acima).
+NOVO em 2026-08-12: qualquer jogador
 também pode ENVIAR uma imagem própria pra venda (paga uma taxa em
 Caçadas, imagem precisa ter proporção 800×427, fica pendente até o dono
 aprovar em `/dev/Loja`) - se aprovada, o autor recebe 10% de Caçadas a
@@ -12332,6 +12371,112 @@ frente, nao so este relatorio):
   degraus (1500/1250/1000px), abrindo o drawer mobile numa tela
   estreita, e conferindo a logo colorida aparecendo só abaixo de
   768px.
+
+243) Free perde plano de fundo (só foto pela Loja); Raptor ganha a Loja como alternativa ao upload; confirmado que nunca existiu buff de farm por tier
+------------------------------------------------------------------------------------------------------
+- Pedido do dono, 2026-08-19: "Alteração no acesso de fotos do premium.
+  - Tier Free ( Sem premium) Não pode ter plano de fundo no perfil
+  somente personalização de foto de perfil. Uso somente de itens da
+  loja. - Tier compy pode ter plano de funto e foto de perfil
+  personalizados somente pela loja Tier raptor pode anexar qualquer
+  foto que quiser pelo comando no discord ou no site e usar a loja se
+  quiser. Vamos remover o buff de farm de caçadas por hora de todos os
+  tiers, todos vão farmar e ganahr igualmente. (Me lembre que eu fiz
+  isso)". Depois, no meio da implementação: "Não esqueça de atualiza o
+  card de premium na pagina Home."
+- PARTE 1 — acesso a foto/plano de fundo, redesenhado por tier:
+    - Free: FOTO ainda liberada pela Loja (Caçadas), como já era. PLANO
+      DE FUNDO removido por completo — nem Loja, nem upload. Antes, um
+      item comprado na Loja servia indistintamente pras duas coisas
+      (foto OU fundo) pra qualquer comprador; agora o mesmo item só
+      pode ser usado como fundo por quem já é Compy+ na hora de
+      selecionar (a restrição é no USO/seleção, não na compra — comprar
+      continua sem gate de tier nenhum).
+    - Compy: sem mudança de comportamento — foto e fundo continuam só
+      pela Loja (menu, sem upload).
+    - Raptor: ganhou a Loja como alternativa ao upload próprio (antes
+      só tinha upload). Upload continua com PRIORIDADE de exibição
+      quando presente. Trocar pra uma escolha da Loja agora LIMPA
+      automaticamente o upload anterior (`setBannerMessageId`/
+      `setBackgroundMessageId` pra `null`), e vice-versa — sem essa
+      limpeza, o dado mais antigo continuaria "vencendo" escondido pela
+      ordem de prioridade e a troca pareceria não ter feito efeito
+      nenhum, um jeito fácil de introduzir um bug silencioso.
+    - Arquivos: `src/systems/core/configSystem.js`
+      (`buildPerfilEditPanelPayload`, `handlePerfilEditInfoButton`,
+      `handlePlayerPhotoSelect`, `handlePlayerBackgroundSelect`);
+      `src/systems/pot/playerRegistrationSystem.js`
+      (`_resolveCardPhotoBuffer`/`_resolveBackgroundBuffer` — Raptor
+      passou a entrar na mesma checagem de posse+tier do pool
+      (`imageShopSystem.js#canUseImage`) que Free/Compy já usavam, sem
+      mais whitelist de tier por fora dela; `_resolveBackgroundBuffer`
+      ganhou um `if (playerTier === 'free') return null;` logo no
+      topo); `dashboard.js` (rotas `GET /perfil` e `POST /perfil/save`
+      — mesma lógica de limpeza cruzada upload↔Loja do lado bot,
+      replicada pro formulário do site); `web/views/perfil.ejs` (Raptor
+      ganhou o mesmo picker de Loja abaixo do campo de upload, tanto
+      pra foto quanto pra fundo; Free ganhou uma mensagem explícita
+      "Plano de fundo é um recurso do Player Premium Compy ou
+      superior" em vez de cair na mensagem genérica de "você ainda não
+      comprou nada"); `src/commands/utility/perfil-edit.js` (só
+      docblock/descrições dos parâmetros do slash command — nenhuma
+      mudança funcional, o roteamento Raptor-vs-resto já funcionava
+      certo sob as regras novas sem precisar mexer).
+- PARTE 2 — farm de Caçadas por hora "igual pra todo mundo": investigação
+  confirmou que esse multiplicador por tier NUNCA existiu no código —
+  `_creditPlaytimeCurrency`/`_creditGuildBones` em `potPlayerRegistry.js`
+  já eram (e continuam sendo) flat: 1 Caçada + 5 Bones + 1 XP por hora,
+  pra QUALQUER tier, sem exceção. Nenhuma mudança de código foi
+  necessária por não haver nada pra remover. O que EXISTIA, e foi
+  corrigido, era uma AFIRMAÇÃO FALSA no texto de marketing da Home
+  (`web/views/hero.ejs`, seção "A LOJA"/"LOJA DE CAÇADAS"): "Os tiers
+  premium Compy e Raptor aumentam o farm de Caçadas" — o texto irmão da
+  Loja de Ossos, na mesma seção, já dizia corretamente "Nenhum tier
+  premium afeta a aquisição de Ossos"; o texto de Caçadas dizia o
+  oposto do que o código faz. Corrigido pra "Nenhum tier premium afeta
+  a taxa de ganho de Caçadas por hora jogada — todo mundo farma igual",
+  espelhando a frase que já existia pro Osso. Esta seção 1 (acima) já
+  descrevia corretamente o ganho por hora como flat — só a Home estava
+  errada.
+- MEMÓRIA: pedido explícito do dono ("Me lembre que eu fiz isso") — a
+  decisão "sem multiplicador de farm por tier, todo mundo ganha igual
+  por hora" foi salva na memória persistente do agente (fora deste
+  arquivo) pra ser lembrada em conversas futuras, caso o tema volte
+  (ex: alguém propor um bônus de farm pro Compy/Raptor de novo).
+- Card de PLAYER PREMIUM na Home (`hero.ejs`, seção `#premium`)
+  atualizado pra bater com as regras novas: bullet do Free trocou
+  "Personalize seu perfil pela loja" (genérico) por "Foto de perfil
+  pela loja" (específico); Compy ganhou o bullet novo "Plano de fundo
+  pela loja" (era o que faltava mencionar como diferencial do tier);
+  Raptor trocou "Perfil 100% personalizável com suas próprias imagens"
+  por "Envie sua própria foto e plano de fundo (ou use a loja, se
+  preferir)", deixando claro que upload não é mais a ÚNICA opção dele.
+  O parágrafo "PERFIL GLOBAL" (body3Pt/En) também trocou "No tier
+  premium, você pode subir a imagem que quiser" por "No tier Raptor" —
+  antes dava a entender que qualquer premium (Compy incluso) tinha
+  upload próprio, o que nunca foi verdade.
+- Seções 1-2 (descrição viva dos tiers, topo deste arquivo) atualizadas
+  no mesmo commit desta entrada, por instrução do CLAUDE.md: bullets
+  Free/Compy/Raptor da seção 1, os dois bullets do resumo "O QUE JÁ
+  FUNCIONA HOJE" que descreviam a resolução de foto/fundo, e o
+  parágrafo "A LOJA DE PERSONALIZAÇÃO" (compra vs. uso agora
+  explicitamente distintos).
+- Verificado: `node --check` em `configSystem.js`,
+  `playerRegistrationSystem.js`, `dashboard.js`, `perfil-edit.js`;
+  `ejs.compile()` em `perfil.ejs`/`hero.ejs`. Script isolado (SQLite
+  temporário, nunca o banco real, técnica de `require.cache` já usada
+  nesta sessão) com 8 checagens sobre os dois resolvers: Free em
+  `_resolveBackgroundBuffer` retorna `null` IMEDIATAMENTE sem sequer
+  chamar `canUseImage` (bloqueio garantido, não só "sem dado pra
+  mostrar"); Compy resolve fundo via item da Loja; Raptor SEM upload
+  cai pra Loja (foto e fundo, não fica sem imagem) quando tem uma
+  escolhida — todas passaram. Sem confirmação visual/Discord real (não
+  dá pra simular uma interação de verdade neste ambiente) — o dono
+  precisa testar ao vivo: `/perfil-edit` como Free (deve ver só opção
+  de foto, sem botão de fundo), como Compy (foto+fundo só por menu) e
+  como Raptor (upload OU escolher pela Loja, pros dois, com a troca
+  entre um e outro realmente substituindo o anterior no `/perfil`
+  exibido depois).
 
 
 

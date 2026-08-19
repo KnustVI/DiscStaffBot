@@ -890,8 +890,8 @@
             bodyEn: 'Profiles can be customized to the fullest, with the option to add images, titles, and badges. The profile tracks your playtime, and also records your most-played dinosaur and carries your inventory.',
             body2Pt: 'Membros da staff podem ver seu histórico de atividades, que exibe tanto o total acumulado quanto o que você realizou no dia atual.',
             body2En: 'Staff members can see their own activity history, showing both the accumulated total and what they\'ve done today.',
-            body3Pt: 'O perfil conta com a loja para adquirir novas imagens de personalização. No tier premium, você pode subir a imagem que quiser no seu perfil.',
-            body3En: 'The profile comes with the Shop to get new customization images. On the premium tier, you can upload any image you want to your profile.',
+            body3Pt: 'O perfil conta com a loja para adquirir novas imagens de personalização. No tier Raptor, você pode subir a imagem que quiser no seu perfil.',
+            body3En: 'The profile comes with the Shop to get new customization images. On the Raptor tier, you can upload any image you want to your profile.',
         },
         {
             // Reescrito por completo (pedido do dono, 2026-08-18) — a Loja
@@ -906,8 +906,8 @@
             leadPt: 'Movimentando constantemente nossas Caçadas.',
             leadEn: 'Keeping our Hunt economy constantly moving.',
             subPt: 'LOJA DE CAÇADAS', subEn: 'HUNT SHOP', subIcon: 'hunt',
-            bodyPt: 'Caçadas são a moeda usada para comercializar imagens de personalização do seu perfil. Podem ser formadas com hora de jogo, ou você pode subir suas próprias fotos tiradas no jogo para vender. No comércio de fotos, vender uma foto rende 10% do valor dela, e o preço sobe ou desce conforme a quantidade de compras: fotos mais compradas ficam mais caras. Os tiers premium Compy e Raptor aumentam o farm de Caçadas.',
-            bodyEn: 'Hunt is the currency used to trade profile customization images. You earn it through playtime, or you can upload your own in-game screenshots to sell. In the photo marketplace, selling a photo earns you 10% of its price, and the price rises or falls based on how many times it\'s been bought: the more popular a photo, the more expensive it gets. The Compy and Raptor premium tiers boost your Hunt farming rate.',
+            bodyPt: 'Caçadas são a moeda usada para comercializar imagens de personalização do seu perfil. Podem ser formadas com hora de jogo, ou você pode subir suas próprias fotos tiradas no jogo para vender. No comércio de fotos, vender uma foto rende 10% do valor dela, e o preço sobe ou desce conforme a quantidade de compras: fotos mais compradas ficam mais caras. Nenhum tier premium afeta a taxa de ganho de Caçadas por hora jogada — todo mundo farma igual.',
+            bodyEn: 'Hunt is the currency used to trade profile customization images. You earn it through playtime, or you can upload your own in-game screenshots to sell. In the photo marketplace, selling a photo earns you 10% of its price, and the price rises or falls based on how many times it\'s been bought: the more popular a photo, the more expensive it gets. No premium tier affects your hourly Hunt earning rate — everyone farms at the same pace.',
             body2HeadingPt: 'LOJA DE OSSOS', body2HeadingEn: 'BONE SHOP', body2HeadingIcon: 'bone',
             body2Pt: 'Ossos são usados apenas para comprar itens de uso no jogo; só podem ser adquiridos jogando, ou em missões e eventos. Cada servidor administra o valor dos itens, então cada servidor tem sua própria economia. Ossos e itens comprados por Ossos não podem ser transferidos ou usados em outros servidores. Você tem um saldo por servidor, e itens comprados nele só podem ser usados nele. Ossos e itens de jogo não podem ser comercializados de nenhuma forma por dinheiro ou itens da vida real fora do jogo. Em caso de denúncia, o jogador ou servidor envolvido pode ser bloqueado do uso do bot. Nenhum tier premium afeta a aquisição de Ossos.',
             body2En: 'Bones are used only to buy in-game items; they can only be earned by playing, or through missions and events. Each server sets its own item prices, so every server has its own economy. Bones and items bought with them can\'t be transferred to or used on other servers. You have a separate balance per server, and items bought there can only be used there. Bones and game items can never be traded for real money or real-world items in any way. If reported, the player or server involved can be blocked from using the bot. No premium tier affects how Bones are earned.',
@@ -1211,7 +1211,7 @@
         <div class="pricing-card">
             <h3 style="font-family:'Tilt Warp',sans-serif; font-size:24px; text-transform:uppercase;">FREE</h3>
             <ul style="font-family:'Poppins',sans-serif; font-size:14px; display:flex; flex-direction:column; gap:8px; list-style:none; padding:0; opacity:0.9; margin-top:12px;">
-                <li><span data-i18n-pt>Personalize seu perfil pela loja</span><span data-i18n-en>Customize your profile via the shop</span></li>
+                <li><span data-i18n-pt>Foto de perfil pela loja</span><span data-i18n-en>Profile photo via the shop</span></li>
                 <li><span data-i18n-pt>Badges de missões</span><span data-i18n-en>Mission badges</span></li>
                 <li><span data-i18n-pt>Títulos de missões</span><span data-i18n-en>Mission titles</span></li>
                 <li><span data-i18n-pt>Ganhe Caçadas por hora de jogo</span><span data-i18n-en>Earn Hunt per hour played</span></li>
@@ -1222,6 +1222,7 @@
             <%- pricingCta('R$10', '$6', '#DCA15E') %>
             <p class="text-xs opacity-60 mb-2" style="font-family:'Poppins',sans-serif;"><span data-i18n-pt>Tudo do Free +</span><span data-i18n-en>Everything in Free +</span></p>
             <ul style="font-family:'Poppins',sans-serif; font-size:14px; display:flex; flex-direction:column; gap:8px; list-style:none; padding:0; opacity:0.9;">
+                <li><span data-i18n-pt>Plano de fundo pela loja</span><span data-i18n-en>Background via the shop</span></li>
                 <li><span data-i18n-pt>Badge exclusivo</span><span data-i18n-en>Exclusive badge</span></li>
                 <li><span data-i18n-pt>Títulos exclusivos</span><span data-i18n-en>Exclusive titles</span></li>
                 <li><span data-i18n-pt>Ganho extra de Caçadas por missão concluída</span><span data-i18n-en>Extra Hunt earnings per completed mission</span></li>
@@ -1232,7 +1233,7 @@
             <%- pricingCta('R$25', '$12', '#FF4E3B') %>
             <p class="text-xs opacity-60 mb-2" style="font-family:'Poppins',sans-serif;"><span data-i18n-pt>Tudo do Compy +</span><span data-i18n-en>Everything in Compy +</span></p>
             <ul style="font-family:'Poppins',sans-serif; font-size:14px; display:flex; flex-direction:column; gap:8px; list-style:none; padding:0; opacity:0.9;">
-                <li><span data-i18n-pt>Perfil 100% personalizável com suas próprias imagens</span><span data-i18n-en>100% custom profile with your own images</span></li>
+                <li><span data-i18n-pt>Envie sua própria foto e plano de fundo (ou use a loja, se preferir)</span><span data-i18n-en>Upload your own photo and background (or use the shop, if you prefer)</span></li>
                 <li><span data-i18n-pt>Ganho extra de Caçadas por Missão Titan concluída</span><span data-i18n-en>Extra Hunt earnings per completed Titan Mission</span></li>
             </ul>
         </div>
