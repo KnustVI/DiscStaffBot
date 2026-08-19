@@ -11926,3 +11926,42 @@ frente, nao so este relatorio):
   Sem confirmação visual (upload real de item na Loja de Jogo) — o
   dono pode testar enviando uma imagem grande em `/lojajogo` (criar ou
   editar um item) e confirmando que não é mais rejeitada.
+
+233) Botão Premium removido de toda sidebar — vive só na barra de topo agora
+------------------------------------------------------------------------------------------------------
+- Pedido do dono, 2026-08-19: "Remova o botão premium das sidebars de
+  todos os sites", esclarecido em seguida: "Mantenha só na tob bar"
+  (top bar) — ou seja, o botão Premium continua existindo, só não mais
+  duplicado na sidebar (nem no menu mobile).
+- `partials/sidebar-v2.ejs` — único arquivo de sidebar do dashboard
+  hoje (o antigo `sidebar.ejs`, sem "-v2", citado no docblock deste
+  mesmo arquivo, não existe mais — todas as ~14 páginas com sidebar já
+  usam só a v2). Removido o item Premium dos 3 lugares onde aparecia:
+  1. `NAV_ITEMS` da lista RESTRITA (perfil/perfil-denuncias/perfil-
+     historico/loja).
+  2. `NAV_ITEMS` da lista COMPLETA (moderacao/eventos/denuncias/
+     gameserver/lojajogo).
+  3. Seção "Navegação" do `MOBILE_DRAWER_SECTIONS` (drawer mobile
+     dessas mesmas páginas, abaixo de 767px).
+- `partials/top-nav.ejs` — o `.nav-btn` "PREMIUM" visível na barra de
+  topo de verdade (desktop/tablet, `/#premium`) foi INTENCIONALMENTE
+  mantido intocado, é o único lugar onde o botão deve continuar
+  existindo. Removido só do drawer mobile PRÓPRIO desta partial (usado
+  nas ~5 páginas sem sidebar — hero/documentacao/portal/termos/
+  dev-lojas — que replicam a lista de `.nav-btn` da barra dentro do
+  próprio menu hambúrguer) — mesmo raciocínio de "sidebar/menu, não a
+  barra em si" aplicado aos dois drawers que existem no site (o de
+  sidebar-v2.ejs pras páginas com sidebar, e este pras páginas sem).
+- O atributo genérico `accent: true`/classe `.tp-sidebar-btn.accent`
+  (destacava visualmente o item Premium na sidebar com a cor de
+  destaque `#DCA15E`) NÃO foi removido — era só usado pelos 2 itens
+  Premium agora apagados, mas é uma capacidade genérica reaproveitável
+  por qualquer item futuro que precise do mesmo destaque, então ficou
+  como está (poucas linhas, sem custo de manutenção).
+- Verificado: `ejs.compile()` em sidebar-v2.ejs/top-nav.ejs (confirma
+  que os dois arquivos continuam sintaticamente válidos depois da
+  remoção — não dá pra rodar `node --check` direto em `.ejs`). Sem
+  confirmação visual no navegador — o dono pode conferir abrindo
+  qualquer página com sidebar (ex: `/moderacao/:guildID`) e o menu
+  mobile de uma página pública (ex: `/` numa tela estreita) e
+  confirmando que Premium só aparece na barra de topo.

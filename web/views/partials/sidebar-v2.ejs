@@ -38,8 +38,8 @@
       role: Administrador ,     // texto livre mostrado no badge abaixo do nome
       nickname,                 // apelido a mostrar (se omitido, cai pro user.username)
       restricted: true,         // OPCIONAL (pedido do dono, 2026-08-05) — troca a lista padrão
-                                 // (Premium/Game Server/Loja de Jogo/Moderação/Eventos/Denúncias/
-                                 // Perfil) por só Premium/Loja/Perfil/Suas Denúncias/Histórico. Usado
+                                 // (Game Server/Loja de Jogo/Moderação/Eventos/Denúncias/
+                                 // Perfil) por só Loja/Perfil/Suas Denúncias/Histórico. Usado
                                  // em perfil.ejs/perfil-denuncias.ejs/perfil-historico.ejs/loja.ejs:
                                  // nem todo usuário logado é admin de servidor, então os itens
                                  // guild-scoped não fazem sentido nessas páginas globais.
@@ -86,10 +86,12 @@
     // 2026-07-20) — ainda sem página própria pronta. Reativar assim que
     // /manage estiver de pé de verdade e Reputação tiver sua própria rota.
     const sbRestricted = typeof restricted !== 'undefined' && restricted;
-    // Premium sempre leva pra home na âncora #premium (pedido do dono,
-    // 2026-08-05: "todo botão de premium leva a home na área de premium")
-    // — mesma âncora que a nav da própria hero.ejs usa (#premium), só que
-    // com "/" na frente pra funcionar vindo de qualquer outra página.
+    // Premium SAIU da sidebar por completo (pedido do dono, 2026-08-19:
+    // "Remova o botão premium das sidebars de todos os sites... Mantenha
+    // só na top bar") — inclusive do drawer mobile abaixo. Continua
+    // existindo só no .nav-btn de partials/top-nav.ejs (`/#premium`,
+    // mesma âncora que a nav da própria hero.ejs usa) — nunca removido de
+    // lá, só daqui.
     // labelPt/labelEn (pedido do dono, 2026-08-06: tradução completa do
     // dashboard) — renderizados como o mesmo par data-i18n-pt/en padrão
     // do site (ver visão geral abaixo, no <a> de cada item).
@@ -103,7 +105,6 @@
     // .tp-sidebar-logout mais abaixo, em vez de um botão igual aos
     // outros.
     const NAV_ITEMS = sbRestricted ? [
-        { key: 'premium', labelPt: 'Premium', labelEn: 'Premium', icon: 'gem', href: '/#premium', accent: true },
         // Loja (pedido do dono, 2026-08-15: "preciso de um botão de loja
         // na sidebar da pagina de perfil") — a barra de topo já tem um
         // link "LOJA" (ver top-nav.ejs), mas ela é hideOnScroll nestas
@@ -133,7 +134,6 @@
         // web/views/perfil-historico.ejs). Global como os itens acima.
         { key: 'historico', labelPt: 'Histórico', labelEn: 'History', icon: 'history', href: '/perfil/historico' },
     ] : [
-        { key: 'premium', labelPt: 'Premium', labelEn: 'Premium', icon: 'gem', href: '/#premium', accent: true },
         // Config geral do servidor Path of Titans (conexão + Cargo
         // Administrativo do Dashboard) — pedido do dono, 2026-08-11: botão
         // no topo da lista, logo abaixo de Premium. Nome sempre em inglês
@@ -192,10 +192,12 @@
     // ÚNICA navegação nessa faixa, juntando os itens que hoje vivem
     // espalhados nos DOIS componentes:
     // - NAVEGAÇÃO: os .nav-btn "institucionais" de top-nav.ejs (Home/
-    //   Documentação/Suporte) MAIS Portal/Premium/Loja (pedido do dono,
+    //   Documentação/Suporte) MAIS Portal/Loja (pedido do dono,
     //   2026-08-16, segunda rodada: "portal, loja e premium ficam dentro
     //   de navegação") — tudo que é "pra onde ir", sem ser identidade
-    //   pessoal em si.
+    //   pessoal em si. Premium SAIU daqui de novo (pedido do dono,
+    //   2026-08-19: "mantenha só na top bar") — o botão .nav-btn
+    //   correspondente (fora do drawer) não foi tocado.
     // - SUA CONTA: só o que sobrou de identidade/histórico pessoal de
     //   verdade — Perfil/Suas Denúncias/Histórico — sempre os mesmos
     //   independente do modo da página atual (restricted ou não), porque
@@ -211,16 +213,17 @@
     const sbIsOwner = typeof isOwner !== 'undefined' && isOwner;
     const MOBILE_DRAWER_SECTIONS = [
         {
-            // Portal/Premium/Loja entraram aqui (pedido do dono,
-            // 2026-08-16, segunda rodada: "portal, loja e premium ficam
-            // dentro de navegação") — "Sua Conta" ficou só com o que é
-            // identidade/histórico pessoal de verdade (Perfil/Denúncias/
-            // Histórico), "Navegação" vira "pra onde ir" de forma geral.
+            // Portal/Loja entraram aqui (pedido do dono, 2026-08-16,
+            // segunda rodada: "portal, loja e premium ficam dentro de
+            // navegação") — "Sua Conta" ficou só com o que é identidade/
+            // histórico pessoal de verdade (Perfil/Denúncias/Histórico),
+            // "Navegação" vira "pra onde ir" de forma geral. Premium
+            // removido depois (pedido do dono, 2026-08-19: "mantenha só
+            // na top bar").
             key: 'navegacao', labelPt: 'Navegação', labelEn: 'Navigation',
             items: [
                 { key: 'home', labelPt: 'Home', labelEn: 'Home', icon: 'home', href: '/' },
                 { key: 'portal', labelPt: 'Portal', labelEn: 'Portal', icon: 'layout-dashboard', href: '/dashboard' },
-                { key: 'premium', labelPt: 'Premium', labelEn: 'Premium', icon: 'gem', href: '/#premium' },
                 { key: 'loja', labelPt: 'Loja', labelEn: 'Shop', icon: 'shopping-bag', href: '/loja' },
                 { key: 'documentacao', labelPt: 'Documentação', labelEn: 'Documentation', icon: 'book-open', href: '/documentacao' },
                 { key: 'suporte', labelPt: 'Suporte', labelEn: 'Support', icon: 'life-buoy', href: 'https://discord.gg/fkD5FQktn6', external: true },

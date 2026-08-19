@@ -179,14 +179,19 @@
         parte 2: "seria interessante ter essa opção pras páginas sem
         sidebar também"). partials/sidebar-v2.ejs não é incluído aqui,
         então não dá pra reaproveitar o drawer categorizado de lá — mas
-        sua categoria "Navegação" já é EXATAMENTE a mesma lista que os
-        .nav-btn logo acima (Home/Portal-Entrar/Premium/Loja/Documentação/
-        Suporte/Controle de Lojas), então replica só essa lista, sem
-        cabeçalho de categoria (não há estrutura real a sinalizar numa
-        lista de 6-7 itens só). Mesmo IDs/classes/função
-        (tpMobileDrawer/tpMobileDrawerBackdrop/toggleMobileDrawer) do
-        drawer de sidebar-v2.ejs — nunca convivem na mesma página (uma
-        tem sidebar, a outra não), sem risco de colisão.
+        sua categoria "Navegação" já era EXATAMENTE a mesma lista que os
+        .nav-btn logo acima, então replica essa lista, sem cabeçalho de
+        categoria (não há estrutura real a sinalizar numa lista de poucos
+        itens só). Mesmo IDs/classes/função (tpMobileDrawer/
+        tpMobileDrawerBackdrop/toggleMobileDrawer) do drawer de
+        sidebar-v2.ejs — nunca convivem na mesma página (uma tem sidebar,
+        a outra não), sem risco de colisão.
+
+        Premium SAIU deste drawer (pedido do dono, 2026-08-19: "Remova o
+        botão premium das sidebars de todos os sites... Mantenha só na
+        top bar") — continua existindo só no .nav-btn visível da barra
+        acima (`/#premium`, nunca removido de lá), por isso o drawer NÃO
+        é mais "exatamente a mesma lista" dos .nav-btn (um item a menos).
     %>
     <div class="tp-mobile-drawer-backdrop" id="tpMobileDrawerBackdrop" onclick="toggleMobileDrawer(false)"></div>
     <aside class="tp-mobile-drawer" id="tpMobileDrawer" aria-hidden="true">
@@ -219,10 +224,6 @@
                     <span><span data-i18n-pt>Entrar</span><span data-i18n-en>Login</span></span>
                 </a>
             <% } %>
-            <a href="/#premium" class="tp-mobile-drawer-item" onclick="toggleMobileDrawer(false)">
-                <i data-lucide="gem"></i>
-                <span><span data-i18n-pt>Premium</span><span data-i18n-en>Premium</span></span>
-            </a>
             <a href="/loja" class="tp-mobile-drawer-item<%= tnActive === 'loja' ? ' active' : '' %>" onclick="toggleMobileDrawer(false)">
                 <i data-lucide="shopping-bag"></i>
                 <span><span data-i18n-pt>Loja</span><span data-i18n-en>Shop</span></span>
