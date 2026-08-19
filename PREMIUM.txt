@@ -12652,3 +12652,39 @@ frente, nao so este relatorio):
   `/portal`, `/termos` e qualquer página com sidebar (`/moderacao` etc.)
   numa tela ≤767px (ou DevTools em modo responsivo) e comparando o botão
   primário com o Figma "ButtonMobile" colado no pedido.
+
+
+247) Corrige menu de navegação mobile quebrado por MediaQueryList.addEventListener sem fallback
+------------------------------------------------------------------------------------------------------
+- Pedido do dono, 2026-08-19: "quebrou o menu de navegação mobile" —
+  reportado logo depois do fix de auto-colapso da sidebar (seção
+  anterior/commit 1efc448, mesmo dia).
+- CAUSA RAIZ: `narrowQuery.addEventListener('change', applyResponsiveState)`
+  usa o método MODERNO de MediaQueryList, que não existe em navegadores
+  mais antigos (Safari <14) — e, mais relevante pro público real deste
+  bot, no WebView embutido do PRÓPRIO APP DO DISCORD no Android, que
+  historicamente fica atrás do Chrome "de verdade" do aparelho. Sem
+  fallback, essa linha lançava `TypeError: ...addEventListener is not a
+  function` — uma exceção NÃO capturada dentro de uma IIFE, que aborta
+  o resto da execução síncrona do MESMO `<script>` a partir dali. O
+  trecho que vem DEPOIS no mesmo arquivo (move `#tpMobileDrawer`/
+  `#tpMobileDrawerBackdrop` pra fora do contexto de empilhamento
+  `sticky`, e redefine `window.toggleMobileDrawer`) nunca chegava a
+  rodar — o botão hamburguer clicava e não fazia nada (o `onclick` já é
+  defensivo, `if (window.toggleMobileDrawer)`, mas nesses navegadores a
+  função nunca existia pra começar).
+- FIX: feature-detection simples antes de escolher o método —
+  `if (narrowQuery.addEventListener) {...} else if (narrowQuery.addListener) {...}`
+  (o `addListener` legado cobre exatamente os navegadores sem o método
+  novo) — nunca lança exceção, então o resto do `<script>` sempre chega
+  a rodar, em qualquer navegador.
+- Verificado: `node --check` no corpo do `<script>` extraído por
+  intervalo de linha exato do arquivo (não regex solto — uma tentativa
+  inicial de extrair via regex `<script>...</script>` capturou por
+  engano um comentário de EJS mais acima que MENCIONA a palavra
+  "script" em texto solto, mesma classe de footgun já documentada
+  nesta sessão pra tags literais dentro de comentário); `ejs.compile()`
+  no arquivo inteiro. Sem confirmação visual real — o dono pode
+  conferir no navegador de dentro do próprio app do Discord mobile
+  (o caso mais provável de reproduzir o bug original) se o menu
+  hamburguer volta a abrir/fechar normalmente.
