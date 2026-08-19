@@ -135,7 +135,7 @@ module.exports = {
                 targetLabel = `${targetUserOption} \`${alderonId}\``;
             }
 
-            const { command, ingameActionResult } = await PunishmentSystem.applyIngameAction({
+            const { command, ingameActionResult, rconResponse } = await PunishmentSystem.applyIngameAction({
                 guildId, jogoAct: level.action, targetId: targetUserOption?.id || null, alderonId,
                 durationStr: level.duration_str || '', reason, levelName: level.name, staffTag: interaction.user.tag,
                 reportId: null, actorMention: interaction.user.toString(), source: '/rcon-teste',
@@ -151,6 +151,20 @@ module.exports = {
             );
             if (command) builder.text(`**Comando RCON enviado:**\n\`\`\`\n${command}\n\`\`\``);
             builder.text(`**Resultado:** ${ingameActionResult || 'Nada foi enviado.'}`);
+            // Mensagem CRUA que o servidor do jogo respondeu (BUG REAL
+            // corrigido, pedido do dono, 2026-08-19: "não consigo me banir
+            // pra testar" — este comando já prometia mostrar "a mensagem
+            // real que aparece pro jogador" desde que foi criado, mas nunca
+            // exibia de verdade, só sucesso/falha do transporte RCON). É a
+            // única forma de confirmar se o servidor ACEITOU o formato do
+            // comando (ex: o timestamp de duração de um Ban/ServerMute) sem
+            // precisar aplicar a ação numa conta de verdade — o servidor
+            // pode não devolver nada (`rcon-client` cai pro texto 'OK'
+            // nesse caso, ver PoTRconClient.sendCommand), então só mostra
+            // esta linha quando existe algo além do genérico 'OK'.
+            if (rconResponse && rconResponse !== 'OK') {
+                builder.text(`**Resposta do servidor:**\n\`\`\`\n${rconResponse}\n\`\`\``);
+            }
             builder.separator();
             builder.text(`${emojis.trianglealert || '⚠️'} **TESTE** — nenhuma punição foi registrada (não aparece em \`/historico\`, não afeta reputação).`);
 

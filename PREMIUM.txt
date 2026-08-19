@@ -11654,3 +11654,55 @@ frente, nao so este relatorio):
   um `/strike` de Ban curto (ex: 5 minutos) num servidor real e
   confirmar que o jogador é desconectado/impedido de entrar dentro do
   prazo certo.
+
+228) Continuação da investigação do /ban: ":" no motivo corrompe a lista persistida + /rcon-teste mostra a resposta real do servidor
+------------------------------------------------------------------------------------------------------------------------------------------
+- Continuação da seção 227 — o dono colou o CONTEÚDO REAL da lista
+  persistida do servidor (incluindo a linha do jogador 620-137-103) e
+  questionou: "Mas acho q o comando rcon já estava mandando correto
+  não? Sera se o '-' nos textos pode interferir em algo?"
+- **Reavaliação honesta da seção 227**: os dados reais mostram um
+  timestamp Unix já plausível pra esse jogador, o que enfraquece a
+  certeza de que "7d" cru fosse a causa EXATA da falha original (talvez
+  o servidor já convertesse a duração sozinho, ou outro fator explique
+  o timing observado — não dá pra confirmar sem RCON real). A
+  conversão pra timestamp absoluto continua sendo mantida (bate 1:1
+  com o formato oficial documentado, remove qualquer ambiguidade), mas
+  o grau de certeza de que ERA essa a causa raiz baixou.
+- **BUG REAL novo, confirmado direto nos dados colados pelo dono**: não
+  é o "-" — é um ":" escondido dentro do texto. `buildAdminReasonLabel`
+  (`punishmentSystem.js`) gerava o Motivo_Admin como `"<nível> - Staff:
+  <tag>"` — com dois-pontos DENTRO do texto. O formato persistido do
+  PoT é `AlderonId:UnixTimestamp:AdminReason:UserReason`, ou seja ":"
+  é o delimitador de CAMPO — um "Staff: fulano" no meio do texto
+  desalinha tudo que vier depois. Visível letra por letra nos dados
+  reais colados: a linha do 620-137-103 tinha só 3 pedaços úteis em
+  vez dos 4 esperados, o "Staff:" comendo o campo que deveria ser o
+  motivo mostrado pro jogador.
+- Corrigido: `sanitizeForRcon` (usada tanto no motivo digitado
+  livremente pela staff quanto no Motivo_Admin automático) agora troca
+  qualquer ":" por " -" antes de mandar pro RCON — protege os DOIS
+  textos, não só o gerado automaticamente. `buildAdminReasonLabel`
+  também parou de introduzir o ":" na fonte ("Staff: X" → "Staff X").
+- **Bônus direto do pedido "não consigo me banir pra testar"**:
+  `/rcon-teste` (comando de diagnóstico que testa a ação em jogo de
+  QUALQUER AGID, não precisa ser a própria conta) já prometia no
+  próprio docblock, desde que foi criado, mostrar "a mensagem real que
+  aparece pro jogador" — mas nunca mostrava de verdade, só sucesso/
+  falha do transporte RCON. `applyIngameAction` agora também devolve
+  `rconResponse` (o texto CRU que o servidor respondeu, já capturado
+  pela lib `rcon-client` mas descartado até agora) e `/rcon-teste`
+  exibe essa resposta quando existe algo além do genérico "OK" — dá
+  pra confirmar se o servidor aceitou o formato do comando (incluindo
+  o timestamp) testando num AGID qualquer, sem precisar de uma conta
+  de verdade nem de auto-banimento.
+- Verificado: `node --check` nos 2 arquivos. Teste isolado confirmando
+  que um Motivo_Admin gerado automaticamente ("Orientação - Staff:
+  estelah6492 - #REP115") sai sem nenhum ":" no comando RCON final
+  ("Staff estelah6492"), que um motivo digitado à mão com ":" também é
+  limpo, e que `rconResponse` chega intacto até quem chama — 6
+  checagens, todas passando. SEM confirmação real contra o servidor —
+  o dono pode rodar `/rcon-teste` agora com o AGID do 620-137-103 (ou
+  qualquer outro) e conferir a resposta real que aparece na tela,
+  ou olhar a lista persistida de novo depois de um novo teste pra ver
+  se o formato de 4 campos ficou correto desta vez.

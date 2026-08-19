@@ -41,11 +41,26 @@ function _unregisteredTargetId(alderonId) {
 // do jogo estoura acima disso). Não mexe no valor gravado no banco
 // (`reason`/`notes` guardam exatamente o que o staff digitou) — só a cópia
 // que de fato viaja pro RCON passa por aqui.
+// BUG REAL corrigido (pedido do dono, 2026-08-19, achado com dados reais
+// da banlist/mutelist coladas pelo dono — "Sera se o '-' nos textos pode
+// interferir em algo?"): o formato persistido do PoT é
+// `AlderonId:UnixTimestamp:AdminReason:UserReason`, ":" é o delimitador de
+// CAMPO — mas o próprio bot gerava um AdminReason com ":" DENTRO do texto
+// ("Staff: fulano", ver buildAdminReasonLabel abaixo), sem nenhum escape.
+// Isso desalinha os campos de qualquer coisa que releia esse arquivo (o
+// próprio servidor de jogo, ao recarregar a lista) — confirmado
+// visualmente nos dados reais colados pelo dono, onde o "Staff: fulano"
+// vazava um campo a mais, empurrando/sumindo com o UserReason de verdade.
+// Trocado por " -" (mesmo separador visual já usado entre as partes) em
+// vez de simplesmente apagar, pra continuar legível. Motivo digitado
+// livremente pela staff (`reason`/"motivo") passa pela MESMA função, então
+// um "Discutindo: linguagem ofensiva" digitado à mão também fica seguro.
 function sanitizeForRcon(text, maxLen = null) {
     if (!text) return '';
     let clean = String(text)
         .replace(/[\r\n\t]+/g, ' ')
         .replace(/["\\]/g, '')
+        .replace(/:/g, ' -')
         .replace(/\s+/g, ' ')
         .trim();
     if (maxLen && clean.length > maxLen) clean = clean.slice(0, maxLen).trim();
@@ -56,10 +71,12 @@ function sanitizeForRcon(text, maxLen = null) {
 // console/log do servidor, nunca pro jogador) — construído automaticamente
 // a partir do nível/staff/report, já que não existe (nem foi pedido) um
 // campo separado pra staff digitar isso à mão. Serve de referência rápida
-// pra quem olhar o log do servidor sem precisar abrir o Discord.
+// pra quem olhar o log do servidor sem precisar abrir o Discord. Sem ":"
+// depois de "Staff" de propósito (ver sanitizeForRcon acima) — nasce já
+// seguro em vez de depender só do escape de saída.
 function buildAdminReasonLabel({ levelName, staffTag, reportId }) {
     const parts = [levelName || 'Registro manual'];
-    if (staffTag) parts.push(`Staff: ${staffTag}`);
+    if (staffTag) parts.push(`Staff ${staffTag}`);
     if (reportId) parts.push(reportId);
     return sanitizeForRcon(parts.join(' - '), 150);
 }
@@ -901,6 +918,17 @@ const PunishmentSystem = {
             let ingameActionResult = rconResult?.success
                 ? 'Ação in-game executada.'
                 : `Falha na ação in-game: ${rconResult?.error || 'erro desconhecido'}`;
+            // Texto CRU que o próprio servidor do jogo devolveu (ver
+            // PoTRconClient.sendCommand — biblioteca rcon-client já captura
+            // isso em `response`, só nunca tinha sido repassado daqui pra
+            // fora). BUG REAL corrigido (pedido do dono, 2026-08-19: "não
+            // consigo me banir pra testar" — /rcon-teste já prometia no
+            // próprio docblock "ver a mensagem real que aparece pro
+            // jogador", mas nunca mostrava de fato, só um sucesso/falha
+            // genérico) — sem isso não tem como confirmar se o servidor
+            // ACEITOU o formato do comando (ex: o timestamp de duração do
+            // ban) ou só recebeu o comando sem entender o argumento.
+            const rconResponse = rconResult?.success ? (rconResult.response || null) : null;
 
             // ── Ban/ServerMute mexem em listas persistentes do servidor
             // (banlist/mutelist) — SEM recarregar, o jogador é banido/mutado
@@ -914,9 +942,9 @@ const PunishmentSystem = {
                 }
             }
 
-            return { command, ingameActionResult };
+            return { command, ingameActionResult, rconResponse };
         } catch (err) {
-            return { command: null, ingameActionResult: `Falha na ação in-game: ${err.message}` };
+            return { command: null, ingameActionResult: `Falha na ação in-game: ${err.message}`, rconResponse: null };
         }
     },
 
