@@ -11741,3 +11741,81 @@ frente, nao so este relatorio):
   ServerMute de "7d" idem — 3 checagens, todas passando. Verificação
   final de verdade: o próximo `/rcon-teste` de Ban que o dono rodar
   deve vir sem erro nenhum na "Resposta do servidor".
+
+230) Falha real de RCON agora CANCELA o /strike inteiro (nada é registrado)
+------------------------------------------------------------------------------------------------------
+- Pedido do dono, 2026-08-19: "Se o rcon mandar erro de volta isso deve
+  cancelar o /strike ok?" — motivado pelo próprio teste ao vivo da
+  seção 229, onde ficou visível um problema à parte: mesmo quando o
+  JOGO rejeitou o comando (`'1787160161' is not a valid time.`), o
+  `/rcon-teste` mostrava `Resultado: Ação in-game executada.` — porque
+  o transporte RCON (a biblioteca `rcon-client`) só confirma que o
+  comando foi ENVIADO e voltou uma resposta qualquer, nunca se o jogo
+  de fato aceitou o comando. Antes desta correção, `/strike` tinha o
+  mesmo problema: a punição era gravada no banco (pontos de reputação
+  debitados, cargo temporário aplicado) mesmo quando a ação em jogo
+  nunca aconteceu de verdade — só um aviso discreto no card de
+  resultado, fácil de passar batido.
+- Dois caminhos de falha agora cancelam o `/strike` inteiro, em
+  `PunishmentSystem.applyIngameAction` (src/systems/moderation/
+  punishmentSystem.js):
+  1. Falha de TRANSPORTE (`rconResult.success === false` — servidor
+     RCON offline, senha errada, timeout etc.), já existia como sinal,
+     só nunca era usado pra cancelar nada.
+  2. Falha do PRÓPRIO JOGO disfarçada de sucesso de transporte — nova
+     função `looksLikeRconError(responseText, command)`: todo erro
+     observado do servidor do PoT ecoa o comando enviado entre
+     parênteses seguido de ": <mensagem>" (ex: o erro de timestamp da
+     seção 229). Confere contra o comando EXATO que foi enviado (não
+     um regex genérico "primeiro parêntese que fechar") — um nível com
+     parênteses no nome (ex. "Banimento (Leve)", convenção já usada
+     neste bot) quebraria um regex ingênuo que parasse no primeiro ")"
+     em vez do que fecha o eco de verdade; achado durante o teste
+     isolado desta própria mudança, corrigido antes de qualquer
+     confirmação em produção.
+  Ambos os casos são resumidos num novo campo `attemptFailed` no
+  retorno de `applyIngameAction` — `true` só quando o RCON foi de fato
+  TENTADO e falhou; `false` nos casos de "não se aplica" (nível sem
+  ação em jogo configurada, tier sem plano Rastreador+, alvo sem
+  Alderon ID vinculado) — esses continuam seguindo em frente sem RCON,
+  exatamente como sempre funcionou.
+- `PunishmentSystem._executeStrike` foi REORDENADO: a tentativa de RCON
+  agora roda ANTES de qualquer gravação (linha de punição no banco,
+  débito de reputação, cargo temporário de Strike no Discord) — não
+  depois, como era antes. Assim, quando `attemptFailed` vem `true`, a
+  função retorna cedo com `{success:false, error:'Punição cancelada:
+  ...'}` sem precisar desfazer nada, porque nada foi escrito ainda
+  (mesmo padrão de erro já usado por este método pra "Usuário não
+  encontrado"/"Erro ao aplicar punição no banco de dados" — a UI de
+  `/strike`, tanto a confirmação direta quanto a aprovação de
+  Supervisor, já sabia mostrar esse `error` num card vermelho sem
+  precisar de nenhuma mudança). Afeta os 3 chamadores de
+  `_executeStrike`: confirmação normal de `/strike`, aprovação de
+  Supervisor, e punição automática do filtro de palavras do chat em
+  jogo (`ChatFilterSystem.applyFilterPunishment`) — os 3 já tratavam
+  `{success:false, error}` sem crashar.
+- `/rcon-teste` ganha o mesmo benefício de graça (sem nenhuma mudança
+  no arquivo): como `ingameActionResult` agora também começa com
+  "Falha na ação in-game:" quando o jogo rejeita o comando por texto
+  (antes só mostrava "Ação in-game executada." mesmo com erro real),
+  o card do teste passa a ficar VERMELHO (erro) nesse caso, em vez de
+  verde (sucesso) — o `succeeded` do comando é derivado direto desse
+  texto.
+- Falha do `ReloadBans`/`ReloadMutes` (recarrega a lista persistida
+  depois de um Ban/ServerMute aceito) continua APENAS um aviso, nunca
+  cancela — nesse caso o jogador JÁ está banido/mutado de verdade no
+  arquivo persistido, cancelar o registro deixaria o staff sem
+  `/unstrike` pra desfazer uma punição que, de fato, foi aplicada.
+- Verificado: `node --check`. Teste isolado (banco SQLite temporário,
+  nunca `database.sqlite` real, RCON mockado via monkey-patch de
+  `PoTConfigSystem.executeRconCommand`) — 17 checagens, todas
+  passando: `attemptFailed` correto nos 3 cenários de falha real e nos
+  2 cenários de "não se aplica"; `/strike` cancelado de ponta a ponta
+  em falha de transporte E em rejeição do jogo (zero linhas gravadas
+  em `punishments`/`temporary_roles` nos dois); regressão confirmada
+  (RCON ok segue gravando normalmente; nível sem ação em jogo segue
+  normal mesmo com RCON simulado "quebrado", já que nunca chega a
+  tentar). Sem confirmação em produção ainda — pendente o dono rodar
+  um `/strike` real (ou aguardar o filtro de chat disparar um) contra
+  um alvo sem AGID vinculado ou com o servidor RCON fora do ar, pra
+  confirmar visualmente o card de cancelamento.

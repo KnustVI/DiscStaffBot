@@ -81,6 +81,28 @@ function buildAdminReasonLabel({ levelName, staffTag, reportId }) {
     return sanitizeForRcon(parts.join(' - '), 150);
 }
 
+// ── Detecta erro DENTRO do texto que o servidor do jogo respondeu — não
+// existe protocolo estruturado success/fail vindo do próprio jogo, o RCON
+// só garante que o comando foi ENVIADO (ver docblock de applyIngameAction).
+// Confirmado AO VIVO (pedido do dono, 2026-08-19, teste real via
+// /rcon-teste): o transporte reporta sucesso mesmo quando o JOGO rejeita o
+// comando por semântica errada — ex. "(ban 500-735-822 1787160161 "..."
+// "..."): '1787160161' is not a valid time.". Todo erro observado do
+// servidor do PoT ecoa o comando entre parênteses seguido de ": <mensagem>".
+// Confere contra o COMANDO EXATO que foi enviado (sempre disponível pra
+// quem chama, já que fomos nós que montamos) em vez de um regex genérico —
+// um regex que só para no PRIMEIRO ")" quebra sempre que o próprio comando
+// tem parênteses (ex: nível "Banimento (Leve)" vira parte do Motivo_Admin
+// ecoado, achado durante o teste isolado desta função) e deixaria de
+// cancelar um /strike com erro de verdade. O regex genérico fica só como
+// rede de segurança pra quando não sabemos o comando exato.
+function looksLikeRconError(responseText, command = null) {
+    if (!responseText || typeof responseText !== 'string') return false;
+    const trimmed = responseText.trim();
+    if (command && trimmed.startsWith(`(${command}):`)) return true;
+    return /^\([^)]*\):/.test(trimmed);
+}
+
 const PunishmentSystem = {
     _isUnregisteredTargetId,
     _unregisteredTargetId,
@@ -865,17 +887,24 @@ const PunishmentSystem = {
      * @param {string|null} params.reportId
      * @param {string} params.actorMention - staff.toString(), pro log de RCON
      * @param {string} params.source - rótulo pro log de RCON (ex: '/strike', '/rcon-teste')
-     * @returns {Promise<{ command: string|null, ingameActionResult: string|null }>}
+     * @returns {Promise<{ command: string|null, ingameActionResult: string|null, rconResponse: string|null, attemptFailed: boolean }>}
+     *   attemptFailed só vem true quando o RCON foi de fato TENTADO e falhou
+     *   de verdade (erro de transporte OU o próprio jogo rejeitando o
+     *   comando, ver looksLikeRconError) — pedido do dono, 2026-08-19: "Se o
+     *   rcon mandar erro de volta isso deve cancelar o /strike". Nos casos
+     *   de "não se aplica" (nível sem ação em jogo, tier sem autoRcon, alvo
+     *   sem AGID vinculado, ação desconhecida) vem sempre false — esses
+     *   nunca tentaram nada, então não há "falha" pra cancelar o strike.
      */
     async applyIngameAction({ guildId, jogoAct, targetId, alderonId, durationStr, reason, levelName, staffTag, reportId, actorMention, source }) {
-        if (!jogoAct || jogoAct === 'none') return { command: null, ingameActionResult: null };
+        if (!jogoAct || jogoAct === 'none') return { command: null, ingameActionResult: null, rconResponse: null, attemptFailed: false };
         if (!PremiumSystem.getGuildLimits(guildId).autoRcon) {
-            return { command: null, ingameActionResult: 'Ação in-game requer o plano Rastreador.' };
+            return { command: null, ingameActionResult: 'Ação in-game requer o plano Rastreador.', rconResponse: null, attemptFailed: false };
         }
 
         const link = alderonId ? { alderon_id: alderonId } : getPlayerByDiscordId(targetId);
         if (!link) {
-            return { command: null, ingameActionResult: 'Jogador não vinculado ao Path of Titans (/registrar) — ação in-game não executada.' };
+            return { command: null, ingameActionResult: 'Jogador não vinculado ao Path of Titans (/registrar) — ação in-game não executada.', rconResponse: null, attemptFailed: false };
         }
 
         try {
@@ -906,13 +935,10 @@ const PunishmentSystem = {
             };
             const command = rconCommands[jogoAct];
             if (!command) {
-                return { command: null, ingameActionResult: `Ação in-game "${jogoAct}" desconhecida.` };
+                return { command: null, ingameActionResult: `Ação in-game "${jogoAct}" desconhecida.`, rconResponse: null, attemptFailed: false };
             }
 
             const rconResult = await PoTConfigSystem.executeRconCommand(guildId, command, { actor: actorMention, source });
-            let ingameActionResult = rconResult?.success
-                ? 'Ação in-game executada.'
-                : `Falha na ação in-game: ${rconResult?.error || 'erro desconhecido'}`;
             // Texto CRU que o próprio servidor do jogo devolveu (ver
             // PoTRconClient.sendCommand — biblioteca rcon-client já captura
             // isso em `response`, só nunca tinha sido repassado daqui pra
@@ -924,12 +950,22 @@ const PunishmentSystem = {
             // ACEITOU o formato do comando (ex: o timestamp de duração do
             // ban) ou só recebeu o comando sem entender o argumento.
             const rconResponse = rconResult?.success ? (rconResult.response || null) : null;
+            // Transporte pode dizer "sucesso" (comando chegou e voltou uma
+            // resposta) mesmo quando o JOGO rejeitou o comando de verdade —
+            // ver looksLikeRconError, confirmado ao vivo pelo dono nesta
+            // mesma investigação (timestamp inválido no /ban).
+            const serverRejected = !!rconResult?.success && looksLikeRconError(rconResponse, command);
+            let ingameActionResult = (rconResult?.success && !serverRejected)
+                ? 'Ação in-game executada.'
+                : `Falha na ação in-game: ${serverRejected ? rconResponse : (rconResult?.error || 'erro desconhecido')}`;
+            const attemptFailed = !rconResult?.success || serverRejected;
 
             // ── Ban/ServerMute mexem em listas persistentes do servidor
             // (banlist/mutelist) — SEM recarregar, o jogador é banido/mutado
             // mas o servidor não relê o motivo até o próximo restart do
-            // servidor. ──────────────────────────────────────────────────
-            if (rconResult?.success && (jogoAct === 'Ban' || jogoAct === 'ServerMute')) {
+            // servidor. Só roda se o jogo de fato aceitou o comando
+            // (!serverRejected) — nada foi aplicado pra recarregar senão. ──
+            if (rconResult?.success && !serverRejected && (jogoAct === 'Ban' || jogoAct === 'ServerMute')) {
                 const reloadCommand = jogoAct === 'Ban' ? 'ReloadBans' : 'ReloadMutes';
                 const reloadResult = await PoTConfigSystem.executeRconCommand(guildId, reloadCommand, { actor: actorMention, source }).catch((err) => ({ success: false, error: err.message }));
                 if (!reloadResult?.success) {
@@ -937,9 +973,9 @@ const PunishmentSystem = {
                 }
             }
 
-            return { command, ingameActionResult, rconResponse };
+            return { command, ingameActionResult, rconResponse, attemptFailed };
         } catch (err) {
-            return { command: null, ingameActionResult: `Falha na ação in-game: ${err.message}`, rconResponse: null };
+            return { command: null, ingameActionResult: `Falha na ação in-game: ${err.message}`, rconResponse: null, attemptFailed: true };
         }
     },
 
@@ -1049,6 +1085,29 @@ const PunishmentSystem = {
         }
 
         const levelSnapshot = levelId ? { id: levelId, name: levelName, severity: levelSeverity, action: levelAction, durationStr } : null;
+
+        // ── Ação in-game automática via RCON — a partir do Rastreador (ver
+        // premiumSystem.js, GUILD_LIMITS.autoRcon). Montagem do comando/envio/
+        // reload extraídos pra applyIngameAction (2026-08-14) — reaproveitado
+        // por /rcon-teste, ver docblock do método. TENTADA ANTES de qualquer
+        // gravação (banco de punição/cargo temporário) — pedido do dono,
+        // 2026-08-19: "Se o rcon mandar erro de volta isso deve cancelar o
+        // /strike". Rodando isto primeiro, uma falha de verdade (erro de
+        // transporte OU o próprio jogo rejeitando o comando, ver
+        // looksLikeRconError) cancela a punição inteira sem precisar
+        // desfazer nada — neste ponto nada foi escrito ainda. attemptFailed
+        // nunca vem true nos casos de "não se aplica" (nível sem ação em
+        // jogo, tier sem autoRcon, alvo sem AGID vinculado) — nesses o
+        // strike sempre segue normalmente, sem RCON, como já era antes. ────
+        const { ingameActionResult, attemptFailed: rconAttemptFailed } = await this.applyIngameAction({
+            guildId: guild.id, jogoAct, targetId, alderonId, durationStr, reason,
+            levelName, staffTag: staff.tag, reportId, actorMention: staff.toString(), source: '/strike',
+        });
+
+        if (rconAttemptFailed) {
+            return { success: false, error: `Punição cancelada: a ação em jogo (RCON) falhou — ${ingameActionResult || 'erro desconhecido'}. Nada foi registrado (sem entrada em /historico, reputação e cargo intactos).` };
+        }
+
         const strikeId = this.applyPunishment(guild.id, targetId, staff.id, reason, levelSnapshot, reportId || null, pointsLost, alderonId || null, notes || null, approvalInfo?.approvedById || null);
         if (!strikeId) {
             return { success: false, error: 'Erro ao aplicar punição no banco de dados.' };
@@ -1092,15 +1151,6 @@ const PunishmentSystem = {
         }
 
         const roleResult = await this.applyTemporaryRole(guild, targetMember, durationMs);
-
-        // ── Ação in-game automática via RCON — a partir do Rastreador (ver
-        // premiumSystem.js, GUILD_LIMITS.autoRcon). Montagem do comando/envio/
-        // reload extraídos pra applyIngameAction (2026-08-14) — reaproveitado
-        // por /rcon-teste, ver docblock do método. ──────────────────────────
-        const { ingameActionResult } = await this.applyIngameAction({
-            guildId: guild.id, jogoAct, targetId, alderonId, durationStr, reason,
-            levelName, staffTag: staff.tag, reportId, actorMention: staff.toString(), source: '/strike',
-        });
 
         db.logActivity(guild.id, staff.id, 'strike', targetId, {
             command: 'strike', punishmentId: strikeId, levelName, levelSeverity, pointsLost,
