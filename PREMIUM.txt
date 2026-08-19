@@ -11505,3 +11505,47 @@ frente, nao so este relatorio):
   visual/RCON real — o dono precisa criar/iniciar um evento de verdade
   num servidor Rastreador+ e conferir que a mensagem aparece no chat
   do jogo.
+
+225) Investiga botão de configurar TP de evento parando de funcionar depois de um tempo
+--------------------------------------------------------------------------------------------
+- Pedido do dono (2026-08-19): "Verifique o bortão de adição de tp nos
+  eventos, depois de um tempo o botão não funciona para configuração
+  do tp, os usuários agendam um evento e não estão podendo configurar
+  o tp na hora do evento."
+- Investigação: o fluxo inteiro de configuração (`eventTeleportSystem.js`
+  — botão "Adicionar TP" → explicação → modal → salvar) é 100%
+  orientado a banco/customId, sem sessão/cache/TTL em memória que
+  pudesse expirar sozinho — descartado como causa.
+- **Hipótese mais provável, corrigida preventivamente**: a postagem do
+  evento vive numa thread de fórum, que o Discord ARQUIVA sozinha
+  depois de um período sem atividade nova — comum quando o evento é
+  agendado com dias de antecedência e a thread fica quieta até a data
+  (bate com "depois de um tempo"). O passo final da configuração
+  (`_updatePostButtons`, chamado depois de salvar as coordenadas)
+  edita a postagem original pra trocar "Adicionar TP" pelos botões de
+  TP reais — `message.edit()` numa thread arquivada pode falhar
+  (Discord desarquiva sozinho ao ENVIAR mensagem nova, não
+  necessariamente ao só EDITAR uma já existente). Corrigido:
+  desarquiva a thread explicitamente ANTES de editar (mesmo método
+  `setArchived` já usado de propósito em `reportChatSystem.js`/
+  `supportChatSystem.js`, só que pro sentido contrário) — não faz nada
+  se a thread já estiver ativa.
+- **Não confirmado ao vivo** (sem reprodução real disponível neste
+  ambiente) — outras 2 causas possíveis, descartadas por enquanto mas
+  vale o dono checar se o problema persistir: (a) o servidor perder o
+  tier Rastreador+ (`autoRcon`) entre agendar o evento e o dia dele —
+  nesse caso o botão nega corretamente, não é bug, mas pode parecer
+  "não funciona" pra quem não sabe que o plano venceu; (b) o Evento
+  Agendado do Discord ser removido automaticamente por abandono
+  (`eventScheduler.js`, 2h depois do fim previsto sem ninguém iniciar)
+  — afeta o USO do teleporte (que exige o evento Ativo), não a
+  configuração em si.
+- Verificado: `node --check` em `eventTeleportSystem.js`. Teste
+  isolado com um objeto de mensagem/canal falso confirmando:
+  `setArchived(false)` chamado só quando a thread está de fato
+  arquivada; nada acontece numa thread já ativa ou num canal que não é
+  thread; falha ao desarquivar (ex: sem permissão) não impede a
+  tentativa de editar mesmo assim — 8 checagens, todas passando. SEM
+  confirmação real em produção — o dono precisa testar com um evento
+  cuja thread já arquivou de verdade (ou aguardar um caso real
+  acontecer) pra confirmar que os botões voltam a atualizar.

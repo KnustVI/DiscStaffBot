@@ -136,8 +136,26 @@ function _buildLiveRow(messageId, scheduledEventId, config) {
  * Edita a postagem original trocando SÓ a linha de botões ao lado do
  * container (nunca reconstrói o container em si — pega ele já pronto da
  * própria mensagem, ver comentário no topo do arquivo).
+ *
+ * BUG REAL investigado (pedido do dono, 2026-08-19: "depois de um tempo o
+ * botão não funciona para configuração do tp, os usuários agendam um
+ * evento e não estão podendo configurar o tp na hora do evento") — a
+ * postagem do evento vive numa THREAD de fórum, que o Discord ARQUIVA
+ * sozinho depois de um período sem atividade nova (comum quando um
+ * evento é agendado com dias de antecedência e a thread fica quieta até
+ * a data). `message.edit()` numa thread arquivada pode falhar — Discord
+ * desarquiva sozinho quando alguém MANDA uma mensagem nova, mas não
+ * necessariamente ao só EDITAR uma já existente. Desarquiva explicitamente
+ * ANTES de editar (mesmo método já usado pra arquivar de propósito em
+ * reportChatSystem.js/supportChatSystem.js, `setArchived`) — não faz
+ * nada se a thread já estiver ativa (não-thread ou já desarquivada).
  */
 async function _updatePostButtons(message, buttons) {
+    if (message.channel?.isThread?.() && message.channel.archived) {
+        await message.channel.setArchived(false).catch((err) => {
+            console.error('❌ [EventTeleport] Erro ao desarquivar thread pra atualizar botões:', err.message);
+        });
+    }
     const containerJSON = message.components[0].toJSON();
     const row = new ActionRowBuilder().setComponents(...buttons);
     await message.edit({ components: [containerJSON, row], flags: MessageFlags.IsComponentsV2 });
