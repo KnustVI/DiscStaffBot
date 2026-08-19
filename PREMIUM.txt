@@ -11998,3 +11998,51 @@ frente, nao so este relatorio):
   subcomando não aparece no autocomplete do Discord, mesmo já
   funcionando no código.
 
+235) CORREÇÃO da seção 230: confirmação de SUCESSO real do RCON estava sendo tratada como erro
+------------------------------------------------------------------------------------------------------
+- Pedido do dono, 2026-08-19, ao testar o botão "Desfazer" de
+  /rcon-teste sumido: "É porque por algum motivo o desenvolvedor do
+  jogo coloca o título da mensagem como 'Falha' provavelmente porque é
+  uma falha ao conectar ao servidor. Para identificar um sucesso no
+  comando de ban por exemplo procure por 'Banned' e mute deve ser
+  'Muted'" — com o teste real colado: resposta do servidor
+  `(ban 500-735-822 0 "..." "..."): Banned '500-735-822' forever,
+  Admin reason = '...', User reason = '...'` (confirmação de SUCESSO
+  de verdade) sendo mostrada como `Falha na ação in-game: ...`.
+- **Causa raiz**: a heurística `looksLikeRconError` da seção 230
+  (detectava erro pelo FORMATO da resposta — "(comando): mensagem")
+  partiu de um exemplo real de ERRO, mas nunca foi testada contra um
+  exemplo real de SUCESSO — e agora ficou confirmado que o jogo usa
+  **o mesmo formato de eco pros dois casos**, sucesso e erro. Qualquer
+  resposta de texto real (não só 'OK') estava sendo classificada como
+  erro, inclusive confirmações de sucesso — isso derrubava
+  `ingameActionResult`/`attemptFailed` pra Ban/ServerMute toda vez que
+  o servidor devolvia uma resposta de verdade, o que quebrava tanto o
+  botão "Desfazer" de `/rcon-teste` (só aparece quando `succeeded`)
+  quanto, mais grave, a cancelação de `/strike` da seção 230 — um
+  `/strike` de Ban/ServerMute bem-sucedido de verdade estava sendo
+  CANCELADO por engano sempre que o servidor respondia com texto.
+- **Corrigido com um sinal POSITIVO** em vez de tentar reconhecer todo
+  formato de erro possível: `looksLikeRconError` removida por
+  completo, substituída por `rconResponseConfirmsSuccess(jogoAct,
+  responseText)` — só desconfia de uma resposta quando existe uma
+  palavra-chave de sucesso CONHECIDA pra aquela ação (`Ban` ->
+  "Banned", `ServerMute` -> "Muted", confirmadas pelo dono) e ela NÃO
+  aparece no texto. Sem resposta de texto real (`null`/`'OK'`) ou pra
+  ações sem palavra-chave conhecida (`SystemMessage`/`Kick`, nunca
+  vimos um exemplo real de erro delas) continua confiando só no
+  sucesso de TRANSPORTE, exatamente como sempre foi antes da seção
+  230 — só Ban/ServerMute com resposta de texto real ganham a
+  checagem extra agora.
+- `rcon-teste.js` não precisou de nenhuma mudança — já derivava
+  `succeeded` de `ingameActionResult.startsWith('Ação in-game
+  executada')`, então o botão "Desfazer" volta a aparecer sozinho
+  assim que `applyIngameAction` para de mentir sobre o resultado.
+- Verificado: `node --check`. Teste isolado ganhou um caso de
+  regressão novo com o texto REAL colado pelo dono (resposta contendo
+  "Banned" tratada como sucesso, não mais como erro) — 19 checagens no
+  total, todas passando, incluindo as 17 da seção 230 continuando OK
+  (nada quebrou na cancelação de `/strike`, só a detecção de sucesso/
+  falha ficou mais precisa).
+
+

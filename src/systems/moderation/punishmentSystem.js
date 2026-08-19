@@ -81,26 +81,29 @@ function buildAdminReasonLabel({ levelName, staffTag, reportId }) {
     return sanitizeForRcon(parts.join(' - '), 150);
 }
 
-// ── Detecta erro DENTRO do texto que o servidor do jogo respondeu — não
-// existe protocolo estruturado success/fail vindo do próprio jogo, o RCON
-// só garante que o comando foi ENVIADO (ver docblock de applyIngameAction).
-// Confirmado AO VIVO (pedido do dono, 2026-08-19, teste real via
-// /rcon-teste): o transporte reporta sucesso mesmo quando o JOGO rejeita o
-// comando por semântica errada — ex. "(ban 500-735-822 1787160161 "..."
-// "..."): '1787160161' is not a valid time.". Todo erro observado do
-// servidor do PoT ecoa o comando entre parênteses seguido de ": <mensagem>".
-// Confere contra o COMANDO EXATO que foi enviado (sempre disponível pra
-// quem chama, já que fomos nós que montamos) em vez de um regex genérico —
-// um regex que só para no PRIMEIRO ")" quebra sempre que o próprio comando
-// tem parênteses (ex: nível "Banimento (Leve)" vira parte do Motivo_Admin
-// ecoado, achado durante o teste isolado desta função) e deixaria de
-// cancelar um /strike com erro de verdade. O regex genérico fica só como
-// rede de segurança pra quando não sabemos o comando exato.
-function looksLikeRconError(responseText, command = null) {
-    if (!responseText || typeof responseText !== 'string') return false;
-    const trimmed = responseText.trim();
-    if (command && trimmed.startsWith(`(${command}):`)) return true;
-    return /^\([^)]*\):/.test(trimmed);
+// ── Não existe protocolo estruturado success/fail vindo do próprio jogo —
+// o RCON só garante que o comando foi ENVIADO (ver docblock de
+// applyIngameAction), e a resposta de TEXTO do servidor usa o MESMO
+// formato de eco "(comando): mensagem" tanto pra sucesso quanto pra erro
+// — não dá pra distinguir os dois só pela FORMA da resposta (tentativa
+// anterior, baseada nisso, classificava confirmações de sucesso reais
+// como erro — bug real encontrado pelo dono ao testar /rcon-teste em
+// cima da própria conta, 2026-08-19: resposta real
+// "(ban ...): Banned '500-735-822' forever, ..." — uma confirmação de
+// SUCESSO — estava sendo tratada como falha). Corrigido com um sinal
+// POSITIVO em vez de tentar reconhecer todo formato de erro possível:
+// o dono confirmou que toda confirmação real de sucesso do jogo contém
+// a palavra certa (Ban -> "Banned", ServerMute -> "Muted"). Ações sem
+// palavra-chave conhecida (SystemMessage/Kick) continuam confiando só
+// no sucesso de TRANSPORTE, sem checar o texto — nunca tivemos um
+// exemplo real de erro nelas pra saber o que procurar.
+const RCON_SUCCESS_KEYWORD = { Ban: 'Banned', ServerMute: 'Muted' };
+
+function rconResponseConfirmsSuccess(jogoAct, responseText) {
+    const keyword = RCON_SUCCESS_KEYWORD[jogoAct];
+    if (!keyword) return true; // sem palavra-chave conhecida pra essa ação — não há o que checar
+    if (!responseText || responseText === 'OK') return true; // sem resposta de texto real — confia no transporte
+    return responseText.includes(keyword);
 }
 
 const PunishmentSystem = {
@@ -890,7 +893,7 @@ const PunishmentSystem = {
      * @returns {Promise<{ command: string|null, ingameActionResult: string|null, rconResponse: string|null, attemptFailed: boolean }>}
      *   attemptFailed só vem true quando o RCON foi de fato TENTADO e falhou
      *   de verdade (erro de transporte OU o próprio jogo rejeitando o
-     *   comando, ver looksLikeRconError) — pedido do dono, 2026-08-19: "Se o
+     *   comando, ver rconResponseConfirmsSuccess) — pedido do dono, 2026-08-19: "Se o
      *   rcon mandar erro de volta isso deve cancelar o /strike". Nos casos
      *   de "não se aplica" (nível sem ação em jogo, tier sem autoRcon, alvo
      *   sem AGID vinculado, ação desconhecida) vem sempre false — esses
@@ -952,9 +955,9 @@ const PunishmentSystem = {
             const rconResponse = rconResult?.success ? (rconResult.response || null) : null;
             // Transporte pode dizer "sucesso" (comando chegou e voltou uma
             // resposta) mesmo quando o JOGO rejeitou o comando de verdade —
-            // ver looksLikeRconError, confirmado ao vivo pelo dono nesta
-            // mesma investigação (timestamp inválido no /ban).
-            const serverRejected = !!rconResult?.success && looksLikeRconError(rconResponse, command);
+            // ver rconResponseConfirmsSuccess, confirmado ao vivo pelo dono
+            // nesta mesma investigação (timestamp inválido no /ban).
+            const serverRejected = !!rconResult?.success && !rconResponseConfirmsSuccess(jogoAct, rconResponse);
             let ingameActionResult = (rconResult?.success && !serverRejected)
                 ? 'Ação in-game executada.'
                 : `Falha na ação in-game: ${serverRejected ? rconResponse : (rconResult?.error || 'erro desconhecido')}`;
@@ -1094,7 +1097,7 @@ const PunishmentSystem = {
         // 2026-08-19: "Se o rcon mandar erro de volta isso deve cancelar o
         // /strike". Rodando isto primeiro, uma falha de verdade (erro de
         // transporte OU o próprio jogo rejeitando o comando, ver
-        // looksLikeRconError) cancela a punição inteira sem precisar
+        // rconResponseConfirmsSuccess) cancela a punição inteira sem precisar
         // desfazer nada — neste ponto nada foi escrito ainda. attemptFailed
         // nunca vem true nos casos de "não se aplica" (nível sem ação em
         // jogo, tier sem autoRcon, alvo sem AGID vinculado) — nesses o
