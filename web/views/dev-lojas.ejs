@@ -417,13 +417,14 @@
             <h2 class="section-title text-lg">Marketplace de Imagens — Configuração</h2>
             <p class="text-xs opacity-50">Taxa (em Caçadas) que um jogador paga pra enviar uma imagem própria pra venda na Loja de Personalização — precisa da sua aprovação antes de aparecer pra qualquer um comprar.</p>
             <form action="/dev/Loja/config" method="POST" class="pool-price-row" style="max-width: 420px;">
-                <input type="number" name="submission_fee" min="1" step="1" value="<%= personalizationConfig.submission_fee %>" placeholder="Taxa de envio">
+                <input type="number" name="submission_fee" id="devSubmissionFee" min="1" step="1" value="<%= personalizationConfig.submission_fee %>" placeholder="Taxa de envio" oninput="tpPriceCalcInto('devSubmissionFee', 'devSubmissionFeeCalc', 'cacadas')">
                 <select name="accepting_submissions">
                     <option value="1" <%= personalizationConfig.accepting_submissions ? 'selected' : '' %>>Aceitando envios</option>
                     <option value="0" <%= !personalizationConfig.accepting_submissions ? 'selected' : '' %>>Envios fechados</option>
                 </select>
                 <button type="submit" class="pool-price-submit" style="width: auto; padding-left: 16px; padding-right: 16px;">Salvar</button>
             </form>
+            <p class="text-[11px] opacity-60" id="devSubmissionFeeCalc"></p>
         </section>
 
         <%# ==================== FILA DE APROVAÇÃO ==================== %>
@@ -501,13 +502,14 @@
                                         </span>
                                         <form action="/dev/Loja/<%= group.type %>/<%= img.id %>/preco" method="POST">
                                             <div class="pool-price-row">
-                                                <input type="number" name="preco" min="0" step="1" placeholder="Preço" value="<%= img.shop_price || '' %>">
+                                                <input type="number" name="preco" id="devPoolPrice<%= img.id %>" min="0" step="1" placeholder="Preço" value="<%= img.shop_price || '' %>" oninput="tpPriceCalcInto('devPoolPrice<%= img.id %>', 'devPoolPriceCalc<%= img.id %>', 'cacadas')">
                                                 <select name="tier_minimo">
                                                     <% SHOP_TIERS.forEach(tier => { %>
                                                         <option value="<%= tier %>" <%= (img.shop_min_tier || 'free') === tier ? 'selected' : '' %>><%= TIER_LABELS[tier] %></option>
                                                     <% }); %>
                                                 </select>
                                             </div>
+                                            <p class="text-[11px] opacity-60" id="devPoolPriceCalc<%= img.id %>"></p>
                                             <button type="submit" class="pool-price-submit">Salvar preço</button>
                                         </form>
                                     </div>
@@ -623,6 +625,55 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script>if (window.lucide) window.lucide.createIcons();</script>
     <script>
+        // Calculadora de preço (pedido do dono, 2026-08-19: "a mesma
+        // calculadora no controle de lojas para o dev e calcule sobre as
+        // caçadas também") — mesma lógica/constantes de lojajogo.ejs
+        // (ver comentário lá), reaproveitada aqui pros campos em Caçadas
+        // (preço de item da Loja de Personalização, taxa de envio) E em
+        // Ossos (recompensa de Missão), num único helper genérico já que
+        // esta página tem VÁRIOS campos de preço espalhados (ao contrário
+        // de lojajogo.ejs, que só tem um). Ossos: Marks equivalentes
+        // (currencySystem.js MARKS_PER_BONE) + horas pra resgatar sem
+        // converter (potPlayerRegistry.js BONES_PER_HOUR). Caçadas: só
+        // horas (potPlayerRegistry.js HUNT_PER_HOUR) — Caçadas NUNCA
+        // convertem pra Marks, então não existe linha de Marks pra elas.
+        const DL_MARKS_PER_BONE = <%= marksPerBone %>;
+        const DL_BONES_PER_HOUR = <%= bonesPerHour %>;
+        const DL_HUNT_PER_HOUR = <%= huntPerHour %>;
+
+        function tpPriceCalcText(price, currency) {
+            const lang = document.documentElement.getAttribute('data-lang') || 'pt';
+            const locale = lang === 'en' ? 'en-US' : 'pt-BR';
+            if (currency === 'ossos') {
+                const marks = price * DL_MARKS_PER_BONE;
+                const hours = Math.ceil(price / DL_BONES_PER_HOUR);
+                return lang === 'en'
+                    ? marks.toLocaleString(locale) + ' Marks to buy via conversion, or ' + hours.toLocaleString(locale) + (hours === 1 ? ' hour' : ' hours') + ' of playtime to earn it without converting.'
+                    : marks.toLocaleString(locale) + ' Marks pra comprar via conversão, ou ' + hours.toLocaleString(locale) + (hours === 1 ? ' hora' : ' horas') + ' de jogo pra resgatar sem converter.';
+            }
+            const hoursC = Math.ceil(price / DL_HUNT_PER_HOUR);
+            return lang === 'en'
+                ? hoursC.toLocaleString(locale) + (hoursC === 1 ? ' hour' : ' hours') + ' of playtime to earn it.'
+                : hoursC.toLocaleString(locale) + (hoursC === 1 ? ' hora' : ' horas') + ' de jogo pra resgatar.';
+        }
+
+        function tpPriceCalcInto(inputId, outId, currency) {
+            const input = document.getElementById(inputId);
+            const out = document.getElementById(outId);
+            if (!input || !out) return;
+            const price = parseInt(input.value, 10);
+            out.textContent = (!price || price <= 0) ? '' : tpPriceCalcText(price, currency);
+        }
+
+        // Preços já salvos (itens existentes da Loja de Personalização,
+        // taxa de envio atual) precisam do cálculo inicial também, não só
+        // depois de digitar — dispara uma vez pra cada campo já wireado
+        // via oninput acima.
+        document.querySelectorAll('.pool-price-form input[name="preco"]').forEach((input) => {
+            tpPriceCalcInto(input.id, input.id.replace('devPoolPrice', 'devPoolPriceCalc'), 'cacadas');
+        });
+        tpPriceCalcInto('devSubmissionFee', 'devSubmissionFeeCalc', 'cacadas');
+
         // Sincroniza UMA LINHA do formulário de requisitos
         // (partials/requirement-form.ejs) com o tipo escolhido no
         // <select> dela — rótulo do campo "Valor", frase de ajuda, e
@@ -665,13 +716,36 @@
         // Emblema/Título). Independente de requirementFormSync (só 4
         // combinações fixas, não vale a pena generalizar em cima do
         // catálogo de requisitos pra isso).
+        //
+        // Também dispara a calculadora de preço (pedido do dono,
+        // 2026-08-19) — chamada tanto pela troca de TIPO (onchange, este
+        // <select>) quanto pela digitação da QUANTIDADE (oninput, ver
+        // partials/mission-reward-form.ejs), já que os dois afetam o
+        // resultado: o mesmo campo "Quantidade" serve pra Ossos (Marks +
+        // horas) OU Caçadas (só horas), dependendo do tipo selecionado.
         function missionRewardFormSync(mrfId) {
             const type = document.getElementById(mrfId + '-type').value;
             document.getElementById(mrfId + '-amount-row').style.display = (type === 'ossos' || type === 'cacadas') ? '' : 'none';
             document.getElementById(mrfId + '-guild-row').style.display = type === 'ossos' ? '' : 'none';
             document.getElementById(mrfId + '-badge-row').style.display = type === 'badge' ? '' : 'none';
             document.getElementById(mrfId + '-titulo-row').style.display = type === 'titulo' ? '' : 'none';
+
+            const calcOut = document.getElementById(mrfId + '-amount-calc');
+            if (!calcOut) return;
+            if (type !== 'ossos' && type !== 'cacadas') {
+                calcOut.style.display = 'none';
+                calcOut.textContent = '';
+                return;
+            }
+            calcOut.style.display = '';
+            tpPriceCalcInto(mrfId + '-amount', mrfId + '-amount-calc', type);
         }
+
+        // Recompensas já salvas (missões existentes com Ossos/Caçadas
+        // configurados) precisam do cálculo inicial também.
+        document.querySelectorAll('[id$="-amount-row"]').forEach((row) => {
+            missionRewardFormSync(row.id.replace('-amount-row', ''));
+        });
 
         // "+ Adicionar requisito" (pedido do dono, 2026-08-13) — clona o
         // <template> em branco do MESMO formulário (gerado pelo parcial

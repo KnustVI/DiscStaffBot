@@ -49,8 +49,17 @@
 
         <div id="<%= mrfId %>-amount-row" class="pool-req-value-row" style="<%= (mrfType === 'ossos' || mrfType === 'cacadas') ? '' : 'display:none;' %>">
             <label for="<%= mrfId %>-amount">Quantidade:</label>
-            <input type="number" id="<%= mrfId %>-amount" name="reward_amount" min="1" step="1" placeholder="Ex: 500" value="<%= mrfReward.amount || '' %>">
+            <input type="number" id="<%= mrfId %>-amount" name="reward_amount" min="1" step="1" placeholder="Ex: 500" value="<%= mrfReward.amount || '' %>" oninput="missionRewardFormSync('<%= mrfId %>')">
         </div>
+        <%#
+            Calculadora de preço (pedido do dono, 2026-08-19: "a mesma
+            calculadora no controle de lojas para o dev e calcule sobre as
+            caçadas também") — currency-AWARE: o mesmo campo "Quantidade"
+            serve pra Ossos E Caçadas dependendo do <select> de tipo acima,
+            então a recomputação mora em missionRewardFormSync (dev-lojas.ejs),
+            disparada tanto pela troca de tipo quanto pela digitação aqui.
+        %>
+        <p class="text-[11px] opacity-60" id="<%= mrfId %>-amount-calc" style="<%= (mrfType === 'ossos' || mrfType === 'cacadas') ? '' : 'display:none;' %>"></p>
 
         <div id="<%= mrfId %>-guild-row" class="pool-req-value-row" style="<%= mrfType === 'ossos' ? '' : 'display:none;' %>">
             <label for="<%= mrfId %>-guild">Servidor (Ossos é por servidor):</label>

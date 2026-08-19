@@ -365,8 +365,25 @@
                     <label class="text-[13px] opacity-60"><span data-i18n-pt>Preço (Ossos)</span><span data-i18n-en>Price (Bones)</span></label>
                     <div class="input-container-premium">
                         <div class="icon-box"><i data-lucide="bone"></i></div>
-                        <input type="number" class="input-premium-field" name="price" min="1" step="1" required placeholder="Ex: 100">
+                        <input type="number" class="input-premium-field" name="price" id="ljCreatePrice" min="1" step="1" required placeholder="Ex: 100" oninput="tpBonesPriceCalc('ljCreatePrice', 'ljCreatePriceCalc')">
                     </div>
+                    <%#
+                        Calculadora de preço (pedido do dono, 2026-08-19: "no
+                        card de criação uma calculadora de preço, onde ele vai
+                        adicione o valor e a calculadora vai informar quantas
+                        marks precisa para compra sobre o valor de ossos, e
+                        quantas horas de jogo o jogador precisa fazer para
+                        resgatar sem fazer conversão de ossos") — mesma
+                        função tpBonesPriceCalc do dialog de EDIÇÃO abaixo
+                        (ver <script> no fim do arquivo), só troca os 2 ids.
+                        Marks: taxa fixa do conversor (currencySystem.js
+                        MARKS_PER_BONE, 1 Osso = 100 Marks). Horas: taxa de
+                        crédito por hora jogada (potPlayerRegistry.js
+                        BONES_PER_HOUR, 5 Ossos/hora, igual pra todo tier —
+                        ver PREMIUM.txt seção 243), arredondada PRA CIMA
+                        (ceil) porque hora incompleta não credita nada.
+                    %>
+                    <p class="text-[11px] opacity-60 mt-1" id="ljCreatePriceCalc"></p>
                 </div>
 
                 <%#
@@ -669,6 +686,11 @@
             dialog.addEventListener('close', () => {
                 dialog.querySelector('form').reset();
                 ljStockModeSync('ljStockMode', 'ljStockLimitField', 'ljStockLimitInput');
+                // form.reset() não dispara 'input', então a calculadora de
+                // preço (texto solto, não um valor de campo) ficaria com o
+                // resultado da tentativa anterior "fantasma" até o próximo
+                // clique numa tecla — limpa explicitamente junto do resto.
+                document.getElementById('ljCreatePriceCalc').textContent = '';
             });
             dialog.addEventListener('click', (e) => {
                 const rect = dialog.getBoundingClientRect();
@@ -694,6 +716,30 @@
                 if (!insideContent) dialog.close();
             });
         })();
+
+        // Calculadora de preço (pedido do dono, 2026-08-19) — constantes
+        // vindas do servidor (dashboard.js#GET /lojajogo/:guildID), nunca
+        // reinventadas aqui: MARKS_PER_BONE mora em currencySystem.js,
+        // BONES_PER_HOUR em potPlayerRegistry.js.
+        const LJ_MARKS_PER_BONE = <%= marksPerBone %>;
+        const LJ_BONES_PER_HOUR = <%= bonesPerHour %>;
+
+        function tpBonesPriceCalc(inputId, outId) {
+            const input = document.getElementById(inputId);
+            const out = document.getElementById(outId);
+            if (!input || !out) return;
+            const price = parseInt(input.value, 10);
+            if (!price || price <= 0) { out.textContent = ''; return; }
+            const marks = price * LJ_MARKS_PER_BONE;
+            const hours = Math.ceil(price / LJ_BONES_PER_HOUR);
+            const lang = document.documentElement.getAttribute('data-lang') || 'pt';
+            const locale = lang === 'en' ? 'en-US' : 'pt-BR';
+            if (lang === 'en') {
+                out.textContent = marks.toLocaleString(locale) + ' Marks to buy via conversion, or ' + hours.toLocaleString(locale) + (hours === 1 ? ' hour' : ' hours') + ' of playtime to earn it without converting.';
+            } else {
+                out.textContent = marks.toLocaleString(locale) + ' Marks pra comprar via conversão, ou ' + hours.toLocaleString(locale) + (hours === 1 ? ' hora' : ' horas') + ' de jogo pra resgatar sem converter.';
+            }
+        }
 
         const LJ_GUILD_ID = '<%= guild.id %>';
         const LJ_GROWTH_STAGE_VALUES = <%- JSON.stringify(growthStageValues) %>;

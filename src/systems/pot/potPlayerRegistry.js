@@ -53,6 +53,16 @@ const LevelSystem = require('./levelSystem');
 const ONLINE_EVENTS = new Set(['PlayerLogin']);
 const OFFLINE_EVENTS = new Set(['PlayerLogout', 'PlayerLeave']);
 
+// Taxa de crédito por HORA CHEIA jogada — fonte única de verdade, usada
+// tanto pelo crédito de verdade (_creditPlaytimeCurrency/_creditGuildBones,
+// mais abaixo) quanto por qualquer lugar que precise EXIBIR essa taxa sem
+// creditar nada (ex: calculadora de preço em /lojajogo e /dev/Loja, pedido
+// do dono 2026-08-19). Exportadas justamente pra nunca precisar reescrever
+// esse número em outro arquivo. SEM multiplicador por tier — confirmado
+// 2026-08-19, todo tier ganha na mesma taxa (ver PREMIUM.txt seção 243).
+const HUNT_PER_HOUR = 1;
+const BONES_PER_HOUR = 5;
+
 /**
  * Tenta extrair um valor de playtime/sessão do payload, cobrindo as
  * variações de nome de campo já vistas em payloads do PoT/PotBot.
@@ -1393,7 +1403,7 @@ function _creditPlaytimeCurrency(guildId, alderonId, sessionSeconds) {
                     playtime_credit_seconds = ?,
                     updated_at = ?
                 WHERE user_id = ?
-            `).run(hoursEarned, hoursEarned, remainderSeconds, now, link.user_id);
+            `).run(hoursEarned * HUNT_PER_HOUR, hoursEarned, remainderSeconds, now, link.user_id);
             _recordLevelUpsIfAny(link.user_id, row?.xp || 0, (row?.xp || 0) + hoursEarned);
         } else {
             db.prepare(`
@@ -1454,7 +1464,7 @@ function _creditGuildBones(userId, guildId, sessionSeconds) {
                     balance = balance + excluded.balance,
                     playtime_credit_seconds = excluded.playtime_credit_seconds,
                     updated_at = excluded.updated_at
-            `).run(userId, guildId, hoursEarned * 5, remainderSeconds, now);
+            `).run(userId, guildId, hoursEarned * BONES_PER_HOUR, remainderSeconds, now);
         } else {
             db.prepare(`
                 INSERT INTO pot_player_bones (user_id, guild_id, playtime_credit_seconds, updated_at)
@@ -1747,6 +1757,9 @@ module.exports = {
     addHunt,
     spendHunt,
     adjustHunt,
+    // Taxa de crédito por hora cheia jogada — ver comentário na declaração.
+    HUNT_PER_HOUR,
+    BONES_PER_HOUR,
     getXp,
     addXp,
     // Progressão de Nível (infinita, ver levelSystem.js) — calculada

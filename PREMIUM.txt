@@ -12526,3 +12526,56 @@ frente, nao so este relatorio):
   janela abaixo de 1000px numa aba onde o toggle já foi clicado antes (o
   caso que estava quebrado), e também testando em aba anônima/incógnito
   (localStorage vazio, caso que já funcionava antes).
+
+
+245) Calculadora de preço (Marks + horas de jogo) no card de criação da Loja de Jogo e nos campos de Caçadas/Ossos do Controle de Lojas
+------------------------------------------------------------------------------------------------------
+- Pedido do dono, 2026-08-19: "No site de loja de jogo onde os servers
+  configuram os itens, adicione no card de criação uma cauculadora de
+  preço, onde ele vai adicione o valor e a cauculador vai informar
+  quantas marks precisa para compra sobre o valor de ossos, e quantas
+  horas de jogo o jogador precisa fazer para resgatar sem fazer
+  conversão de ossos. Faça a mesma cauculadora no controle de lojas para
+  o deve e caucule tobre as caçadas tambem."
+- Duas taxas fixas já existiam no código, sem nome próprio até agora:
+  `currencySystem.js#MARKS_PER_BONE` (1 Osso = 100 Marks) e um `5`
+  hardcoded dentro de `_creditGuildBones` (5 Ossos/hora jogada). Extraídas
+  2 constantes NOMEADAS em `potPlayerRegistry.js`
+  (`HUNT_PER_HOUR = 1`, `BONES_PER_HOUR = 5`), exportadas, e usadas TANTO
+  pelo crédito de verdade (`_creditPlaytimeCurrency`/`_creditGuildBones`,
+  substituição pura, sem mudança de comportamento) QUANTO pela
+  calculadora nova — fonte única de verdade, nunca mais reescrita à mão
+  em outro arquivo.
+- `web/views/lojajogo.ejs` (card de CRIAÇÃO de item, só esse — o dono
+  pediu especificamente "no card de criação", o de EDIÇÃO não ganhou):
+  campo "Preço (Ossos)" ganhou `oninput="tpBonesPriceCalc(...)"` e um
+  parágrafo de resultado logo abaixo, mostrando Marks equivalentes
+  (preço × 100) e horas de jogo necessárias pra resgatar SEM converter
+  (`Math.ceil(preço / 5)` — arredondado pra CIMA, já que hora incompleta
+  não credita Ossos nenhum). Limpo explicitamente no `close` do dialog
+  (`form.reset()` não dispara evento `input`, o texto solto ficaria
+  "fantasma" da tentativa anterior sem isso).
+- `web/views/dev-lojas.ejs` + `web/views/partials/mission-reward-form.ejs`
+  (Controle de Lojas): MESMA calculadora, num helper único
+  (`tpPriceCalcInto`/`tpPriceCalcText`) reaproveitado em 3 lugares —
+  preço de item da Loja de Personalização (Caçadas, por item, um `<p>`
+  por linha do pool), taxa de envio do marketplace (Caçadas, campo
+  único) e recompensa de Missão (o MESMO campo "Quantidade" serve pra
+  Ossos OU Caçadas dependendo do `<select>` de tipo — a recomputação foi
+  encaixada em `missionRewardFormSync`, já existente, disparada tanto
+  pela troca de tipo quanto pela digitação da quantidade). Caçadas NUNCA
+  mostra linha de Marks (não existe conversão Caçadas->Marks, só Ossos
+  tem) — só a parte de horas se aplica (`Math.ceil(preço / 1)`, ou seja,
+  preço = horas exatas). Preços/recompensas JÁ SALVOS (itens/missões
+  existentes) recebem o cálculo inicial no carregamento da página, não
+  só depois de digitar de novo.
+- Verificado: `node --check` em `potPlayerRegistry.js`/`dashboard.js`;
+  `ejs.compile()` nos 3 arquivos EJS tocados; `ejs.render()` de
+  `mission-reward-form.ejs` isolado com dado simulado (Ossos, 500,
+  servidor fake) confirmando que o parágrafo de cálculo é gerado sem
+  erro. Sem confirmação visual real (não dá pra simular clique/digitação
+  num navegador de verdade neste ambiente) — o dono pode conferir
+  digitando um preço no card de criação de `/lojajogo/:guildId` e nos
+  campos de preço/recompensa de `/dev/Loja`, e também trocando o tipo da
+  recompensa de Missão entre Ossos/Caçadas pra ver o texto mudar (Marks
+  aparece só pra Ossos).

@@ -1148,6 +1148,13 @@ function loadDashboard(client) {
             requirementTypes: AchievementSystem.REQUIREMENT_TYPES,
             personalizationConfig: ImageShopSystem.getPersonalizationShopConfig(),
             saved: req.query.saved,
+            // Calculadora de preço nos campos de Caçadas (item da Loja de
+            // Personalização, taxa de envio) e na recompensa de Missão em
+            // Ossos/Caçadas (pedido do dono, 2026-08-19) — ver script no
+            // fim de dev-lojas.ejs.
+            marksPerBone: CurrencySystem.MARKS_PER_BONE,
+            bonesPerHour: PlayerRegistry.BONES_PER_HOUR,
+            huntPerHour: PlayerRegistry.HUNT_PER_HOUR,
         });
     });
 
@@ -2871,6 +2878,11 @@ function loadDashboard(client) {
             growthStageValues: GameShopSystem.GROWTH_STAGE_VALUES,
             rconEnabled,
             saved: req.query.saved,
+            // Calculadora de preço no card de criação (pedido do dono,
+            // 2026-08-19) — Marks equivalentes + horas de jogo pra resgatar
+            // sem converter, ver script no fim de lojajogo.ejs.
+            marksPerBone: CurrencySystem.MARKS_PER_BONE,
+            bonesPerHour: PlayerRegistry.BONES_PER_HOUR,
         });
     });
 
