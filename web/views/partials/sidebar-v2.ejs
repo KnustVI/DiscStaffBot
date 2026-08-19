@@ -211,6 +211,11 @@
     //   :guildID nenhum pra montar os hrefs.
     // - ADMINISTRAÇÃO: só o dono do bot (isOwner).
     const sbIsOwner = typeof isOwner !== 'undefined' && isOwner;
+    // Vem de graça via res.locals (mesmo mecanismo de isOwner, ver
+    // dashboard.js) — pedido do dono, 2026-08-19: "Dashboard" (era
+    // "Portal") só aparece pra quem é staff de pelo menos 1 servidor com
+    // o bot.
+    const sbHasStaffGuild = typeof hasStaffGuild !== 'undefined' && hasStaffGuild;
     const MOBILE_DRAWER_SECTIONS = [
         {
             // Portal/Loja entraram aqui (pedido do dono, 2026-08-16,
@@ -219,11 +224,15 @@
             // histórico pessoal de verdade (Perfil/Denúncias/Histórico),
             // "Navegação" vira "pra onde ir" de forma geral. Premium
             // removido depois (pedido do dono, 2026-08-19: "mantenha só
-            // na top bar").
+            // na top bar"). "Portal" virou "Dashboard" no mesmo pedido
+            // que trocou o rótulo na barra de topo (ver top-nav.ejs) —
+            // condicionado a sbHasStaffGuild igual lá; sem "Perfil" aqui
+            // de propósito, já existe em "Sua Conta" logo abaixo, ficaria
+            // duplicado dentro do MESMO drawer.
             key: 'navegacao', labelPt: 'Navegação', labelEn: 'Navigation',
             items: [
                 { key: 'home', labelPt: 'Home', labelEn: 'Home', icon: 'home', href: '/' },
-                { key: 'portal', labelPt: 'Portal', labelEn: 'Portal', icon: 'layout-dashboard', href: '/dashboard' },
+                ...(sbHasStaffGuild ? [{ key: 'dashboard', labelPt: 'Dashboard', labelEn: 'Dashboard', icon: 'layout-dashboard', href: '/dashboard' }] : []),
                 { key: 'loja', labelPt: 'Loja', labelEn: 'Shop', icon: 'shopping-bag', href: '/loja' },
                 { key: 'documentacao', labelPt: 'Documentação', labelEn: 'Documentation', icon: 'book-open', href: '/documentacao' },
                 { key: 'suporte', labelPt: 'Suporte', labelEn: 'Support', icon: 'life-buoy', href: 'https://discord.gg/fkD5FQktn6', external: true },

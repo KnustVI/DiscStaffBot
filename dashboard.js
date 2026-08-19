@@ -836,8 +836,20 @@ function loadDashboard(client) {
     // poucos servidores onde o bot roda (client.guilds.cache) E que o
     // próprio Discord já confirma que o usuário está (req.user.guilds),
     // nunca todo servidor do Discord do usuário.
+    // Memoizado em `req` (pedido do dono, 2026-08-19: botão "Dashboard" na
+    // barra de topo só aparece pra quem é staff de algum servidor, checado
+    // via `res.locals.hasStaffGuild` num middleware GLOBAL — ver abaixo)
+    // — sem isso, toda página que TAMBÉM já chama esta função pra montar
+    // `otherGuilds` (moderacao/reports/eventos/perfil/loja/etc., ~10
+    // rotas) pagaria o custo de `guild.members.fetch` por servidor DUAS
+    // vezes na mesma requisição (uma no middleware global, outra na
+    // própria rota). O middleware sempre roda (e sempre é `await`ado)
+    // ANTES do handler da rota, então por essa ordem de execução nunca há
+    // 2 chamadas CONCORRENTES pro mesmo `req` — a segunda sempre encontra
+    // o cache já preenchido.
     async function getAdminGuildsWithBot(req) {
-        if (!req.user || !req.user.guilds) return [];
+        if (req._otherGuildsCache) return req._otherGuildsCache;
+        if (!req.user || !req.user.guilds) return (req._otherGuildsCache = []);
         const userGuildIds = new Set(req.user.guilds.map(g => g.id));
         const candidates = [...client.guilds.cache.values()].filter(g => userGuildIds.has(g.id));
 
@@ -850,7 +862,7 @@ function loadDashboard(client) {
                 return null;
             }
         }));
-        return resolved.filter(Boolean);
+        return (req._otherGuildsCache = resolved.filter(Boolean));
     }
 
     // Ver DASHBOARD_LOCKED_TO_OWNER no topo do arquivo — chamado logo após
@@ -902,7 +914,7 @@ function loadDashboard(client) {
     }
 
     // Middleware para injetar dados globais em todos os templates EJS
-    app.use((req, res, next) => {
+    app.use(async (req, res, next) => {
         res.locals.user = req.user || null;
         res.locals.bot = client;
         // isOwner global (pedido do dono, 2026-08-13: barra de navegação
@@ -918,6 +930,17 @@ function loadDashboard(client) {
         // vez de chamar isOwnerSession(req) (só declarada mais abaixo,
         // dentro de loadDashboard) pra não depender de ordem nenhuma.
         res.locals.isOwner = !!(req.user && req.user.id === DEVELOPER_ID);
+        // hasStaffGuild global (pedido do dono, 2026-08-19: "Dashboard
+        // mostra apenas se ele for staff de algum servidor" — botão novo
+        // na barra de topo, ver top-nav.ejs) — mesmo raciocínio de
+        // isOwner acima (preenche a lacuna nas páginas que não computam
+        // isso por conta própria), reaproveitando getAdminGuildsWithBot
+        // (memoizado em `req`, ver comentário dela — nenhum custo extra
+        // de verdade nas ~10 páginas que já chamam ela pra montar
+        // `otherGuilds`, só nas outras ~5 sem sidebar). Sem custo pra
+        // visitante deslogado (retorna [] cedo, sem chamar a API do
+        // Discord, ver dentro da própria função).
+        res.locals.hasStaffGuild = (await getAdminGuildsWithBot(req)).length > 0;
         next();
     });
 

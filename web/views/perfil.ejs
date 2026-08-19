@@ -475,7 +475,7 @@
 <body class="flex min-h-screen<%= backgroundPreviewUrl ? ' perfil-has-bg' : '' %>">
     <%# Barra de navegação de topo — acompanha a sidebar em toda página
         (pedido do dono, 2026-08-13, ver partials/top-nav.ejs). %>
-    <%- include('partials/top-nav', { hideOnScroll: true, reserveSpace: true }) %>
+    <%- include('partials/top-nav', { active: 'perfil', hideOnScroll: true, reserveSpace: true }) %>
 
     <aside class="shrink-0 h-screen sticky top-0 py-[15px] pl-[15px] lg:py-[30px] lg:pl-[30px]">
         <%- include('partials/sidebar-v2', { active: 'perfil', guild: otherGuilds[0] || null, nickname, role, isOwner, restricted: true, defaultCollapsed: false }) %>

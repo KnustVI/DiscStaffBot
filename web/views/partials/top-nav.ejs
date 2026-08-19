@@ -23,11 +23,12 @@
   options depois de recarregar um fragmento via AJAX.
 
   Uso: include( partials/top-nav , {
-    active,          // OPCIONAL — 'home'|'documentacao'|'portal'|'loja'|
-                      // 'dev-loja'|null — qual botão marcar como página
-                      // atual (mesmo padrão .is-active de sempre). null/
-                      // omitido = nenhum marcado (a maioria das páginas
-                      // com sidebar não tem botão correspondente aqui).
+    active,          // OPCIONAL — 'home'|'documentacao'|'perfil'|'dashboard'|
+                      // 'loja'|'dev-loja'|null — qual botão marcar como
+                      // página atual (mesmo padrão .is-active de sempre).
+                      // null/omitido = nenhum marcado (a maioria das
+                      // páginas com sidebar não tem botão correspondente
+                      // aqui). 'dashboard' era 'portal' até 2026-08-19.
     hideOnScroll,     // OPCIONAL, default false — true só nas páginas COM
                       // sidebar: a barra some ao rolar (só fica visível
                       // com a página no topo), porque ela e a sidebar
@@ -57,6 +58,11 @@
 <%
     const tnUser = typeof user !== 'undefined' ? user : null;
     const tnIsOwner = typeof isOwner !== 'undefined' && isOwner;
+    // hasStaffGuild vem de graça via res.locals (mesmo mecanismo de
+    // user/isOwner, ver dashboard.js) — pedido do dono, 2026-08-19: botão
+    // "Dashboard" (ver abaixo) só aparece pra quem é staff de pelo menos
+    // 1 servidor com o bot.
+    const tnHasStaffGuild = typeof hasStaffGuild !== 'undefined' && hasStaffGuild;
     const tnActive = typeof active !== 'undefined' ? active : null;
     const tnHideOnScroll = typeof hideOnScroll !== 'undefined' && hideOnScroll;
     const tnReserveSpace = typeof reserveSpace !== 'undefined' && reserveSpace;
@@ -147,13 +153,24 @@
         </a>
     <% } %>
     <a href="/" class="nav-btn<%= tnActive === 'home' ? ' is-active' : '' %>"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
+    <%#
+        Reordenado (pedido do dono, 2026-08-19): "Portal" saiu, virou
+        "Perfil" + "Dashboard" (só quem é staff de algum servidor) +
+        "Loja" logo em seguida — Loja deixou de aparecer pra visitante
+        deslogado (fazia pouco sentido mostrar loja de moeda pra quem
+        não tem conta nenhuma pra ter saldo). PORTAL/DASHBOARD sempre
+        levam pro mesmo lugar (/dashboard) — só o rótulo/gate mudou.
+    %>
     <% if (tnUser) { %>
-        <a href="/dashboard" class="dashboard-link nav-btn<%= tnActive === 'portal' ? ' is-active' : '' %>"><span data-i18n-pt>PORTAL</span><span data-i18n-en>PORTAL</span></a>
+        <a href="/perfil" class="nav-btn<%= tnActive === 'perfil' ? ' is-active' : '' %>"><span data-i18n-pt>PERFIL</span><span data-i18n-en>PROFILE</span></a>
+        <% if (tnHasStaffGuild) { %>
+            <a href="/dashboard" class="dashboard-link nav-btn<%= tnActive === 'dashboard' ? ' is-active' : '' %>"><span data-i18n-pt>DASHBOARD</span><span data-i18n-en>DASHBOARD</span></a>
+        <% } %>
+        <a href="/loja" class="nav-btn<%= tnActive === 'loja' ? ' is-active' : '' %>"><span data-i18n-pt>LOJA</span><span data-i18n-en>SHOP</span></a>
     <% } else { %>
         <a href="/login" class="nav-btn"><span data-i18n-pt>ENTRAR</span><span data-i18n-en>LOGIN</span></a>
     <% } %>
     <a href="/#premium" class="nav-btn"><span data-i18n-pt>PREMIUM</span><span data-i18n-en>PREMIUM</span></a>
-    <a href="/loja" class="nav-btn<%= tnActive === 'loja' ? ' is-active' : '' %>"><span data-i18n-pt>LOJA</span><span data-i18n-en>SHOP</span></a>
     <a href="/documentacao" class="nav-btn<%= tnActive === 'documentacao' ? ' is-active' : '' %>"><span data-i18n-pt>DOCUMENTAÇÃO</span><span data-i18n-en>DOCUMENTATION</span></a>
     <a href="https://discord.gg/fkD5FQktn6" target="_blank" rel="noopener" class="nav-btn"><span data-i18n-pt>SUPORTE</span><span data-i18n-en>SUPPORT</span></a>
     <%#
@@ -213,10 +230,21 @@
                 <i data-lucide="home"></i>
                 <span><span data-i18n-pt>Home</span><span data-i18n-en>Home</span></span>
             </a>
+            <%# Mesma reordenação do .nav-btn acima — ver comentário lá. %>
             <% if (tnUser) { %>
-                <a href="/dashboard" class="tp-mobile-drawer-item dashboard-link<%= tnActive === 'portal' ? ' active' : '' %>" onclick="toggleMobileDrawer(false)">
-                    <i data-lucide="layout-dashboard"></i>
-                    <span><span data-i18n-pt>Portal</span><span data-i18n-en>Portal</span></span>
+                <a href="/perfil" class="tp-mobile-drawer-item<%= tnActive === 'perfil' ? ' active' : '' %>" onclick="toggleMobileDrawer(false)">
+                    <i data-lucide="user"></i>
+                    <span><span data-i18n-pt>Perfil</span><span data-i18n-en>Profile</span></span>
+                </a>
+                <% if (tnHasStaffGuild) { %>
+                    <a href="/dashboard" class="tp-mobile-drawer-item dashboard-link<%= tnActive === 'dashboard' ? ' active' : '' %>" onclick="toggleMobileDrawer(false)">
+                        <i data-lucide="layout-dashboard"></i>
+                        <span><span data-i18n-pt>Dashboard</span><span data-i18n-en>Dashboard</span></span>
+                    </a>
+                <% } %>
+                <a href="/loja" class="tp-mobile-drawer-item<%= tnActive === 'loja' ? ' active' : '' %>" onclick="toggleMobileDrawer(false)">
+                    <i data-lucide="shopping-bag"></i>
+                    <span><span data-i18n-pt>Loja</span><span data-i18n-en>Shop</span></span>
                 </a>
             <% } else { %>
                 <a href="/login" class="tp-mobile-drawer-item" onclick="toggleMobileDrawer(false)">
@@ -224,10 +252,6 @@
                     <span><span data-i18n-pt>Entrar</span><span data-i18n-en>Login</span></span>
                 </a>
             <% } %>
-            <a href="/loja" class="tp-mobile-drawer-item<%= tnActive === 'loja' ? ' active' : '' %>" onclick="toggleMobileDrawer(false)">
-                <i data-lucide="shopping-bag"></i>
-                <span><span data-i18n-pt>Loja</span><span data-i18n-en>Shop</span></span>
-            </a>
             <a href="/documentacao" class="tp-mobile-drawer-item<%= tnActive === 'documentacao' ? ' active' : '' %>" onclick="toggleMobileDrawer(false)">
                 <i data-lucide="book-open"></i>
                 <span><span data-i18n-pt>Documentação</span><span data-i18n-en>Documentation</span></span>

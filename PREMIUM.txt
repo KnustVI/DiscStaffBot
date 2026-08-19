@@ -12213,6 +12213,56 @@ frente, nao so este relatorio):
   mobile numa tela estreita (cantos arredondados, flutuando com
   margem das bordas).
 
+240) Barra de topo: "Portal" vira "Perfil"+"Dashboard"+"Loja" (Dashboard só pra staff), Loja some se deslogado
+------------------------------------------------------------------------------------------------------
+- Pedido do dono, 2026-08-19: "Se deslogado barra de navegação do topo
+  não vai mostrar loja. Se logado barra do topo não vai mostrar mais
+  o botão portal, e sim perfil e dashboard depois o botão loja.
+  Dashboard mostra apenas se ele for staff de algum servidor."
+- `dashboard.js` ganha `res.locals.hasStaffGuild` GLOBAL (mesmo
+  mecanismo de `isOwner`, no mesmo middleware) — reaproveita
+  `getAdminGuildsWithBot` (já usado por ~10 rotas com sidebar pra
+  montar `otherGuilds`), que faz uma chamada de API do Discord
+  (`guild.members.fetch`) por servidor em comum entre usuário e bot.
+  Pra essa função rodar em TODA página sem duplicar o custo nas
+  páginas que já a chamavam, `getAdminGuildsWithBot` ganhou memoização
+  em `req` (`req._otherGuildsCache`) — a checagem do middleware global
+  sempre roda ANTES do handler da rota (ordem de execução do
+  Express), então a 2ª chamada (da própria rota) sempre encontra o
+  cache pronto, sem repetir a API do Discord. Confirmado que isso NÃO
+  roda em requisições de arquivo estático (`express.static` está
+  registrado ANTES e é terminal pra qualquer arquivo que exista) — só
+  paga o custo em requisições de PÁGINA de verdade, e nem isso pra
+  visitante deslogado (retorna `[]` cedo, sem chamar a API).
+- `partials/top-nav.ejs` — barra reordenada:
+  - Deslogado: HOME, ENTRAR, PREMIUM, DOCUMENTAÇÃO, SUPORTE (LOJA
+    removida — sem conta vinculada não tem saldo pra usar a loja
+    mesmo).
+  - Logado: HOME, PERFIL (`/perfil`), DASHBOARD (`/dashboard`, só se
+    `hasStaffGuild`), LOJA, PREMIUM, DOCUMENTAÇÃO, SUPORTE, [CONTROLE
+    DE LOJAS só o dono]. "Portal" não existe mais como rótulo — vira
+    "Dashboard", mesmo destino de sempre (`/dashboard`). Mesma
+    reordenação replicada no drawer mobile PRÓPRIO deste arquivo
+    (pras ~5 páginas sem sidebar).
+- `partials/sidebar-v2.ejs` — seção "Navegação" do drawer mobile
+  (pras ~10 páginas COM sidebar) segue o mesmo padrão: "Portal" vira
+  "Dashboard", condicionado a `hasStaffGuild`. SEM adicionar "Perfil"
+  aqui — já existe na seção "Sua Conta" do MESMO drawer, ficaria
+  duplicado.
+- `portal.ejs` (`active: 'portal'` → `'dashboard'`) e `perfil.ejs`
+  (ganhou `active: 'perfil'`, não tinha nenhum antes) atualizados pra
+  cada página continuar destacando o próprio botão correspondente na
+  barra de topo.
+- Verificado: `node --check` em dashboard.js; `ejs.compile()` em
+  top-nav.ejs/sidebar-v2.ejs/portal.ejs/perfil.ejs. Revisado à mão que
+  o middleware global roda DEPOIS de `express.static` (sem custo em
+  assets) e que `getAdminGuildsWithBot` nunca é chamada 2x em paralelo
+  no mesmo request (o `await` do middleware sempre termina antes do
+  handler da rota começar). Sem confirmação visual real — o dono pode
+  conferir logado E deslogado, e testar com uma conta que É staff de
+  algum servidor vs uma que não é.
+
+
 
 
 
