@@ -11599,3 +11599,58 @@ frente, nao so este relatorio):
   todas passando. SEM confirmação visual real no Discord — o dono
   precisa conferir a próxima morte de sobrevivência de verdade no
   servidor.
+
+227) BUG REAL: /ban do PoT via RCON nunca pegava de verdade (duração em formato errado)
+------------------------------------------------------------------------------------------
+- Pedido do dono (2026-08-19): "Jopgador 620-137-103 foi banido no
+  ATLAS por 7 dias na segunda feira mas esta online no servidor, como
+  podemos identificar o erro?" — depois, no meio da investigação, o
+  dono colou a documentação REAL do formato da banlist.txt do Path of
+  Titans:
+  ```
+  // Alderon Id or IP Address (required)
+  // UnixTimestamp - Ban expiration (eg epochconverter.com) - 0 = forever.
+  // AdminReason (Optional) / UserReason (Optional)
+  //(EXAMPLE) 525-053-709:0:Reason for admins here:Stay out of my server
+  ```
+- **BUG REAL confirmado**: `applyIngameAction` (`punishmentSystem.js`)
+  montava o comando RCON `ban <AGID> <duração> "<motivo admin>" "<motivo
+  jogador>"` mandando a `durationStr` CRUA — o formato que este bot usa
+  internamente pra exibir/configurar duração de punição ("7d", "24h",
+  "30d", ver `punishment_levels.duration_str`), nunca o que o jogo de
+  fato entende. A documentação real da banlist.txt (que o `ban`/
+  `ServerMute` via RCON escreve, mesma lista persistente, ver
+  `ReloadBans`/`ReloadMutes` já existentes) deixa claro que o campo de
+  expiração é um **timestamp Unix ABSOLUTO** ("0 = forever"), não uma
+  duração relativa — "7d" não corresponde a nada que o servidor
+  reconheça como uma data válida, então o ban nunca era persistido de
+  verdade (o RCON respondia sucesso — o registro no banco ficava
+  "active" — mas o servidor não tinha uma entrada de ban funcional).
+  Único motivo do dono ter percebido: o jogador seguiu online 2 dias
+  depois de "banido por 7 dias".
+- Corrigido: `durationToken` agora calcula um timestamp absoluto em
+  SEGUNDOS (`Date.now() + parseDuration(durationStr)`, convertido de ms
+  pra s) pra qualquer duração real, reaproveitando o `parseDuration` já
+  existente (mesma função usada pro cargo temporário de Discord) — "0"/
+  "perm"/vazio continuam mandando `0` literal (bate com "0 = forever"
+  da doc). Corrigido tanto pra `Ban` quanto `ServerMute` (mesmo padrão
+  de lista persistente + reload, mesma suposição de formato). `Kick`/
+  `SystemMessage` não usam duração, não afetados.
+- **Ação necessária do dono**: esta correção só vale pra bans/mutes
+  APLICADOS DAQUI PRA FRENTE — o registro já existente do jogador
+  620-137-103 (e qualquer outro ban/mute temporário aplicado antes
+  deste deploy) NÃO se autocorrige; provavelmente nunca foi enforced
+  de verdade no servidor. Precisa reaplicar manualmente (`/strike` de
+  novo, ou `unban`+`ban` direto via RCON) pra esse e qualquer outro
+  caso suspeito de ban recente que não pegou.
+- Verificado: `node --check` em `punishmentSystem.js`. Teste isolado
+  (RCON substituído por um dublê que só captura o comando exato
+  montado, nunca dispara de verdade) confirmando: Ban de "7d" gera um
+  timestamp = agora + 7 dias em segundos (não a string "7d"); Ban
+  permanente continua mandando "0"; ServerMute de "24h" recebe a mesma
+  conversão; Kick continua sem campo de duração nenhum — 7 checagens,
+  todas passando. **NÃO verificado contra um servidor PoT real** (sem
+  RCON de verdade disponível neste ambiente) — o dono precisa testar
+  um `/strike` de Ban curto (ex: 5 minutos) num servidor real e
+  confirmar que o jogador é desconectado/impedido de entrar dentro do
+  prazo certo.

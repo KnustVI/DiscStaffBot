@@ -867,7 +867,23 @@ const PunishmentSystem = {
             // Permanente no RCON do PoT é "0" (confirmado pelo dono) — "perm" não é
             // reconhecido pelo servidor, o comando ficava sem efeito nenhum (nem
             // erro, só silenciosamente ignorado).
-            const durationToken = durationLower === '' || durationLower === '0' || durationLower === 'perm' ? '0' : durationStr;
+            const isPermanent = durationLower === '' || durationLower === '0' || durationLower === 'perm';
+            // BUG REAL corrigido (pedido do dono, 2026-08-19 — achado investigando
+            // um ban de 7 dias que não pegou: jogador banido na segunda continuava
+            // online na quarta). O dono colou o formato REAL da banlist.txt do PoT:
+            //   AlderonId:UnixTimestamp:AdminReason:UserReason
+            //   ("UnixTimestamp - Ban expiration ... 0 = forever")
+            // O 2º campo é um TIMESTAMP UNIX ABSOLUTO de expiração, não uma duração
+            // relativa — o RCON `ban`/`ServerMute` (que escreve nessa mesma lista
+            // persistente, ver docblock acima) espera o mesmo formato. Este código
+            // mandava a durationStr CRUA ("7d", "24h" — o formato que ESTE bot usa
+            // internamente pra exibir/configurar duração, nunca o que o jogo
+            // entende), então o servidor não reconhecia como expiração válida e o
+            // ban nunca pegava de verdade. Convertido pra timestamp absoluto em
+            // SEGUNDOS (Date.now() já é ms, parseDuration devolve ms — ambos
+            // convertidos), reaproveitando o MESMO parseDuration já usado pro
+            // cargo temporário de Discord (applyTemporaryRole, linha ~1009).
+            const durationToken = isPermanent ? '0' : String(Math.floor((Date.now() + this.parseDuration(durationStr)) / 1000));
             const playerReason = sanitizeForRcon(reason, 120);
             const adminReason = buildAdminReasonLabel({ levelName, staffTag, reportId });
             const rconCommands = {
