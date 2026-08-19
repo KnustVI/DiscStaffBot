@@ -1673,13 +1673,25 @@ function recordKillEvent(guildId, rawPayload) {
         }
     };
 
-    bump(killerAlderonId, killerName, 'kills');
+    // Morte de sobrevivência (BUG REAL corrigido, pedido do dono,
+    // 2026-08-19, achado investigando o card "Morte em Combate" — ver
+    // buildKillPanel em webhookPayloads.js): o jogo às vezes manda
+    // KillerAlderonId IGUAL ao VictimAlderonId quando o jogador morre
+    // sozinho (ex: dano de queda, sem ninguém envolvido) — sem esta
+    // checagem, bump(kills) rodava pro MESMO jogador que acabou de
+    // morrer, dando um kill contra si mesmo por cair de um penhasco.
+    // Inflava kills/KD e o requisito "species_kills" de Emblema/Título/
+    // Missão à toa. Continua contando como death normalmente.
+    const isSelfDeath = killerAlderonId && victimAlderonId && killerAlderonId === victimAlderonId;
+
+    if (killerAlderonId && !isSelfDeath) bump(killerAlderonId, killerName, 'kills');
     bump(victimAlderonId, victimName, 'deaths');
 
     // Espécie da vítima (requisito "species_kills") — só grava com matador
-    // de verdade; morte por ambiente/queda/fome não manda KillerAlderonId
-    // (vem string vazia), e nesse caso ninguém "abateu" a espécie.
-    if (killerAlderonId) {
+    // de verdade (excluindo morte de sobrevivência, acima); morte por
+    // ambiente/queda/fome pura não manda KillerAlderonId (vem string
+    // vazia), e nesse caso ninguém "abateu" a espécie.
+    if (killerAlderonId && !isSelfDeath) {
         const victimSpecies = sanitizeDinosaurType(rawPayload.VictimDinosaurType);
         if (victimSpecies) _recordSpeciesKill(guildId, killerAlderonId, victimSpecies);
     }

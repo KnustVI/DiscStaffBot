@@ -709,9 +709,23 @@ function buildKillPanel(data, guild, receivedAt) {
     const e = (key, fallback) => resolveEmoji(guild, key, fallback);
     const hasKiller = Boolean(d.KillerName || d.KillerAlderonId);
 
+    // Morte de sobrevivência (pedido do dono, 2026-08-19, com card real
+    // anexado) — CONFIRMADO ao vivo que o jogo às vezes manda
+    // KillerName/KillerAlderonId IGUAIS aos da vítima quando ela morre
+    // sozinha (ex: dano de queda, sem nenhum outro jogador envolvido) —
+    // diferente da morte por ambiente "pura" (fome/queda sem interação),
+    // que manda os campos de Matador VAZIOS (ver hasKiller acima). Como
+    // matador e vítima são a MESMA pessoa, isso não é "combate" nenhum —
+    // vira uma 3ª categoria própria, comparada por AlderonId (identidade
+    // real) e não por nome (dois jogadores diferentes podem ter o mesmo
+    // nome em jogo).
+    const isSelfDeath = hasKiller && d.KillerAlderonId && d.VictimAlderonId
+        && String(d.KillerAlderonId).trim() === String(d.VictimAlderonId).trim();
+
     const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
 
-    builder.title(`${e('Dead', '💀')} ${hasKiller ? 'MORTE EM COMBATE' : 'MORTE POR AMBIENTE'}`, 1);
+    const title = isSelfDeath ? 'MORTE DE SOBREVIVÊNCIA' : (hasKiller ? 'MORTE EM COMBATE' : 'MORTE POR AMBIENTE');
+    builder.title(`${e('Dead', '💀')} ${title}`, 1);
     builder.text(`${e('clock', '🕐')} Horário da morte: <t:${Math.floor((receivedAt || Date.now()) / 1000)}:f>`);
     builder.text(`Dano: ${formatDamageType(d.DamageType)}`);
 
@@ -728,22 +742,35 @@ function buildKillPanel(data, guild, receivedAt) {
     // consistência/pedido do dono ("sempre" que DinosaurType aparecer):
     // dietEmoji() só não mostra nada enquanto o campo não vier, nunca quebra.
     const victimDiet = dietEmoji(d.VictimDiet, guild);
-    const killerDiet = dietEmoji(d.KillerDiet, guild);
 
-    builder.title('Vítima', 3);
-    builder.text(
-        `- ${d.VictimName || 'Desconhecido'} | ${d.VictimAlderonId || '—'} | ${d.VictimRole || '—'}${mentionFor(d.VictimAlderonId)}\n` +
-        `${victimDiet ? `${victimDiet} ` : ''}${PlayerRegistry.sanitizeDinosaurType(d.VictimDinosaurType) || 'Desconhecido'} - ${d.DinosaurVictimName || 'Desconhecido'} (${formatGrowthStage(d.VictimGrowth) || '—'})`
-    );
-    builder.separator();
-
-    if (hasKiller) {
-        builder.title('Matador', 3);
+    if (isSelfDeath) {
+        // Só 1 jogador de verdade envolvido — card simplificado, pedido do
+        // dono: sem os títulos "Vítima"/"Matador" nem o bloco duplicado
+        // (as duas seções mostrariam exatamente a mesma pessoa/dinossauro).
+        // Sem o campo Role (só nome | AGID) e "Espécie: nome" com dois
+        // pontos em vez de traço — formato próprio pedido pra essa
+        // categoria, diferente do bloco Vítima/Matador abaixo.
         builder.text(
-            `- ${d.KillerName || 'Desconhecido'} | ${d.KillerAlderonId || '—'} | ${d.KillerRole || '—'}${mentionFor(d.KillerAlderonId)}\n` +
-            `${killerDiet ? `${killerDiet} ` : ''}${PlayerRegistry.sanitizeDinosaurType(d.KillerDinosaurType) || 'Desconhecido'} - ${d.KillerCharacterName || 'Desconhecido'} (${formatGrowthStage(d.KillerGrowth) || '—'})`
+            `${d.VictimName || 'Desconhecido'} | ${d.VictimAlderonId || '—'}${mentionFor(d.VictimAlderonId)}\n` +
+            `${victimDiet ? `${victimDiet} ` : ''}${PlayerRegistry.sanitizeDinosaurType(d.VictimDinosaurType) || 'Desconhecido'}: ${d.DinosaurVictimName || 'Desconhecido'} (${formatGrowthStage(d.VictimGrowth) || '—'})`
+        );
+    } else {
+        builder.title('Vítima', 3);
+        builder.text(
+            `- ${d.VictimName || 'Desconhecido'} | ${d.VictimAlderonId || '—'} | ${d.VictimRole || '—'}${mentionFor(d.VictimAlderonId)}\n` +
+            `${victimDiet ? `${victimDiet} ` : ''}${PlayerRegistry.sanitizeDinosaurType(d.VictimDinosaurType) || 'Desconhecido'} - ${d.DinosaurVictimName || 'Desconhecido'} (${formatGrowthStage(d.VictimGrowth) || '—'})`
         );
         builder.separator();
+
+        if (hasKiller) {
+            const killerDiet = dietEmoji(d.KillerDiet, guild);
+            builder.title('Matador', 3);
+            builder.text(
+                `- ${d.KillerName || 'Desconhecido'} | ${d.KillerAlderonId || '—'} | ${d.KillerRole || '—'}${mentionFor(d.KillerAlderonId)}\n` +
+                `${killerDiet ? `${killerDiet} ` : ''}${PlayerRegistry.sanitizeDinosaurType(d.KillerDinosaurType) || 'Desconhecido'} - ${d.KillerCharacterName || 'Desconhecido'} (${formatGrowthStage(d.KillerGrowth) || '—'})`
+            );
+            builder.separator();
+        }
     }
 
     builder.footer(guild?.name || d.ServerName || 'Servidor');

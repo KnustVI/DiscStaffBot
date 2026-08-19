@@ -11549,3 +11549,53 @@ frente, nao so este relatorio):
   confirmação real em produção — o dono precisa testar com um evento
   cuja thread já arquivou de verdade (ou aguardar um caso real
   acontecer) pra confirmar que os botões voltam a atualizar.
+
+226) Nova categoria "Morte de Sobrevivência" no card de morte + corrige kill fantasma contra si mesmo
+------------------------------------------------------------------------------------------------------
+- Pedido do dono (2026-08-19, com screenshot real anexado — Erick0501
+  morrendo de "Fratura (queda)" sozinho, mostrado como "MORTE EM
+  COMBATE" com Vítima e Matador idênticos): "log de morte quando
+  oocorre uma morte sozinha sem outros envolvidos esta vindo como
+  morte em combate... o card no discord deve apenas mostrar" um layout
+  simplificado (emoji "MORTE DE SOBREVIVENCIA", horário, dano, local,
+  separador, e só uma linha "nickname | AGID" + "Espécie: nome
+  (idade)", sem os blocos duplicados de Vítima/Matador.
+- **BUG REAL confirmado**: `buildKillPanel` (`webhookPayloads.js`) só
+  checava `hasKiller = Boolean(KillerName || KillerAlderonId)` pra
+  decidir entre "MORTE EM COMBATE" e "MORTE POR AMBIENTE" — mas o jogo
+  às vezes manda `KillerAlderonId`/`KillerName` IGUAIS aos da vítima
+  quando ela morre sozinha (confirmado com o screenshot real: dano de
+  queda, sem nenhum outro jogador envolvido, campos de Matador
+  preenchidos com o próprio jogador) — diferente da morte por ambiente
+  "pura" (fome/queda sem interação alguma), que manda esses campos
+  VAZIOS. `hasKiller` sozinho não distinguia os dois casos.
+- Corrigido: nova checagem `isSelfDeath` (comparação por AlderonId,
+  não por nome — dois jogadores diferentes podem ter o mesmo nome em
+  jogo) cria uma 3ª categoria, "MORTE DE SOBREVIVÊNCIA", com o card
+  simplificado pedido (sem títulos Vítima/Matador, sem o campo Role,
+  "Espécie: nome" com dois-pontos em vez de traço). "MORTE EM COMBATE"
+  (matador diferente da vítima) e "MORTE POR AMBIENTE" (campos vazios)
+  continuam exatamente como antes.
+- **BUG REAL adjacente encontrado e corrigido, mesma causa raiz**:
+  `recordKillEvent` (`potPlayerRegistry.js`, contador de kills/deaths
+  usado em `/perfil`, KD, e no requisito "species_kills" de Emblema/
+  Título/Missão) somava um KILL pro mesmo jogador que acabou de
+  morrer, toda vez que uma morte de sobrevivência acontecia — um
+  jogador que caía de um penhasco sozinho ganhava um abate contra si
+  mesmo, inflando kills/KD/species_kills à toa. Corrigido com a mesma
+  checagem `isSelfDeath`: `kills`/`species_kills` só são gravados
+  quando o matador é alguém DIFERENTE da vítima; `deaths` continua
+  contando normalmente.
+- Verificado: `node --check` em `webhookPayloads.js`/
+  `potPlayerRegistry.js`. Testes isolados: `buildKillPanel` com 3
+  payloads (morte de sobrevivência igual ao screenshot real, combate
+  real entre 2 jogadores, ambiente puro) confirmando título/formato
+  certos nos 3 casos, incluindo o texto renderizado batendo
+  literalmente com o pedido ("Erick0501 | 333-592-667" +
+  "Stegosaurus: Nooir (Sub-Adulto)"); `recordKillEvent` (banco SQLite
+  temporário) confirmando que morte de sobrevivência grava 0 kills/1
+  death/0 species_kills pro jogador, e que combate real continua
+  gravando 1 kill/1 death/1 species_kill normalmente — 16 checagens,
+  todas passando. SEM confirmação visual real no Discord — o dono
+  precisa conferir a próxima morte de sobrevivência de verdade no
+  servidor.
