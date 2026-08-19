@@ -364,7 +364,10 @@
         .partner-news-image {
             width: calc(100% + 32px);
             margin: -16px -16px 0;
-            aspect-ratio: 280 / 140;
+            /* 1920/1279 — mesma proporção ideal pedida em /divulgar e
+               /evento (pedido do dono, 2026-08-19), pra imagem enviada em
+               qualquer tamanho sempre recortar do mesmo jeito aqui. */
+            aspect-ratio: 1920 / 1279;
             background-size: cover;
             background-position: center;
             flex: none;
@@ -435,7 +438,9 @@
         }
         .partner-news-overlay-image {
             width: 100%;
-            aspect-ratio: 16 / 7;
+            /* Mesma proporção ideal de /divulgar (1920/1279, pedido do
+               dono, 2026-08-19) — ver .partner-news-image acima. */
+            aspect-ratio: 1920 / 1279;
             border-radius: 14px;
             background-size: cover;
             background-position: center;

@@ -19,8 +19,11 @@ try {
 }
 
 const VALID_IMAGE_TYPES = ['image/png', 'image/jpeg'];
-const MAX_WIDTH = 1920;
-const MAX_HEIGHT = 1279;
+// Proporção ideal pro padrão de postagem de fórum do Discord (pedido do
+// dono, 2026-08-19) — só INFORMATIVO na descrição da option, nunca
+// validado/bloqueado (uma imagem fora desse tamanho continua aceita).
+const IDEAL_WIDTH = 1920;
+const IDEAL_HEIGHT = 1279;
 const DEFAULT_EXTERNAL_DURATION_MS = 4 * 60 * 60 * 1000; // 4h, usado só quando o local é descritivo
 
 /**
@@ -76,7 +79,7 @@ module.exports = {
             .setMaxLength(1000)
             .setRequired(true))
         .addAttachmentOption(opt => opt.setName('imagem')
-            .setDescription('Imagem de divulgação (PNG ou JPEG, máximo 1920x1279)')
+            .setDescription(`Imagem de divulgação (PNG ou JPEG) — tamanho ideal ${IDEAL_WIDTH}x${IDEAL_HEIGHT} (padrão de fórum), não obrigatório`)
             .setRequired(true))
         .addStringOption(opt => opt.setName('data')
             .setDescription('Data e hora do evento (formato DD/MM/AAAA HH:MM)')
@@ -137,13 +140,6 @@ module.exports = {
                 `A imagem precisa ser PNG ou JPEG. Você enviou: \`${imagem.contentType || 'formato desconhecido'}\`.`
             );
         }
-        if (imagem.width > MAX_WIDTH || imagem.height > MAX_HEIGHT) {
-            return await ResponseManager.error(
-                interaction,
-                `A imagem precisa ter no máximo ${MAX_WIDTH}x${MAX_HEIGHT} pixels. A sua tem ${imagem.width}x${imagem.height}.`
-            );
-        }
-
         if (eventTier !== 'basic' && !localCanal && !localDescricao) {
             return await ResponseManager.error(
                 interaction,

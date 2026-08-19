@@ -11819,3 +11819,50 @@ frente, nao so este relatorio):
   um `/strike` real (ou aguardar o filtro de chat disparar um) contra
   um alvo sem AGID vinculado ou com o servidor RCON fora do ar, pra
   confirmar visualmente o card de cancelamento.
+
+231) Tamanho ideal de imagem (1920x1279) informado em /evento e /divulgar + proporção padronizada na exibição
+------------------------------------------------------------------------------------------------------
+- Pedido do dono, 2026-08-19: "para os eventos usamos um padrão de
+  postagem de fórum do Discord, o tamanho ideal para essas imagens é
+  1920x1279, não é para ser obrigatório mas informe esse tamanho ideal
+  no comando evento" + a imagem de `/divulgar` (Divulgação do Servidor,
+  1x por semana) normalmente segue essa mesma proporção, então a
+  construção/exibição dela deve sempre respeitar esse formato — e
+  também informar o tamanho ideal no próprio comando.
+- `/evento` (src/commands/events/evento.js): antes VALIDAVA e
+  REJEITAVA qualquer imagem maior que 1920x1279 (`imagem.width >
+  MAX_WIDTH || imagem.height > MAX_HEIGHT`) — isso tornava o tamanho
+  obrigatório na prática, contrário ao pedido de hoje. Removida essa
+  checagem por completo; a option `imagem` agora só INFORMA o tamanho
+  ideal na própria descrição (visível no autocomplete do Discord antes
+  de anexar o arquivo), sem bloquear nenhum tamanho. Constantes
+  renomeadas de `MAX_WIDTH`/`MAX_HEIGHT` pra `IDEAL_WIDTH`/
+  `IDEAL_HEIGHT` (só uso informativo agora, não validação).
+- `/divulgar` (src/commands/events/divulgar.js): nunca teve nenhuma
+  checagem de tamanho — ganhou a mesma descrição informativa com o
+  tamanho ideal (1920x1279) na option `imagem`, sem adicionar
+  validação nova (a imagem continua sempre obrigatória, só o TAMANHO
+  não é forçado).
+- Exibição da divulgação (`/divulgar`) SEMPRE respeita essa proporção
+  agora, nos 4 lugares onde a imagem aparece — cada um usava uma
+  proporção diferente e nenhuma batia com 1920/1279 (≈1.5):
+  1. Card grande da home (`hero.ejs` `.partner-news-image`) — era
+     `280/140` (2:1).
+  2. Overlay de detalhe ao clicar no card (`hero.ejs`
+     `.partner-news-overlay-image`) — era `16/7` (≈2.29:1).
+  3. Carrossel mini de `/perfil` e `/loja` (`partner-news-mini.ejs`
+     `.partner-news-mini-image`) — era `280/110` (≈2.55:1).
+  4. Prévia read-only em `/moderacao` (`moderacao.ejs`, dentro do card
+     "DIVULGAÇÃO DO SERVIDOR") — era `width:160px; height:100px` fixo
+     (1.6:1), trocado pra `width:160px; aspect-ratio:1920/1279`.
+  Todos os 4 já usavam `background-size:cover` + `background-position:
+  center`, então uma imagem enviada em outra proporção continua
+  aceita normalmente (nada quebra) — só passa a ser recortada de
+  forma IDÊNTICA em todo canto onde aparece, em vez de 4 recortes
+  diferentes entre si e nenhum deles batendo com o tamanho sugerido no
+  comando.
+- Verificado: `node --check` em evento.js/divulgar.js. Sem confirmação
+  visual no navegador (ambiente sem Discord/browser reais) — o dono
+  pode conferir publicando uma nova `/divulgar` e olhando o card na
+  home, no carrossel de `/perfil`/`/loja`, no overlay de detalhe e na
+  prévia de `/moderacao`.

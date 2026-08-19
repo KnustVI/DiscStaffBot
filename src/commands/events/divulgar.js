@@ -30,6 +30,16 @@ try {
     EMOJIS = {};
 }
 
+// Proporção ideal da imagem (pedido do dono, 2026-08-19) — a mesma usada
+// no padrão de postagem de fórum de /evento (1920x1279). Só INFORMATIVO na
+// descrição da option (imagem continua sempre obrigatória, mas em
+// qualquer tamanho) — quem exibe essa imagem (cards da home/perfil/loja e
+// prévia em /moderacao) é que sempre recorta pra essa proporção via CSS
+// (aspect-ratio + background-size: cover), então uma imagem enviada fora
+// dela nunca quebra o layout, só fica cortada.
+const IDEAL_WIDTH = 1920;
+const IDEAL_HEIGHT = 1279;
+
 // Um post por semana (pedido do dono) — controlado pela MESMA
 // partner_news_updated_at que o dashboard web já mantinha só pra ordenar
 // o feed (ver getPartnerNews). Reaproveitar esse campo em vez de criar um
@@ -57,7 +67,7 @@ module.exports = {
             .setMaxLength(280)
             .setRequired(true))
         .addAttachmentOption(opt => opt.setName('imagem')
-            .setDescription('Imagem de ilustração da divulgação (PNG, JPEG ou WEBP) — sempre obrigatória')
+            .setDescription(`Imagem de ilustração (PNG, JPEG ou WEBP), sempre obrigatória — tamanho ideal ${IDEAL_WIDTH}x${IDEAL_HEIGHT}`)
             .setRequired(true))
         .addStringOption(opt => opt.setName('evento')
             .setDescription('Evento agendado do servidor pra destacar junto da divulgação (opcional)')

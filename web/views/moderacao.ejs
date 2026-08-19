@@ -547,7 +547,8 @@
                 <% if (partnerNews) { %>
                     <div class="flex flex-col gap-3 sm:flex-row">
                         <% if (partnerNews.imageUrl) { %>
-                            <div class="rounded-lg" style="width:160px; height:100px; flex:none; background-image:url('<%= partnerNews.imageUrl %>'); background-size:cover; background-position:center;"></div>
+                            <%# 1920/1279 — mesma proporção ideal pedida em /divulgar (pedido do dono, 2026-08-19), ver hero.ejs .partner-news-image. %>
+                            <div class="rounded-lg" style="width:160px; aspect-ratio:1920/1279; flex:none; background-image:url('<%= partnerNews.imageUrl %>'); background-size:cover; background-position:center;"></div>
                         <% } %>
                         <div class="flex flex-col gap-1 min-w-0">
                             <p class="text-titan-cream font-semibold"><%= partnerNews.title %></p>

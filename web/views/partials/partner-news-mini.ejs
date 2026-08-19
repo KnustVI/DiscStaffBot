@@ -140,7 +140,9 @@
     .partner-news-mini-action i { width: 13px; height: 13px; flex: none; }
     .partner-news-mini-image {
         width: 100%;
-        aspect-ratio: 280 / 110;
+        /* Mesma proporção ideal de /divulgar (1920/1279, pedido do dono,
+           2026-08-19) — ver .partner-news-image em hero.ejs. */
+        aspect-ratio: 1920 / 1279;
         background-size: cover;
         background-position: center;
         flex: none;
