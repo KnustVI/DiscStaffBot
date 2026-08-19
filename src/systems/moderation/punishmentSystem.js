@@ -885,22 +885,17 @@ const PunishmentSystem = {
             // reconhecido pelo servidor, o comando ficava sem efeito nenhum (nem
             // erro, só silenciosamente ignorado).
             const isPermanent = durationLower === '' || durationLower === '0' || durationLower === 'perm';
-            // BUG REAL corrigido (pedido do dono, 2026-08-19 — achado investigando
-            // um ban de 7 dias que não pegou: jogador banido na segunda continuava
-            // online na quarta). O dono colou o formato REAL da banlist.txt do PoT:
-            //   AlderonId:UnixTimestamp:AdminReason:UserReason
-            //   ("UnixTimestamp - Ban expiration ... 0 = forever")
-            // O 2º campo é um TIMESTAMP UNIX ABSOLUTO de expiração, não uma duração
-            // relativa — o RCON `ban`/`ServerMute` (que escreve nessa mesma lista
-            // persistente, ver docblock acima) espera o mesmo formato. Este código
-            // mandava a durationStr CRUA ("7d", "24h" — o formato que ESTE bot usa
-            // internamente pra exibir/configurar duração, nunca o que o jogo
-            // entende), então o servidor não reconhecia como expiração válida e o
-            // ban nunca pegava de verdade. Convertido pra timestamp absoluto em
-            // SEGUNDOS (Date.now() já é ms, parseDuration devolve ms — ambos
-            // convertidos), reaproveitando o MESMO parseDuration já usado pro
-            // cargo temporário de Discord (applyTemporaryRole, linha ~1009).
-            const durationToken = isPermanent ? '0' : String(Math.floor((Date.now() + this.parseDuration(durationStr)) / 1000));
+            // REVERTIDO (pedido do dono, 2026-08-19 — confirmado com um teste real
+            // via /rcon-teste): a tentativa anterior de mandar um timestamp Unix
+            // ABSOLUTO aqui (achando que era esse o formato esperado, por causa da
+            // documentação da banlist.txt) foi um erro — o servidor respondeu na
+            // hora, ao vivo: "'1787160161' is not a valid time.". A `banlist.txt`
+            // já tinha um timestamp absoluto ANTES dessa mudança também (dado real
+            // colado pelo dono), o que prova que é o PRÓPRIO SERVIDOR quem calcula
+            // e persiste esse timestamp — o comando RCON `ban`/`ServerMute` quer a
+            // duração RELATIVA mesmo ("7d", "12h", o formato que este bot já usa
+            // internamente), não um timestamp. Volta a mandar durationStr crua.
+            const durationToken = isPermanent ? '0' : durationStr;
             const playerReason = sanitizeForRcon(reason, 120);
             const adminReason = buildAdminReasonLabel({ levelName, staffTag, reportId });
             const rconCommands = {

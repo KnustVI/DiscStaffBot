@@ -11706,3 +11706,38 @@ frente, nao so este relatorio):
   qualquer outro) e conferir a resposta real que aparece na tela,
   ou olhar a lista persistida de novo depois de um novo teste pra ver
   se o formato de 4 campos ficou correto desta vez.
+
+229) CORREÇÃO da seção 227: reverte o timestamp Unix no /ban — RCON quer duração relativa mesmo
+------------------------------------------------------------------------------------------------------
+- O dono testou ao vivo com `/rcon-teste` em cima da própria conta
+  (500-735-822, graças à resposta do servidor agora aparecer de
+  verdade — ver seção 228) e o servidor respondeu, sem ambiguidade
+  nenhuma: `(ban 500-735-822 1787160161 "..." "..."): '1787160161' is
+  not a valid time.` — o servidor REJEITOU o timestamp Unix absoluto
+  que a seção 227 passou a mandar.
+- **A hipótese da seção 227 estava errada.** A `banlist.txt` já tinha
+  um timestamp absoluto ANTES daquela mudança também (dado real colado
+  pelo dono na investigação) — o que só faz sentido se for o PRÓPRIO
+  SERVIDOR quem calcula e persiste esse timestamp a partir de uma
+  duração relativa recebida via RCON, não o bot mandando o timestamp
+  pronto. O comando `ban`/`ServerMute` quer a duração no formato
+  relativo mesmo ("7d", "12h" — o mesmo formato que este bot já usa
+  internamente pra configurar/exibir duração), não um timestamp Unix.
+- Revertido: `durationToken` volta a mandar `durationStr` crua (ex.
+  "12h") pra Ban/ServerMost não-permanente — "0"/"perm"/vazio continua
+  "0" (isso nunca foi questionado). A correção da seção 228 (":" no
+  motivo corrompendo a lista persistida) continua valendo — o próprio
+  comando de teste do dono já mostra o resultado limpo:
+  `"Banimento - Staff knustseiervi"`, sem ":" nenhum.
+- **Causa raiz do ban original do 620-137-103 permanece a mais provável
+  de ser só a corrupção do ":" (seção 228)** — o formato de duração em
+  si ("7d"/"12h") parece ter sido correto o tempo todo; obrigado ao
+  dono por insistir em testar em cima da própria conta em vez de
+  aceitar a correção anterior sem prova ao vivo.
+- Verificado: `node --check`. Teste isolado reexecutado confirmando
+  que Ban de "12h" agora manda `ban <AGID> 12h "..." "..."` (batendo
+  byte a byte com o comando testado ao vivo pelo dono, só trocando o
+  timestamp inválido pela duração relativa), permanente continua "0",
+  ServerMute de "7d" idem — 3 checagens, todas passando. Verificação
+  final de verdade: o próximo `/rcon-teste` de Ban que o dono rodar
+  deve vir sem erro nenhum na "Resposta do servidor".
