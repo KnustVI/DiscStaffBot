@@ -12045,4 +12045,49 @@ frente, nao so este relatorio):
   (nada quebrou na cancelação de `/strike`, só a detecção de sucesso/
   falha ficou mais precisa).
 
+236) diagnostico_moedas.js ganha checagem de fontes conhecidas de divergência (ajustes manuais + compras)
+------------------------------------------------------------------------------------------------------
+- Pedido do dono, 2026-08-19: novo teste real do `diagnostico_moedas.js`
+  (continuação da seção 214) mostrou Caçadas ABAIXO do esperado (4 vs
+  ~6h de jogo) mas Ossos ACIMA do esperado (96 vs 30, mesmo servidor) —
+  nas DUAS direções opostas, a partir da MESMA sessão de jogo. Um bug
+  de subcrédito sozinho (hipótese da seção 214) não explica as duas
+  coisas ao mesmo tempo, já que Caçadas e Ossos nascem da mesma chamada
+  (`_creditPlaytimeCurrency` -> `_creditGuildBones`, ver
+  potPlayerRegistry.js).
+- Antes de investigar mais fundo, uma explicação bem mais provável:
+  esta é a conta do PRÓPRIO DONO, usada o dia inteiro nesta mesma
+  sessão de desenvolvimento pra testar `/moeda-admin` (ajuste manual
+  de saldo, seção 222) e a Loja de Jogo/Personalização — nenhuma
+  dessas ações passa pela fórmula "tempo jogado × taxa" que o
+  diagnóstico usava pra calcular o "esperado", então qualquer uso
+  real dessas ferramentas já explicaria as duas divergências sozinho,
+  sem bug nenhum.
+- `diagnostico_moedas.js` ganhou 3 seções novas pra confirmar (ou
+  descartar) isso com dado real, em vez de suposição:
+  1. Ajustes manuais recebidos via `/moeda-admin` (`activity_logs`,
+     `action='moeda_admin_adjust'`, `target_id`) — mostraria
+     diretamente um "ADICIONOU 66 ossos" se foi isso.
+  2. Compras na Loja de Jogo (`activity_logs`,
+     `action='game_shop_purchase'`) — gasta Ossos, então não explica o
+     EXCESSO por si só, mas ajuda a montar o quadro completo.
+  3. Compras na Loja de Personalização (`image_inventory`,
+     `source='purchase'`) — gasta Caçadas via `spendHunt`
+     (imageShopSystem.js), que nunca chamou `logActivity` nenhuma vez
+     (achado ao investigar isto agora) — sem log de atividade, a
+     ÚNICA prova de gasto é o item aparecer no inventário; mostra
+     tipo/id/data de cada compra (sem preço salvo por linha, então não
+     dá pra somar o total gasto automaticamente, só confirmar QUE
+     comprou algo).
+- Verificado: `node --check`. Teste isolado (banco temporário, nunca
+  `database.sqlite` real, com um `moeda_admin_adjust` de +66 Ossos e
+  uma compra de Loja de Jogo/Personalização semeados à mão) confirma
+  as 3 seções novas leem e formatam certo, reproduzindo exatamente o
+  cenário relatado (96 Ossos = 30 esperado + 66 do ajuste manual). Sem
+  confirmação com dado real de produção ainda — pendente o dono rodar
+  `node diagnostico_moedas.js` de novo na VPS e conferir se as seções
+  novas realmente explicam a divergência ou se seguem vazias (o que aí
+  sim reabriria a investigação da seção 214).
+
+
 

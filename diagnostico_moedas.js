@@ -90,6 +90,69 @@ if (!bones.length) {
     }
 }
 
+// ── Pedido do dono, 2026-08-19 (2ª rodada): novo teste real mostrou
+// Caçadas ABAIXO do esperado (4 vs ~6) mas Ossos ACIMA (96 vs 30) — nas
+// DUAS direções opostas, algo que um bug de subcrédito sozinho (seção
+// 214) não explica, já que as duas moedas nascem da MESMA sessão dentro
+// de _creditPlaytimeCurrency/_creditGuildBones. A fórmula do diagnóstico
+// só sabe calcular "esperado" a partir de tempo jogado puro — não sabe
+// nada sobre AJUSTES MANUAIS (/moeda-admin, testado nesta mesma sessão
+// de desenvolvimento) nem GASTOS (Loja de Personalização, paga em
+// Caçadas via spendHunt — nunca registrada em activity_logs, só dá pra
+// ver pelo que está em image_inventory). Antes de assumir bug de novo,
+// mostra essas 2 fontes conhecidas de divergência "normal" que a conta
+// do PRÓPRIO DONO, sendo testada o dia inteiro, pode ter acumulado. ──
+console.log('\n=== AJUSTES MANUAIS RECEBIDOS (/moeda-admin — activity_logs) ===');
+const moedaAdminLogs = db.prepare(`
+    SELECT guild_id, action, details, created_at FROM activity_logs
+    WHERE action = 'moeda_admin_adjust' AND target_id = ?
+    ORDER BY created_at ASC
+`).all(link.user_id);
+if (!moedaAdminLogs.length) {
+    console.log('Nenhum ajuste manual via /moeda-admin registrado pra este usuário.');
+} else {
+    for (const row of moedaAdminLogs) {
+        let d = {};
+        try { d = JSON.parse(row.details || '{}'); } catch (e) {}
+        console.log(`guild=${row.guild_id} | ${d.sub === 'remover' ? 'REMOVEU' : 'ADICIONOU'} ${d.quantidade} ${d.moeda} (${d.before} -> ${d.after}) | ${new Date(row.created_at * 1000).toISOString()}`);
+    }
+}
+
+console.log('\n=== COMPRAS NA LOJA DE JOGO (gasta Ossos — activity_logs) ===');
+const gameShopLogs = db.prepare(`
+    SELECT guild_id, details, created_at FROM activity_logs
+    WHERE action = 'game_shop_purchase' AND user_id = ?
+    ORDER BY created_at ASC
+`).all(link.user_id);
+if (!gameShopLogs.length) {
+    console.log('Nenhuma compra na Loja de Jogo registrada pra este usuário.');
+} else {
+    for (const row of gameShopLogs) {
+        let d = {};
+        try { d = JSON.parse(row.details || '{}'); } catch (e) {}
+        console.log(`guild=${row.guild_id} | comprou "${d.itemName || d.itemId || '?'}" por ${d.price ?? '?'} Ossos | ${new Date(row.created_at * 1000).toISOString()}`);
+    }
+}
+
+console.log('\n=== COMPRAS NA LOJA DE PERSONALIZAÇÃO (gasta Caçadas — image_inventory) ===');
+// spendHunt (imageShopSystem.js) nunca chama logActivity — a única
+// "prova" de que Caçadas foi gasto aqui é o item aparecer no inventário
+// com source='purchase'. Sem preço salvo por linha (só o pool_id), então
+// mostra o que foi comprado e quando, não quanto custou cada um.
+const imagePurchases = db.prepare(`
+    SELECT pool_type, pool_id, purchased_at FROM image_inventory
+    WHERE user_id = ? AND source = 'purchase'
+    ORDER BY purchased_at ASC
+`).all(link.user_id);
+if (!imagePurchases.length) {
+    console.log('Nenhuma compra na Loja de Personalização registrada pra este usuário.');
+} else {
+    for (const row of imagePurchases) {
+        console.log(`pool_type=${row.pool_type} | pool_id=${row.pool_id} | comprado em ${new Date(row.purchased_at * 1000).toISOString()}`);
+    }
+    console.log(`(${imagePurchases.length} compra(s) — confira o preço de cada uma em /dev/Loja pra saber quantas Caçadas isso consumiu no total)`);
+}
+
 console.log('\n=== HISTÓRICO DE SESSÕES (pot_logs — PlayerLogin/PlayerLogout/PlayerLeave) ===');
 console.log('(só existe a partir de 2026-08-19 — eventos antigos não foram persistidos, ver PERSISTED_EVENTS em gatewayServer.js)\n');
 const sessionEvents = db.prepare(`
