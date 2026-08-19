@@ -12579,3 +12579,76 @@ frente, nao so este relatorio):
   campos de preço/recompensa de `/dev/Loja`, e também trocando o tipo da
   recompensa de Missão entre Ossos/Caçadas pra ver o texto mudar (Marks
   aparece só pra Ossos).
+
+
+246) Escala de tipografia responsiva (Tilt Warp Heading/Subtítulo, Poppins Body/Caption) + botão .btn-primary encolhe sozinho no mobile
+------------------------------------------------------------------------------------------------------
+- Pedido do dono, 2026-08-19, colando uma planilha do Figma (2 imagens):
+  "Consegue configurar esses tamanhos de texto sendo heading + Subtitlo
+  para telas maiores baseado nas imagens? Tilt Ward para titulos e
+  subtitulos, Poppins para texto. E icones de botão web 20x20, Icones de
+  botão mobile 12x12." Seguido de um trecho CSS exportado do Figma do
+  componente "ButtonMobile"/"Subtitle Mobile" (Poppins 300, 14px,
+  line-height 21px, ícone 12x12) como exemplo concreto.
+- 2 perguntas de escopo feitas antes de implementar (ambas respondidas
+  com a opção recomendada): (1) aplicar automaticamente agora nos
+  botões/título já em uso, ou só deixar as classes prontas pro dono
+  aprovar depois — escolhido APLICAR AGORA; (2) o "Body 16px (Padrão
+  ideal)" que aparece nas duas colunas da planilha (mobile E web) — o
+  texto padrão do site deveria continuar 16px fixo em qualquer tela, ou
+  crescer 14→16 como os headings — escolhido FIXO EM 16PX (não escala).
+- `web/public/css/style.css` — 9 variáveis CSS novas no `:root` (valores
+  MOBILE, <768px) redefinidas dentro de `@media (min-width: 768px)`
+  pros valores WEB: `--fs-heading` (32→48), `--fs-subtitle` (24→32),
+  `--fs-heading-sm` (20→24), `--fs-body-lg` (16→18), `--fs-body` (16,
+  FIXO nos dois), `--fs-body-sm` (14, fixo), `--fs-body-xs` (12, fixo),
+  `--fs-caption` (12→13), `--btn-icon-size` (12→20). Breakpoint 768px =
+  mesmo `md` do Tailwind já usado no site pra logo/drawer mobile (ver
+  seção 242), não um número novo inventado. 8 classes utilitárias novas
+  (`.tp-heading`/`.tp-subtitle`/`.tp-heading-sm`/`.tp-body-lg`/
+  `.tp-body`/`.tp-body-sm`/`.tp-body-xs`/`.tp-caption`) — disponíveis
+  pra uso, mas NÃO aplicadas retroativamente a `.section-title` nem a
+  nenhum heading já em uso: várias páginas escolhem o tamanho de
+  `.section-title` por classe Tailwind (`text-lg`/`text-2xl`/etc.) por
+  instância, forçar um `font-size` fixo na classe base quebraria essa
+  variação existente sem necessidade real.
+- `.btn-primary-icon` passou a usar `var(--btn-icon-size)` em vez de
+  `20px` hardcoded — responsivo automaticamente, sem precisar de media
+  query própria (a variável já muda sozinha).
+- `.btn-primary` ganhou um `@media (max-width: 767px)` novo — cores/
+  bordas/box-shadow por estado (Primary/Hover/Pressed/Disabled) já
+  batiam 1:1 com o componente mobile do Figma, sem precisar de
+  override; só padding vertical/tipografia/min-width/height encolhem:
+  `min-width:0` e `height:auto` (em vez do `78x21` literal do Figma,
+  que veio de um rótulo de exemplo curto — um valor fixo cortaria
+  rótulos reais mais longos já em uso no site, ex: "Assinar via
+  Ko-fi"), `font-weight:300`, `font-size:14px`
+  (`var(--fs-body-sm)`), `line-height:21px`.
+- DESCOBERTA no meio do trabalho: `.btn-primary` está DUPLICADO (não
+  importado) em MAIS 3 arquivos além de `style.css` —
+  `hero.ejs`/`portal.ejs`/`termos.ejs`, cada um com seu próprio `<style>`
+  embutido (páginas públicas, "autocontidas", documentado no próprio
+  código: "não compartilha `<style>` com outras páginas"). Sem migração
+  pra um import único (fora de escopo, mudança estrutural maior),
+  aplicado o MESMO `@media (max-width:767px)` (valores literais, sem
+  `var()` já que essas páginas não têm o bloco `:root` do style.css)
+  duplicado nos 4 lugares — senão o pedido "aplicar agora" ficaria
+  incompleto bem na página de maior tráfego do site (hero.ejs, a
+  landing pública). `portal.ejs` é cópia EXATA da versão de style.css
+  (232px/20px/ícone 20x20) — ganhou a mesma regra 1:1. `hero.ejs`
+  (200px/18px, sem `.btn-primary-icon`, com um `.small` já existente)
+  e `termos.ejs` (200px/16px) já eram variantes PRÓPRIAS, levemente
+  divergentes da versão "oficial" antes mesmo desta mudança — mantidas
+  como estavam no desktop, só ganharam o mesmo encolhimento mobile.
+  Inline `style="..."` já usados em botões específicos (ex: Ko-fi em
+  hero.ejs, `/perfil` em portal.ejs) continuam intocados — especificidade
+  de `style=""` sempre vence uma regra de classe, então essas variantes
+  manuais já existentes não conflitam com a nova regra responsiva.
+- Verificado: `node --check` de brace-balance em `style.css` (script
+  Node contando `{`/`}`, profundidade final 0) e nos 3 blocos `<style>`
+  embutidos dos EJS tocados; `ejs.compile()` nos 3 arquivos. Sem
+  confirmação visual real (não dá pra simular redimensionar uma janela
+  de navegador neste ambiente) — o dono pode conferir abrindo `/`,
+  `/portal`, `/termos` e qualquer página com sidebar (`/moderacao` etc.)
+  numa tela ≤767px (ou DevTools em modo responsivo) e comparando o botão
+  primário com o Figma "ButtonMobile" colado no pedido.

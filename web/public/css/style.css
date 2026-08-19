@@ -32,7 +32,58 @@ html, body {
     --stroke: #5A1811;
     --font-head: 'Tilt Warp', cursive;
     --font-body: 'Poppins', sans-serif;
+
+    /* Escala de tipografia (pedido do dono, 2026-08-19, planilha Figma) —
+       Tilt Warp pra Heading/Subtítulo, Poppins pro corpo de texto. Valores
+       abaixo são o padrão MOBILE (<768px, mesmo breakpoint md do Tailwind
+       já usado no site pra logo/drawer mobile); a media query logo abaixo
+       redefine só o que CRESCE em telas maiores — Body fica de propósito
+       FIXO em 16px nas duas larguras (confirmado com o dono: é o "padrão
+       ideal" nas duas colunas da planilha, não uma escala que sobe junto
+       com os headings). --btn-icon-size mora aqui pelo mesmo motivo
+       (ícone de botão: 12x12 mobile, 20x20 web, mesmo corte).
+       Heading/Subtítulo/Heading-sm formam 3 degraus que sobem 1 posição
+       cada (heading-sm mobile 20 = ~heading-sm web 24, etc.) — Body-sm e
+       Body-xs não têm valor maior declarado na planilha pro web, então
+       ficam com o MESMO número nas duas larguras de propósito. */
+    --fs-heading: 32px;
+    --fs-subtitle: 24px;
+    --fs-heading-sm: 20px;
+    --fs-body-lg: 16px;
+    --fs-body: 16px;
+    --fs-body-sm: 14px;
+    --fs-body-xs: 12px;
+    --fs-caption: 12px;
+    --btn-icon-size: 12px;
 }
+
+@media (min-width: 768px) {
+    :root {
+        --fs-heading: 48px;
+        --fs-subtitle: 32px;
+        --fs-heading-sm: 24px;
+        --fs-body-lg: 18px;
+        --fs-caption: 13px;
+        --btn-icon-size: 20px;
+    }
+}
+
+/* Classes utilitárias da escala acima — usar em vez de font-size/family
+   soltos sempre que o elemento for genuinamente um destes 6 papéis
+   (título de página, subtítulo de seção, rótulo pequeno tipo "eyebrow",
+   corpo de texto grande/padrão/pequeno, ou legenda/metadado). Não
+   aplicadas retroativamente a .section-title nem a nenhum heading já
+   em uso — várias páginas escolhem o tamanho de .section-title por
+   Tailwind (text-lg/text-2xl/etc.) por instância, forçar um font-size
+   fixo aqui quebraria essa variação existente sem necessidade. */
+.tp-heading { font-family: var(--font-head); font-size: var(--fs-heading); }
+.tp-subtitle { font-family: var(--font-head); font-size: var(--fs-subtitle); }
+.tp-heading-sm { font-family: var(--font-head); font-size: var(--fs-heading-sm); }
+.tp-body-lg { font-family: var(--font-body); font-size: var(--fs-body-lg); }
+.tp-body { font-family: var(--font-body); font-size: var(--fs-body); }
+.tp-body-sm { font-family: var(--font-body); font-size: var(--fs-body-sm); }
+.tp-body-xs { font-family: var(--font-body); font-size: var(--fs-body-xs); }
+.tp-caption { font-family: var(--font-body); font-size: var(--fs-caption); }
 
 body {
     background-color: var(--bg-main);
@@ -611,8 +662,8 @@ summary.btn-chip::marker { content: ''; }
 }
 
 .btn-primary-icon {
-    width: 20px;
-    height: 20px;
+    width: var(--btn-icon-size);
+    height: var(--btn-icon-size);
     border-radius: 50%;
     background: currentColor;
     flex: none;
@@ -641,6 +692,27 @@ summary.btn-chip::marker { content: ''; }
     box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5);
     cursor: not-allowed;
     pointer-events: none;
+}
+
+/* --- Botão Primário, tamanho MOBILE (Figma: "ButtonMobile"/"Subtitle
+   Mobile", pedido do dono 2026-08-19) — mesmas cores/bordas/box-shadow
+   por estado de cima (Primary/Hover/Pressed/Disabled já batem 1:1 com o
+   componente web, não precisam de override nenhum), só encolhe padding
+   vertical/tipografia/ícone. min-width/height viram automáticos (largura
+   de verdade no Figma, 78x21, veio do texto "Button" de exemplo — um
+   valor fixo aqui cortaria rótulos mais longos já em uso no site, ex:
+   "Assinar via Ko-fi"); a largura REAL sempre foi content-driven aqui
+   (padding + line-height), então "solta" o min-width de 232px do
+   desktop é o suficiente pra chegar num resultado visualmente equivalente
+   sem arriscar cortar texto. */
+@media (max-width: 767px) {
+    .btn-primary {
+        min-width: 0;
+        height: auto;
+        font-weight: 300;
+        font-size: var(--fs-body-sm);
+        line-height: 21px;
+    }
 }
 
 /* --- Outline Chip (Figma: "Frame 12007" etc, STAFF ONLINE/OFFLINE) ---

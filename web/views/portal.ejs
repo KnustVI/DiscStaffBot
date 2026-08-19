@@ -139,6 +139,17 @@
             box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5),
                         inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
         }
+        /* Tamanho MOBILE do botão (Figma "ButtonMobile"/"Subtitle Mobile",
+           pedido do dono 2026-08-19) — mesma regra de web/public/css/
+           style.css, duplicada aqui pelo mesmo motivo do resto deste bloco
+           (página sem stylesheet compartilhado). min-width/height soltos
+           (content-driven) em vez de forçar o 78x21 literal do Figma, que
+           veio de um rótulo de exemplo curto — evita cortar texto de botões
+           reais mais longos desta página. */
+        @media (max-width: 767px) {
+            .btn-primary { min-width: 0; height: auto; font-weight: 300; font-size: 14px; line-height: 21px; }
+            .btn-primary-icon { width: 12px; height: 12px; }
+        }
 
         /* Barra de navegação padrão do site (partials/top-nav.ejs desde
            2026-08-13 — antes era um <nav> só desta página, mesma origem
