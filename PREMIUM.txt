@@ -11469,3 +11469,39 @@ frente, nao so este relatorio):
   e 6.9 dias) voltam na query. SEM confirmação visual — o dono pode
   conferir olhando a home/`/perfil`/`/loja` com um servidor cuja
   divulgação já passou de 7 dias.
+
+224) /evento agora avisa os jogadores EM JOGO na criação e no início
+--------------------------------------------------------------------------
+- Pedido do dono (2026-08-19): "Verifique se o comando eventos avisa os
+  jogadores em jogo tambem alem do discord."
+- Investigação: `/evento` (criação) e o anúncio de início/encerramento
+  (`eventAnnounceSystem.js`) sempre foram 100% Discord — nenhum RCON em
+  nenhuma das 3 fases. Achado à parte, corrigindo uma resposta inicial
+  incompleta: JÁ existia um aviso em jogo, só que separado — o worker
+  `eventScheduler.js` manda um `systemmessageall` via RCON ~30 minutos
+  ANTES do início (junto do lembrete no canal de logs), pra servidores
+  Rastreador+ (`autoRcon`). Isso não foi tocado.
+- Adicionado agora, complementando o que já existia (nenhuma
+  duplicação — são 3 momentos diferentes: T-30min já avisava, criação
+  e T=0 não avisavam nada): `eventAnnounceSystem.js` ganha
+  `_broadcastInGame`, chamado dentro de `announceCreated` e
+  `announceStarted` (não `announceEnded` — quem já não está mais no
+  jogo não se beneficia de saber que acabou). Dispara RCON `announce`
+  com uma mensagem em texto puro (sem markdown/timestamp do Discord,
+  que RCON não renderiza), truncada em 200 caracteres. Mesmo gate
+  `autoRcon` (Rastreador+) já usado pelo lembrete de 30min e pelo
+  botão de TP configurável — independente do canal de anúncio do
+  Discord (Caçador + `event_announce_channel` configurado), já que o
+  alvo aqui é o servidor de jogo, não um canal.
+- Verificado: `node --check` em `eventAnnounceSystem.js`. Teste
+  isolado (banco SQLite temporário, `PoTConfigSystem.
+  executeRconCommand`/`PremiumSystem.getGuildLimits` substituídos por
+  dublês — nunca dispara RCON de verdade) confirmando: tier Free não
+  dispara nada; Rastreador+ dispara exatamente 1 comando `announce` na
+  criação e 1 no início, com o nome do evento na mensagem; encerramento
+  não dispara nada; mensagem de nome gigante trunca em 200 caracteres
+  com reticências; falha do RCON (erro simulado) não derruba
+  `announceCreated` — 11 checagens, todas passando. SEM confirmação
+  visual/RCON real — o dono precisa criar/iniciar um evento de verdade
+  num servidor Rastreador+ e conferir que a mensagem aparece no chat
+  do jogo.
