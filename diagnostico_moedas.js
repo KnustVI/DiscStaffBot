@@ -73,7 +73,17 @@ console.log(`Caçadas esperadas por esse total, arredondado pra baixo (1 Caçada
 console.log(`Caçadas REAIS no saldo agora: ${link.hunt_balance}`);
 
 console.log('\n=== pot_player_bones (Ossos, uma linha por servidor) ===');
-const bones = db.prepare(`SELECT guild_id, balance, playtime_credit_seconds, updated_at FROM pot_player_bones WHERE user_id = ?`).all(link.user_id);
+// Pedido do dono, 2026-08-19 (3ª rodada): "ossos podem ser adquiridos por
+// marks então no meu caso desconsidere" — o conversor Marks->Ossos
+// (currencySystem.js convertMarksToBones) é OUTRA fonte legítima de Ossos
+// fora da fórmula "tempo jogado × taxa", e NUNCA chama logActivity (achado
+// junto com o de spendHunt na seção 236) — sem histórico persistente, só
+// dá pra ver o total convertido HOJE (marks_converted_today/date, reseta
+// todo dia). Por isso um SALDO MAIOR que o esperado não é sinal de bug
+// por si só (pode ser conversão, de hoje ou de qualquer dia anterior) —
+// só um saldo MENOR que o esperado continua sendo genuinamente suspeito
+// (nada nesta lista credita Ossos além do tempo jogado).
+const bones = db.prepare(`SELECT guild_id, balance, playtime_credit_seconds, marks_converted_today, marks_converted_date, updated_at FROM pot_player_bones WHERE user_id = ?`).all(link.user_id);
 if (!bones.length) {
     console.log('Nenhuma linha em pot_player_bones pra este usuário — Ossos nunca foi creditado em NENHUM servidor ainda.');
 } else {
@@ -81,11 +91,17 @@ if (!bones.length) {
         const p = players.find(pp => pp.guild_id === b.guild_id);
         const playtimeThisGuild = p ? p.total_playtime : null;
         const expectedBones = playtimeThisGuild !== null ? Math.floor(playtimeThisGuild / 3600) * 5 : null;
-        const match = expectedBones !== null && expectedBones === b.balance ? '✅ bate' : '❌ NÃO bate';
+        let match = '✅ bate';
+        if (expectedBones !== null && expectedBones !== b.balance) {
+            match = b.balance > expectedBones
+                ? '⚠️ ACIMA do esperado (normal se converteu Marks->Ossos em algum momento, ver currencySystem.js — sem histórico persistente pra confirmar)'
+                : '❌ ABAIXO do esperado (nada aqui credita Ossos além do tempo jogado — genuinamente suspeito, ver /moeda-admin "REMOVEU" acima antes de assumir bug)';
+        }
         console.log(
             `guild=${b.guild_id} | Ossos=${b.balance} | sobra de segundos (carry, só deste servidor)=${b.playtime_credit_seconds}s | ` +
             `total_playtime FECHADO deste servidor=${playtimeThisGuild}s (${playtimeThisGuild !== null ? (playtimeThisGuild / 3600).toFixed(2) : '?'}h) | ` +
-            `Ossos esperados (total_playtime/3600*5)=${expectedBones} | ${match} | atualizado ${new Date(b.updated_at * 1000).toISOString()}`
+            `Ossos esperados (total_playtime/3600*5)=${expectedBones} | ${match}\n` +
+            `  Marks convertidos HOJE: ${b.marks_converted_today || 0} (data: ${b.marks_converted_date || 'nunca'}) | atualizado ${new Date(b.updated_at * 1000).toISOString()}`
         );
     }
 }

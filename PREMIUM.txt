@@ -12089,5 +12089,33 @@ frente, nao so este relatorio):
   novas realmente explicam a divergência ou se seguem vazias (o que aí
   sim reabriria a investigação da seção 214).
 
+237) CORREÇÃO da seção 236: conversor Marks->Ossos é outra fonte legítima de Ossos "extra"
+------------------------------------------------------------------------------------------------------
+- Pedido do dono, 2026-08-19, logo em seguida: "Lembre-se que ossos
+  podem ser adquiridos por marks então no meu caso desconsidere" — o
+  conversor Marks->Ossos (`currencySystem.js` `convertMarksToBones`,
+  ver PREMIUM.txt seção 122) credita Ossos fora da fórmula "tempo
+  jogado × taxa" igual `/moeda-admin`, mas a seção 236 não tinha
+  checado essa fonte ainda. Confirmado ao ler o código: também NUNCA
+  chama `logActivity` (mesmo achado do `spendHunt` na seção 236) — só
+  existe `pot_player_bones.marks_converted_today`/`marks_converted_date`,
+  que reseta todo dia (teto diário do conversor), então não dá pra
+  reconstruir conversões de dias anteriores, só confirmar se
+  aconteceu HOJE.
+- `diagnostico_moedas.js`: seção de `pot_player_bones` agora mostra
+  `marks_converted_today`/`marks_converted_date` de cada servidor, e a
+  mensagem de "não bate" foi dividida em 2 casos com significado bem
+  diferente: saldo ACIMA do esperado agora é `⚠️` (aviso, não erro) —
+  normal se converteu Marks em algum momento, sem como confirmar 100%
+  sem histórico persistente; saldo ABAIXO do esperado continua `❌`
+  (genuinamente suspeito) — nada no sistema hoje credita Ossos além
+  do tempo jogado, então um déficit não tem uma explicação "normal"
+  conhecida do jeito que um excesso tem.
+- Verificado: `node --check`. Teste isolado (mesmo cenário da seção
+  236, banco temporário) confirma a nova mensagem `⚠️ ACIMA do
+  esperado` aparece certo pro caso de excesso, e `marks_converted_today`/
+  `date` são exibidos.
+
+
 
 
