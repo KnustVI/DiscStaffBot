@@ -2838,9 +2838,13 @@ function loadDashboard(client) {
     // Cria um item customizado — substitui o antigo POST /save (formulário
     // único salvando os 6 itens fixos de uma vez). Ver
     // gameShopSystem.js#createShopItem pra validação completa; aqui só
-    // trata upload de imagem (opcional, ≤250×250 — rejeita em vez de
-    // redimensionar, mesmo precedente de /loja/enviar-imagem) e repassa o
-    // resto puro.
+    // trata upload de imagem (opcional) e repassa o resto puro. Antes
+    // REJEITAVA qualquer imagem maior que 250×250 — removido (pedido do
+    // dono, 2026-08-19, mesma mudança feita em /evento no mesmo dia):
+    // imagem em qualquer tamanho é aceita, storeImageBuffer já
+    // redimensiona proporcionalmente (fit:'inside', sem upscale) antes de
+    // guardar, então uma fonte em resolução mais alta não pesa no
+    // armazenamento nem fica pixelizada ao ser exibida maior no site.
     app.post(
         '/lojajogo/:guildID/criar',
         checkAuth,
@@ -2854,15 +2858,6 @@ function loadDashboard(client) {
             const body = req.body;
             let imageMessageId = null;
             if (req.file) {
-                try {
-                    const sharp = require('sharp');
-                    const metadata = await sharp(req.file.buffer).metadata();
-                    if (!metadata.width || !metadata.height || metadata.width > 250 || metadata.height > 250) {
-                        return res.redirect(`/lojajogo/${guildID}?saved=error`);
-                    }
-                } catch (error) {
-                    return res.redirect(`/lojajogo/${guildID}?saved=error`);
-                }
                 const stored = await storeImageBuffer(client, req.file.buffer, `Loja de Jogo (${guild.name}) — "${(body.name || '').trim()}" criado por \`${req.user.username}\``);
                 if (!stored.ok) return res.redirect(`/lojajogo/${guildID}?saved=error`);
                 imageMessageId = stored.messageId;
@@ -2905,15 +2900,6 @@ function loadDashboard(client) {
             const body = req.body;
             let imageMessageId;
             if (req.file) {
-                try {
-                    const sharp = require('sharp');
-                    const metadata = await sharp(req.file.buffer).metadata();
-                    if (!metadata.width || !metadata.height || metadata.width > 250 || metadata.height > 250) {
-                        return res.redirect(`/lojajogo/${guildID}?saved=error`);
-                    }
-                } catch (error) {
-                    return res.redirect(`/lojajogo/${guildID}?saved=error`);
-                }
                 const stored = await storeImageBuffer(client, req.file.buffer, `Loja de Jogo (${guild.name}) — "${(body.name || '').trim()}" editado por \`${req.user.username}\``);
                 if (!stored.ok) return res.redirect(`/lojajogo/${guildID}?saved=error`);
                 imageMessageId = stored.messageId;

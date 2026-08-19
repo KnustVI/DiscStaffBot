@@ -11866,3 +11866,43 @@ frente, nao so este relatorio):
   pode conferir publicando uma nova `/divulgar` e olhando o card na
   home, no carrossel de `/perfil`/`/loja`, no overlay de detalhe e na
   prévia de `/moderacao`.
+
+232) Imagens maiores que o ideal não são mais rejeitadas na Loja de Jogo — redimensiona em vez de bloquear
+------------------------------------------------------------------------------------------------------
+- Pedido do dono, 2026-08-19 (mesmo dia da seção 231): "a imagem pode
+  ser maior mas ela vai ser reduzida proporcionalmente até para não
+  ficar pesado pra gente. Imagens do marketplace também devem seguir
+  o mesmo caminho! Inclusive vou alterar as imagens que já temos para
+  imagens maiores, pois no site a qualidade fica ruim ao aumentar a
+  mesma." — ou seja: fonte em resolução mais alta (pra não ficar
+  borrada ao ser exibida), mas sempre redimensionada no servidor pra
+  não pesar no armazenamento.
+- Achado o equivalente do bug da seção 231 na Loja de Jogo (item
+  customizado criado/editado por admin, `dashboard.js` `POST
+  /lojajogo/:guildID/criar` e `/:itemID/editar`): rejeitava (erro,
+  upload descartado) qualquer imagem maior que 250×250, em vez de
+  redimensionar — só então repassava pra `storeImageBuffer`
+  (src/utils/imageStorage.js), que JÁ fazia exatamente o
+  redimensionamento proporcional pedido (`fit:'inside',
+  withoutEnlargement:true`, teto de 1200px, reencoda em webp) mas
+  nunca chegava a rodar pra imagem grande nenhuma, porque a rejeição
+  acontecia ANTES. Removida a checagem de tamanho nas duas rotas —
+  agora qualquer imagem passa direto pro `storeImageBuffer` existente,
+  sem nenhuma lógica de resize nova (reaproveita o pipeline
+  compartilhado que já serve foto de perfil/plano de fundo, banners de
+  Strike/Unstrike/Report-Chat, pool de personalização e a própria
+  `/divulgar`). Label do formulário em `lojajogo.ejs` (2 ocorrências,
+  criar e editar) atualizado de "opcional, máx. 250×250" pra "opcional,
+  qualquer tamanho — redimensionada automaticamente".
+- `/loja/enviar-imagem` (jogador enviando imagem própria pra venda no
+  marketplace, `dashboard.js`) NÃO precisou de mudança — a validação
+  de lá é de PROPORÇÃO (800×427, tolerância de 2%), não de tamanho
+  absoluto, e já aceita qualquer imagem nessa proporção em resolução
+  mais alta (o `storeImageBuffer` de lá também já redimensionava
+  normalmente) — só a Loja de Jogo (admin) tinha o precedente de
+  "rejeitar em vez de redimensionar" que a seção 231 já tinha
+  identificado e removido de `/evento`.
+- Verificado: `node --check` em dashboard.js/evento.js/divulgar.js.
+  Sem confirmação visual (upload real de item na Loja de Jogo) — o
+  dono pode testar enviando uma imagem grande em `/lojajogo` (criar ou
+  editar um item) e confirmando que não é mais rejeitada.
