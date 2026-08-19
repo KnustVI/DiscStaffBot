@@ -12116,6 +12116,58 @@ frente, nao so este relatorio):
   esperado` aparece certo pro caso de excesso, e `marks_converted_today`/
   `date` são exibidos.
 
+238) CORREÇÃO de bug real no diagnostico_moedas.js + dado novo na investigação da seção 214
+------------------------------------------------------------------------------------------------------
+- Dono rodou o script atualizado da seção 236/237 de verdade e achou um
+  bug: as datas das seções novas ("AJUSTES MANUAIS"/"COMPRAS NA LOJA DE
+  JOGO") apareciam no ano **58598** — `activity_logs.created_at` é
+  gravado com `Date.now()` (MILISSEGUNDOS, ver `logActivity` em
+  `database/index.js`), diferente de `pot_players`/`pot_player_bones.
+  updated_at` (`Math.floor(Date.now()/1000)`, em SEGUNDOS) — as 3
+  seções novas multiplicavam por 1000 de novo, inflando a data.
+  Corrigido nas 3 (`moeda_admin_adjust`, `game_shop_purchase`,
+  `image_inventory.purchased_at` — esta também em ms, mesmo problema).
+- Resultado real (2ª rodada, mais dado): confirma Ossos = fonte
+  legítima — o excesso ficou EXATAMENTE em +66 nas duas leituras (96
+  contra esperado 30, depois 101 contra esperado 35), um offset FIXO
+  que não cresce com mais tempo jogado — bate com um evento ÚNICO no
+  passado (conversão Marks→Ossos, confirmado pelo dono na seção 237),
+  não com um bug contínuo. `/moeda-admin` confirmado VAZIO pra esta
+  conta — descarta de vez essa hipótese alternativa. Compras na Loja
+  de Jogo aparecem (4× "Growth"/"TP", 10 Ossos cada) — gasto normal,
+  sem relação com o excesso.
+- Caçadas continua com déficit real (~2 abaixo do esperado nas duas
+  leituras) e desta vez SEM explicação conhecida: nenhum ajuste manual
+  de Caçadas, nenhuma compra na Loja de Personalização (que gastaria
+  Caçadas via `spendHunt`) — a investigação da seção 214 permanece em
+  aberto, de verdade.
+- Achado novo (não confirmado como causa, só uma pista): o histórico
+  de sessões (`pot_logs`, ativo desde a seção 214) mostra 5 eventos
+  `PlayerLeave` pra este Alderon ID e **ZERO** `PlayerLogin` — apesar
+  de `PlayerLogin` estar em `PERSISTED_EVENTS` desde a mesma seção 214
+  e não passar por nenhum filtro/exclusão (`DISABLED_EVENTS` só tem
+  `PlayerProfanity`). `session_started_at` (usado por
+  `upsertPlayerFromEvent` como fallback pra calcular a duração de uma
+  sessão quando o payload de saída não traz o campo pronto, ver
+  potPlayerRegistry.js:330) só é setado por um evento `PlayerLogin` —
+  se o jogo genuinamente não estiver mandando esse webhook pra esta
+  conta (config do Game.ini, ou particularidade de como o jogo trata
+  reconexão), isso é uma pista real, mas ainda NÃO explica sozinha uma
+  divergência ENTRE total_playtime e moeda (os dois usam a mesma
+  variável `sessionSecondsToAdd`, então essa falta afetaria os dois
+  igualmente, não só a moeda).
+- Não corrigido ainda — pendente: (1) conferir o canal de log de
+  sistema por qualquer erro de `potPlayerRegistry`/
+  `_creditPlaytimeCurrency` (instrumentado na seção 214, nunca
+  confirmado se disparou); (2) considerar ligar `DEBUG_POT=true`
+  temporariamente e observar o payload CRU de um logout/leave de
+  verdade, pra confirmar se o campo de duração de sessão vem
+  preenchido do jogo ou se depende do fallback por `session_started_at`
+  ausente.
+- Verificado: `node --check` em `diagnostico_moedas.js` após a
+  correção do bug de milissegundos.
+
+
 
 
 

@@ -130,7 +130,13 @@ if (!moedaAdminLogs.length) {
     for (const row of moedaAdminLogs) {
         let d = {};
         try { d = JSON.parse(row.details || '{}'); } catch (e) {}
-        console.log(`guild=${row.guild_id} | ${d.sub === 'remover' ? 'REMOVEU' : 'ADICIONOU'} ${d.quantidade} ${d.moeda} (${d.before} -> ${d.after}) | ${new Date(row.created_at * 1000).toISOString()}`);
+        // logActivity (database/index.js) grava created_at com Date.now()
+        // — já em MILISSEGUNDOS, diferente de pot_players/pot_player_bones
+        // .updated_at (Math.floor(Date.now()/1000), em segundos) — sem
+        // essa distinção, um *1000 aqui gerava uma data no ano 58598 (BUG
+        // REAL corrigido, achado pelo dono testando esta mesma seção logo
+        // depois de criada).
+        console.log(`guild=${row.guild_id} | ${d.sub === 'remover' ? 'REMOVEU' : 'ADICIONOU'} ${d.quantidade} ${d.moeda} (${d.before} -> ${d.after}) | ${new Date(row.created_at).toISOString()}`);
     }
 }
 
@@ -146,7 +152,9 @@ if (!gameShopLogs.length) {
     for (const row of gameShopLogs) {
         let d = {};
         try { d = JSON.parse(row.details || '{}'); } catch (e) {}
-        console.log(`guild=${row.guild_id} | comprou "${d.itemName || d.itemId || '?'}" por ${d.price ?? '?'} Ossos | ${new Date(row.created_at * 1000).toISOString()}`);
+        // Mesmo motivo do comentário acima (moeda_admin_adjust) — created_at
+        // de activity_logs já vem em milissegundos.
+        console.log(`guild=${row.guild_id} | comprou "${d.itemName || d.itemId || '?'}" por ${d.price ?? '?'} Ossos | ${new Date(row.created_at).toISOString()}`);
     }
 }
 
@@ -164,7 +172,9 @@ if (!imagePurchases.length) {
     console.log('Nenhuma compra na Loja de Personalização registrada pra este usuário.');
 } else {
     for (const row of imagePurchases) {
-        console.log(`pool_type=${row.pool_type} | pool_id=${row.pool_id} | comprado em ${new Date(row.purchased_at * 1000).toISOString()}`);
+        // image_inventory.purchased_at também grava com Date.now() (ms) —
+        // mesmo cuidado das duas seções acima.
+        console.log(`pool_type=${row.pool_type} | pool_id=${row.pool_id} | comprado em ${new Date(row.purchased_at).toISOString()}`);
     }
     console.log(`(${imagePurchases.length} compra(s) — confira o preço de cada uma em /dev/Loja pra saber quantas Caçadas isso consumiu no total)`);
 }
