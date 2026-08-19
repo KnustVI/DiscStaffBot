@@ -12262,6 +12262,30 @@ frente, nao so este relatorio):
   conferir logado E deslogado, e testar com uma conta que É staff de
   algum servidor vs uma que não é.
 
+241) CORREÇÃO da seção 240: ordem exata dos botões da barra de topo
+------------------------------------------------------------------------------------------------------
+- Pedido do dono, 2026-08-19, logo em seguida: "Na ordem de botões da
+  barra do topo tem q vir assim: Home,Premium, Dashboard, Perfil,
+  Loja, Documentação, Suporte, Controle de lojas (dev) idioma".
+- `partials/top-nav.ejs`: Premium subiu pra logo depois de Home (antes
+  vinha só depois do bloco Perfil/Dashboard/Loja); dentro do bloco,
+  Dashboard passou a vir ANTES de Perfil (era o contrário). Ordem
+  final (logado): Home, Premium, Dashboard (só quem é staff de algum
+  servidor), Perfil, Loja, Documentação, Suporte, Controle de Lojas
+  (só o dono), Idioma — este último já era o último elemento antes,
+  não precisou mexer. Deslogado: Home, Premium, Entrar, Documentação,
+  Suporte, Idioma (Entrar ocupa o lugar do bloco inteiro
+  Dashboard/Perfil/Loja).
+- Mesma troca de ordem (Dashboard antes de Perfil) replicada no drawer
+  mobile PRÓPRIO deste arquivo — Premium não entra no drawer (segue
+  removido de lá desde a correção da seção 231, "mantenha só na top
+  bar", nada mudou nisso).
+- `partials/sidebar-v2.ejs` (drawer das páginas COM sidebar) já
+  estava na ordem certa (Dashboard antes de Loja) — não precisou de
+  mudança, só confirmado por leitura.
+- Verificado: `ejs.compile()` nos dois arquivos.
+
+
 
 
 
