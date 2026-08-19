@@ -713,6 +713,21 @@
         white-space: nowrap;
     }
 
+    /* Ícone-só do perfil abaixo de 1500px (pedido do dono, 2026-08-19:
+       "Se largura menor que 1500 px manter só icone do perfil da
+       barra de topo e da sidebar" — mesmo limite usado por
+       .dashboard-link-name em top-nav.ejs, pros dois ficarem icon-only
+       juntos). Diferente do modo COLAPSADO (data-collapsed="true"/
+       :not([data-user-set])/@container, que também encolhe o avatar e
+       esconde toda a navegação) — aqui SÓ o nome/cargo somem, o resto
+       da sidebar (nav com rótulos, avatar no tamanho normal) continua
+       igual; os outros 2 pedidos do mesmo dia (botões da barra
+       encolhendo em 1250px, sidebar recolhendo sozinha em 1000px) são
+       degraus SEPARADOS, mais estreitos que este. */
+    @media (max-width: 1500px) {
+        .tp-sidebar-profile-info { display: none; }
+    }
+
     /* Sair — texto sutil abaixo do perfil (pedido do dono, 2026-08-13),
        sem chrome de botão nenhum (compare com .tp-sidebar-btn acima) —
        mesma linguagem visual já usada nos links discretos do rodapé de
@@ -757,17 +772,23 @@
        o JS abaixo ainda respeita uma preferência explícita do usuário se
        existir, isso aqui é só o valor inicial em telas pequenas.
 
-       Breakpoint 1023px (não 640px) — pedido do dono, 2026-08-04:
-       "sidebar não está sendo responsiva, sumindo em telas pequenas". A
-       causa raiz era o <aside> de moderacao.ejs/reports.ejs/events.ejs
-       vir com "hidden lg:block" (Tailwind), escondendo a sidebar INTEIRA
-       abaixo de 1024px — sem fallback nenhum, perdendo toda a navegação
-       em tablet/celular. Removido esse "hidden" (sidebar sempre visível
-       agora); este breakpoint sobe de 640 pra 1023px pra cobrir
-       exatamente a faixa que antes ficava sem nada — assim que o
-       <aside> deixa de estar sempre expandido em telas médias, ele já
-       nasce colapsado (só ícones) em vez de espremer o conteúdo. */
-    @media (max-width: 1023px) {
+       Breakpoint originalmente 1023px (não 640px) — pedido do dono,
+       2026-08-04: "sidebar não está sendo responsiva, sumindo em
+       telas pequenas". A causa raiz era o <aside> de moderacao.ejs/
+       reports.ejs/events.ejs vir com "hidden lg:block" (Tailwind),
+       escondendo a sidebar INTEIRA abaixo de 1024px — sem fallback
+       nenhum, perdendo toda a navegação em tablet/celular. Removido
+       esse "hidden" (sidebar sempre visível agora); aquele breakpoint
+       subiu de 640 pra 1023px pra cobrir exatamente a faixa que antes
+       ficava sem nada. Descido pra 1000px (pedido do dono, 2026-08-19:
+       "Se largura menor que 1000px fechar automaticamente a sidebar"
+       — parte de uma sequência de 3 degraus no mesmo pedido: 1500px
+       ícone-só do perfil, 1250px botões da barra de topo encolhem,
+       1000px este aqui) — continua bem abaixo dos 1024px do motivo
+       original, só um pouco mais cedo que antes. Assim que o <aside>
+       deixa de estar sempre expandido em telas médias, ele já nasce
+       colapsado (só ícones) em vez de espremer o conteúdo. */
+    @media (max-width: 1000px) {
         .tp-sidebar:not([data-user-set]) { width: var(--tp-w-collapsed); }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-inner { padding: var(--tp-collapsed-pad); gap: 30px; }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-logo img { max-width: var(--tp-collapsed-logo); }
@@ -882,12 +903,25 @@
        inset de 16px) pra garantir que o card sai TOTALMENTE da tela —
        com left:16px, um translateX(-100%) sozinho deixaria a borda
        direita do card ainda visível encostada no canto esquerdo. */
+    /* Fica na lateral esquerda, porém centralizado verticalmente
+       (pedido do dono, 2026-08-19: "Card de navegação de mobile pode
+       ficar na lateral esquerda porém centralizado ao meio da tela na
+       horizontal" — "na horizontal" aqui é o EIXO da centralização,
+       não a direção: centralizado na linha horizontal do meio da
+       tela = centralizado verticalmente, mantendo a âncora à
+       esquerda). Antes esticava do topo até o rodapé (top/bottom:16px)
+       — agora `top:50%` + a MESMA transform que já fazia o slide
+       horizontal ganha um translateY(-50%) junto (truque padrão de
+       centralização vertical), então um card mais compacto (altura
+       intrínseca do conteúdo, com teto de max-height pro caso raro de
+       conteúdo maior que a tela) fica no centro vertical em vez de
+       esticado. */
     .tp-mobile-drawer {
         box-sizing: border-box;
         position: fixed;
-        top: 16px;
+        top: 50%;
         left: 16px;
-        bottom: 16px;
+        max-height: calc(100vh - 32px);
         width: min(320px, calc(100vw - 32px));
         z-index: 100;
         display: flex;
@@ -901,7 +935,7 @@
         border-radius: 20px;
         box-shadow: -15px 30px 50px rgba(0, 0, 0, 0.8), inset 0.5px 0.5px 0px rgba(248, 220, 192, 0.12);
         font-family: 'Poppins', sans-serif;
-        transform: translateX(calc(-100% - 32px));
+        transform: translate(calc(-100% - 32px), -50%);
         transition: transform 0.25s ease;
     }
     @media (prefers-reduced-motion: reduce) {
@@ -913,9 +947,11 @@
        display:none, sobrescrito só aqui dentro do media query), então
        não corre risco de aparecer sozinho numa tela grande por engano
        (ex: usuário abre no celular, gira/redimensiona a janela sem
-       fechar o drawer primeiro). */
+       fechar o drawer primeiro). translateY(-50%) SEMPRE junto do
+       translateX (aberto ou fechado) — mantém a centralização vertical
+       o tempo todo, só o eixo X anima entre fora/dentro da tela. */
     @media (max-width: 767px) {
-        .tp-mobile-drawer.is-open { transform: translateX(0); }
+        .tp-mobile-drawer.is-open { transform: translate(0, -50%); }
         .tp-mobile-drawer-backdrop.is-open { display: block; }
     }
     .tp-mobile-drawer-close {

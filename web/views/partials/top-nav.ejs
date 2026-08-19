@@ -102,34 +102,25 @@
         <i data-lucide="menu"></i>
     </button>
     <%#
-        Logo em branco no canto direito (pedido do dono, 2026-08-17:
-        "adicione a logo em svg em branco como icone na barra de
-        navegação... lateral direita... em todas as barras de navegação
-        do topo, no canto superior direito") — mesmo mecanismo de
-        posicionamento do .dashboard-link à esquerda logo abaixo (absolute
-        + top-1/2 -translate-y-1/2 pra centralizar verticalmente na
-        barra), espelhado pro lado direito. web/public/images/logo-white.svg
-        NÃO é gerado a partir de assets/Logo/logo.svg (esse é o logo
-        desenhado à mão atual, cor própria — trocado em 2026-08-17, ver
-        histórico) — é uma cópia direta de assets/Logo/Logo branca.svg,
-        variante branca feita à parte pelo dono (pedido, 2026-08-18: "Logo
-        adiciona na barra de navegação do topo esta preta, adicionei uma
-        versão branca use a mesma"). Sempre que o logo principal for
-        redesenhado de novo, esta cópia precisa ser atualizada manualmente
-        a partir da variante branca correspondente — não existe conversão
-        automática entre os dois arquivos.
-        Sempre visível, inclusive no mobile (pedido do dono, 2026-08-18:
-        "Ela deve aparecer na versão mobile também") — revertido do
-        `hidden md:block` original (mesmo breakpoint do .dashboard-link à
-        esquerda, que continua escondido no mobile, feature diferente).
-        Sem risco de disputar espaço com hamburguer/bandeira de idioma:
-        os dois ficam em fluxo normal (flex) e são CENTRALIZADOS juntos
-        no meio da barra assim que os .nav-btn somem abaixo de 767px
-        (.tp-top-nav tem justify-content:center) — a logo, por ser
-        position:absolute presa no canto direito, nunca compete pelo
-        mesmo espaço horizontal que esse grupo centralizado ocupa.
+        Logo no canto direito — histórico: branca em SVG (pedido do dono,
+        2026-08-17/18), sempre visível inclusive desktop. Revertido
+        (pedido do dono, 2026-08-19: "Remova a logo da barra de topo,
+        vamos manter ela apenas no mobile, troque para a logo colorida e
+        padrão") — volta a ficar SÓ no mobile (`hidden md:hidden`
+        inverte pra "visível por padrão, escondida a partir do
+        breakpoint md do Tailwind, 768px" — bate com o breakpoint de
+        767px já usado pelo resto do arquivo pra "é mobile"), e troca de
+        arquivo: `web/public/images/logo-color.webp`, convertida (sharp,
+        256x256, alpha preservado) a partir de
+        `assets/Logo/Logo sem fundo.png` (o logo colorido "padrão",
+        marca quadrada com fundo transparente — diferente da variante
+        branca/preta feitas só pra fundo escuro/claro sólido). Sem
+        script de conversão automática (mesmo padrão já documentado
+        pra logo-white.svg acima) — se o logo principal for redesenhado
+        de novo, esta cópia precisa ser regerada manualmente a partir
+        do arquivo fonte correspondente.
     %>
-    <img src="/images/logo-white.svg" alt="Titan's Pass" class="absolute right-4 top-1/2 -translate-y-1/2 block" style="height: 32px; width: auto;">
+    <img src="/images/logo-color.webp" alt="Titan's Pass" class="absolute right-4 top-1/2 -translate-y-1/2 block md:hidden" style="height: 32px; width: auto;">
     <%#
         Avatar+nome (pedido do dono, 2026-08-19: "Nome do usuário na top
         bar fica encima dos botões quando tela diminuida, faça o nome
@@ -348,6 +339,22 @@
     html[data-lang="en"] .lang-toggle-flag-pt { left: 18px; z-index: 1; }
     html[data-lang="en"] .lang-toggle-flag-en { left: 0; z-index: 2; }
 
+    /* Degrau intermediário de encolhimento (pedido do dono, 2026-08-19:
+       "Se largura menor que 1250 px diminuir botões da barra de
+       navegação do topo") — entre o tamanho cheio acima e o degrau
+       mini já existente logo abaixo (640px). PRECISA vir ANTES do
+       bloco de 640px no código-fonte: em conflito de mesma
+       especificidade, o cascade do CSS usa o que vem DEPOIS no
+       arquivo — se este bloco viesse depois, ele venceria o de 640px
+       também nas telas mais estreitas, "desencolhendo" o botão por
+       engano no pior momento (embora, na prática, .nav-btn já suma
+       inteiro abaixo de 767px, ver .tp-top-nav .nav-btn{display:none}
+       mais abaixo — o de 640px nunca chega a ser alcançável de
+       verdade hoje; a ordem certa aqui é só higiene de código pra não
+       depender dessa coincidência). */
+    @media (max-width: 1250px) {
+        .nav-btn { padding: 5px 16px; height: 28px; font-size: 13px; }
+    }
     @media (max-width: 640px) {
         .nav-btn { padding: 4px 12px; height: 26px; font-size: 12px; }
     }
@@ -383,8 +390,12 @@
        767px o próprio .dashboard-link-name já herdaria isso, mas o
        limite de verdade pedido foi 1200px (a barra cheia de .nav-btn
        ainda cabe larga o bastante pra colidir com o nome bem antes de
-       767px). */
-    @media (max-width: 1200px) {
+       767px). Subido pra 1500px (pedido do dono, 2026-08-19: "Se
+       largura menor que 1500 px manter só icone do perfil da barra de
+       topo e da sidebar" — mesmo limite usado por
+       .tp-sidebar-profile-info em sidebar-v2.ejs, pros dois ficarem
+       icon-only juntos). */
+    @media (max-width: 1500px) {
         .dashboard-link-name { display: none; }
     }
 
@@ -409,12 +420,15 @@
        mesma mudança de partials/sidebar-v2.ejs, ver comentário completo
        lá (este arquivo duplica o CSS do drawer pras ~5 páginas sem
        sidebar, custo conhecido da divisão em 2 arquivos). */
+    /* Fica na lateral esquerda, porém centralizado verticalmente
+       (pedido do dono, 2026-08-19) — mesma mudança de
+       partials/sidebar-v2.ejs, ver comentário completo lá. */
     .tp-mobile-drawer {
         box-sizing: border-box;
         position: fixed;
-        top: 16px;
+        top: 50%;
         left: 16px;
-        bottom: 16px;
+        max-height: calc(100vh - 32px);
         width: min(320px, calc(100vw - 32px));
         z-index: 100;
         display: flex;
@@ -428,14 +442,14 @@
         border-radius: 20px;
         box-shadow: -15px 30px 50px rgba(0, 0, 0, 0.8), inset 0.5px 0.5px 0px rgba(248, 220, 192, 0.12);
         font-family: 'Poppins', sans-serif;
-        transform: translateX(calc(-100% - 32px));
+        transform: translate(calc(-100% - 32px), -50%);
         transition: transform 0.25s ease;
     }
     @media (prefers-reduced-motion: reduce) {
         .tp-mobile-drawer { transition: none; }
     }
     @media (max-width: 767px) {
-        .tp-mobile-drawer.is-open { transform: translateX(0); }
+        .tp-mobile-drawer.is-open { transform: translate(0, -50%); }
         .tp-mobile-drawer-backdrop.is-open { display: block; }
     }
     .tp-mobile-drawer-close {

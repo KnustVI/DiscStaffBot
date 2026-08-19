@@ -12285,6 +12285,55 @@ frente, nao so este relatorio):
   mudança, só confirmado por leitura.
 - Verificado: `ejs.compile()` nos dois arquivos.
 
+242) 3 degraus responsivos novos (perfil ícone-só/botões encolhem/sidebar recolhe) + drawer mobile centralizado + logo só no mobile
+------------------------------------------------------------------------------------------------------
+- Pedido do dono, 2026-08-19: "Se largura menor que 1500 px manter só
+  icone do perfil da barra de topo e da sidebar. Se largura menor que
+  1250 px diminuir botões da barra de navegação do topo. Se largura
+  menor que 1000px fechar automaticamente a sidebar. Card de navegação
+  de mobile pode ficar na laretal esquerda porém centralizado ao meio
+  da tela na horizontal. Remova a logo da barra de topo, vamos manter
+  ela apenas no mobile, troque para a logo colorida e padrão."
+- 3 degraus responsivos NOVOS, cada um mais estreito que o anterior
+  (nenhum substitui os outros, empilham):
+  1. `≤1500px`: só o NOME/cargo some — `.dashboard-link-name`
+     (top-nav.ejs, era 1200px) e `.tp-sidebar-profile-info`
+     (sidebar-v2.ejs, regra nova) — o avatar continua no tamanho
+     normal, resto da sidebar/barra intocado.
+  2. `≤1250px`: `.nav-btn` ganha um tamanho intermediário (`padding:5px
+     16px; height:28px; font-size:13px`) entre o cheio e o mini já
+     existente em 640px — precisou vir ANTES do bloco de 640px no
+     código-fonte pro cascade não inverter a ordem nas telas mais
+     estreitas (ver comentário no arquivo).
+  3. `≤1000px`: sidebar recolhe sozinha (só ícones) — breakpoint
+     ANTIGO disso já existia em 1023px (seção histórica de
+     2026-08-04, por causa de um breakpoint do Tailwind), só descido
+     pra 1000px agora.
+- Drawer mobile — antes esticava do topo até o rodapé (`top/bottom:
+  16px`). Agora fica na lateral esquerda (`left:16px`, igual antes)
+  mas centralizado verticalmente: `top:50%` + a MESMA transform que já
+  fazia o slide horizontal (fechado/aberto) ganhou um
+  `translateY(-50%)` junto — card mais compacto (altura intrínseca do
+  conteúdo, `max-height:calc(100vh - 32px)` só como teto de segurança)
+  em vez de esticado. Replicado nos dois arquivos (sidebar-v2.ejs +
+  top-nav.ejs, custo conhecido da duplicação).
+- Logo do canto direito da barra de topo — estava SEMPRE visível
+  (pedido de 2026-08-18), voltou a ficar só no mobile (`block
+  md:hidden`, mesmo breakpoint Tailwind de 768px já usado nesta
+  mesma página antes de 2026-08-18) e trocou de arquivo: de
+  `logo-white.svg` (variante branca, feita pro fundo escuro da barra)
+  pra `logo-color.webp`, convertida agora (sharp, 256x256, alpha
+  preservado, ~28KB) a partir de `assets/Logo/Logo sem fundo.png`
+  (1000x1000, logo colorido "padrão" com fundo transparente).
+- Verificado: `node --check` na conversão do sharp (rodada direto,
+  sucesso confirmado pelo tamanho/formato de saída);
+  `ejs.compile()` em top-nav.ejs/sidebar-v2.ejs. Sem confirmação
+  visual real — o dono pode conferir redimensionando a janela pelos 3
+  degraus (1500/1250/1000px), abrindo o drawer mobile numa tela
+  estreita, e conferindo a logo colorida aparecendo só abaixo de
+  768px.
+
+
 
 
 
