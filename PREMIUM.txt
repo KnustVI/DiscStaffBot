@@ -12486,3 +12486,43 @@ frente, nao so este relatorio):
 
 
 
+
+
+244) Corrige degrau "sidebar recolhe sozinha ≤1000px" (seção 242) que nunca disparava pra quem já tinha clicado no toggle antes
+------------------------------------------------------------------------------------------------------
+- Pedido do dono, 2026-08-19, colando de volta o próprio texto da seção
+  242: "Isso aqui não esta ocorrendo: ≤1000px: sidebar recolhe sozinha
+  (só ícones) — era 1023px, desci pra 1000px."
+- CAUSA RAIZ: a regra CSS responsiva (`.tp-sidebar:not([data-user-set])`
+  em `web/views/partials/sidebar-v2.ejs`) só valia enquanto o elemento
+  NUNCA tivesse ganho o atributo `data-user-set` — e esse atributo é
+  gravado pelo JS assim que existe QUALQUER preferência salva em
+  `localStorage.tpSidebarCollapsed`, inclusive uma gravada há muito
+  tempo, numa tela BEM mais larga que 1000px. Isso já era o
+  comportamento ORIGINAL do site (desde o breakpoint antigo de 1023px,
+  2026-08-04) — a mudança de 2026-08-19 (seção 242) só desceu o número,
+  sem mexer nessa trava, então herdou o mesmo problema. Depois de meses
+  clicando no botão de recolher/expandir em telas largas durante testes,
+  o navegador do dono certamente já tinha uma preferência salva —
+  fazendo o degrau novo nunca ter chance de rodar, sempre "vencido" pela
+  preferência antiga, por mais estreita que a janela ficasse.
+- FIX: o JS (`applyResponsiveState`, dentro do mesmo `<script>` do
+  toggle) agora trata `window.matchMedia('(max-width: 1000px)')` como um
+  PISO que sempre vence, mesmo sobre uma preferência salva — sem apagar
+  essa preferência (só ignora ela enquanto a tela estiver estreita; ela
+  volta a valer normal assim que a tela alarga de novo, incluindo o
+  fallback pro `data-collapsed` que o servidor já tinha renderizado
+  quando não há preferência nenhuma). Um listener em
+  `narrowQuery.addEventListener('change', ...)` reavalia isso toda vez
+  que a largura CRUZA os 1000px (não só no carregamento da página), então
+  redimensionar a janela ao vivo também dispara o comportamento. Clique
+  manual no toggle continua funcionando em qualquer largura (inclusive
+  abaixo de 1000px, pra quem quiser abrir manualmente numa tela
+  estreita) — só o carregamento/redimensionamento automático respeita o
+  piso novo.
+- Verificado: `ejs.compile()` em `sidebar-v2.ejs`. Sem confirmação visual
+  real (não dá pra simular resize de janela/localStorage de um navegador
+  de verdade neste ambiente) — o dono pode conferir redimensionando a
+  janela abaixo de 1000px numa aba onde o toggle já foi clicado antes (o
+  caso que estava quebrado), e também testando em aba anônima/incógnito
+  (localStorage vazio, caso que já funcionava antes).

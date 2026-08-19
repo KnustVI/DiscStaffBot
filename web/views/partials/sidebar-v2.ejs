@@ -768,9 +768,16 @@
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-profile-info { display: none; }
 
     /* Sempre responsivo (padrão do site): telas estreitas começam
-       colapsadas por padrão (só ícones), mesmo sem preferência salva —
-       o JS abaixo ainda respeita uma preferência explícita do usuário se
-       existir, isso aqui é só o valor inicial em telas pequenas.
+       colapsadas por padrão (só ícones), mesmo sem preferência salva.
+       Esta regra CSS só cobre o PRIMEIRO PAINT (antes do JS rodar) —
+       CORRIGIDO 2026-08-19 (pedido do dono: "isso aqui não está
+       ocorrendo", sobre o degrau abaixo): o JS (applyResponsiveState,
+       perto do fim do arquivo) trata ≤1000px como um PISO que sempre
+       vence, mesmo com uma preferência salva no localStorage — antes,
+       qualquer clique anterior no toggle (em QUALQUER largura) grava
+       data-user-set e desligava esta media query pra sempre, mesmo
+       abaixo de 1000px, então quem já tinha usado o toggle uma vez
+       nunca via o auto-colapso funcionar.
 
        Breakpoint originalmente 1023px (não 640px) — pedido do dono,
        2026-08-04: "sidebar não está sendo responsiva, sumindo em
@@ -1072,22 +1079,56 @@
         // herdar a escolha delas — cada carregamento desta página volta a
         // nascer no mesmo estado, aberta ou fechada conforme data-collapsed.
         var forceDefault = sidebar.hasAttribute('data-force-default');
+        // Estado com que o <aside> nasceu do servidor (sbDefaultCollapsed)
+        // — usado como fallback abaixo quando não há preferência salva E a
+        // tela está larga o bastante pra não forçar nada.
+        var serverDefaultCollapsed = sidebar.getAttribute('data-collapsed') === 'true';
 
         function applyState(collapsed) {
             sidebar.setAttribute('data-collapsed', collapsed ? 'true' : 'false');
             toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
         }
 
-        // Preferência salva do USUÁRIO (clique explícito no toggle) tem
-        // prioridade sobre o padrão responsivo por tamanho de tela —
-        // [data-user-set] desliga a media query em CSS assim que existe
-        // uma escolha explícita, pra não brigar uma com a outra.
-        var stored = forceDefault ? null : localStorage.getItem('tpSidebarCollapsed');
-        if (stored !== null) {
-            sidebar.setAttribute('data-user-set', '');
-            applyState(stored === 'true');
+        // BUG REAL corrigido (pedido do dono, 2026-08-19: "isso aqui não
+        // está ocorrendo", sobre o degrau "≤1000px fecha sozinha" da seção
+        // 242) — o piso responsivo (CSS ":not([data-user-set])") só
+        // funcionava pra quem NUNCA tinha clicado no toggle antes. Qualquer
+        // clique anterior (em QUALQUER tela, mesmo larga) grava uma
+        // preferência no localStorage que passa a "vencer" pra sempre,
+        // inclusive abaixo de 1000px — depois de meses testando o botão à
+        // mão, o dono certamente já tinha uma preferência salva, então o
+        // degrau novo nunca tinha chance de rodar no navegador dele. Fix:
+        // largura ≤1000px agora é um PISO que sempre vence, mesmo sobre
+        // uma preferência salva — sem apagar essa preferência (só ignora
+        // ela enquanto a tela estiver estreita; volta a valer normal assim
+        // que a tela alarga de novo). matchMedia (não só o load) reavalia
+        // isso toda vez que a largura cruza os 1000px, então redimensionar
+        // a janela também dispara o comportamento, não só o carregamento
+        // inicial da página.
+        var narrowQuery = window.matchMedia('(max-width: 1000px)');
+
+        function applyResponsiveState() {
+            if (narrowQuery.matches) {
+                applyState(true);
+                return;
+            }
+            var stored = forceDefault ? null : localStorage.getItem('tpSidebarCollapsed');
+            if (stored !== null) {
+                sidebar.setAttribute('data-user-set', '');
+                applyState(stored === 'true');
+            } else {
+                applyState(serverDefaultCollapsed);
+            }
         }
 
+        applyResponsiveState();
+        narrowQuery.addEventListener('change', applyResponsiveState);
+
+        // Clique no toggle continua sendo uma ação explícita do usuário —
+        // funciona normalmente em qualquer largura, inclusive abaixo de
+        // 1000px (quem quiser abrir manualmente numa tela estreita pode).
+        // Só o CARREGAMENTO/redimensionamento automático respeita o piso
+        // acima; o clique sempre reflete a escolha de quem clicou.
         toggle.addEventListener('click', function () {
             var next = sidebar.getAttribute('data-collapsed') !== 'true';
             sidebar.setAttribute('data-user-set', '');
