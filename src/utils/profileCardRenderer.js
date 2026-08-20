@@ -230,10 +230,13 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     ctx.shadowColor = palette.accent;
     ctx.shadowBlur = 6;
     ctx.fill(rimPath);
-    ctx.shadowColor = 'rgba(0,0,0,0.4)';
-    ctx.shadowBlur = 14;
-    ctx.shadowOffsetX = 5;
-    ctx.shadowOffsetY = 6;
+    // Sombra atrás da foto mais evidente (pedido do dono, 2026-08-20:
+    // "deixe a sombra atrás dele mais evidente") — blur/offset/opacidade
+    // maiores que antes (14/5/6/0.4 -> 20/8/10/0.55).
+    ctx.shadowColor = 'rgba(0,0,0,0.55)';
+    ctx.shadowBlur = 20;
+    ctx.shadowOffsetX = 8;
+    ctx.shadowOffsetY = 10;
     ctx.fill(rimPath);
     ctx.restore();
 
@@ -305,17 +308,21 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     // na foto já reduzida com 24px de margem (mesma margem do card do
     // site entre a coluna da foto e a coluna de texto). Sem Premium Tier
     // (removido do grupo); cargo de staff só aparece se isStaff. ───────
+    // Fontes um pouco maiores (pedido do dono, 2026-08-20: "aumente um
+    // pouco os textos que ficam na lateral do avatar") — nickname 34->38,
+    // título 15->17, linhas 16->18/ícone 24->26, espaçamentos verticais
+    // (cy +=) ajustados junto pra não sobrepor.
     const infoX = scaledBbox.x + scaledBbox.width + 24 * SCALE;
     let cy = frameBbox.y * SCALE;
     ctx.fillStyle = '#F8DCC0'; // nickname sempre cream, não segue a cor por tier
-    ctx.font = `${34 * SCALE}px "Tilt Warp"`;
+    ctx.font = `${38 * SCALE}px "Tilt Warp"`;
     ctx.textBaseline = 'alphabetic';
-    drawWithGlow(ctx, () => ctx.fillText((nickname || '').toUpperCase(), infoX, cy + 30 * SCALE));
-    cy += 42 * SCALE;
-    ctx.font = `${15 * SCALE}px "Poppins Medium"`;
+    drawWithGlow(ctx, () => ctx.fillText((nickname || '').toUpperCase(), infoX, cy + 33 * SCALE));
+    cy += 46 * SCALE;
+    ctx.font = `${17 * SCALE}px "Poppins Medium"`;
     ctx.fillStyle = '#F8DCC0';
-    drawWithGlow(ctx, () => ctx.fillText(titleLabel || '', infoX, cy + 14 * SCALE));
-    cy += 32 * SCALE;
+    drawWithGlow(ctx, () => ctx.fillText(titleLabel || '', infoX, cy + 15 * SCALE));
+    cy += 34 * SCALE;
 
     const rows = [{ icon: 'logopot.webp', text: alderonId || '' }];
     if (isStaff && staffLabel) {
@@ -323,11 +330,11 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     }
     for (const row of rows) {
         const icon = await loadImage(path.join(ICONS_DIR, row.icon));
-        drawIconShadow(ctx, () => ctx.drawImage(icon, infoX, cy, 24 * SCALE, 24 * SCALE));
-        ctx.font = `${16 * SCALE}px "Poppins SemiBold"`;
+        drawIconShadow(ctx, () => ctx.drawImage(icon, infoX, cy, 26 * SCALE, 26 * SCALE));
+        ctx.font = `${18 * SCALE}px "Poppins SemiBold"`;
         ctx.fillStyle = '#F8DCC0';
-        drawWithGlow(ctx, () => ctx.fillText(row.text, infoX + 32 * SCALE, cy + 17 * SCALE));
-        cy += 40 * SCALE;
+        drawWithGlow(ctx, () => ctx.fillText(row.text, infoX + 34 * SCALE, cy + 19 * SCALE));
+        cy += 44 * SCALE;
     }
 
     if (!backgroundBuffer) {
