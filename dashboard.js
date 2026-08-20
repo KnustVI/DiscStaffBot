@@ -1913,6 +1913,46 @@ function loadDashboard(client) {
 
         const otherGuilds = await getAdminGuildsWithBot(req);
 
+        // Cards de "servidor jogado" (pedido do dono, 2026-08-20: "Pagina de
+        // perfil deve ter os cards de cada servidor que a pessoa jogou
+        // abaixo dos cards de listas") — enriquece cada entrada de
+        // playedGuilds com o que o card precisa mostrar:
+        // - kills: Caçadas DAQUELE servidor (não confundir com huntBalance,
+        //   que é a moeda GLOBAL ganha por hora jogada — aqui é
+        //   literalmente pot_players.kills, mesmo contador que o /perfil no
+        //   Discord já mostra por servidor, ver getGuildPlayerStats).
+        // - bones: Ossos DAQUELE servidor (já por servidor desde a reforma
+        //   2026-08-15). Calculado aqui (1x por guild) e reaproveitado
+        //   embaixo pra bonesBalance somado, em vez de consultar 2x.
+        // - accentHex: cor de destaque configurada em /config personalizar
+        //   (aba "Aparência Geral", só Caçador — ver
+        //   ConfigSystem.getPanelPersonalization) — dono pediu "a cor que
+        //   fica configurada para os painéis/cards do Discord como o
+        //   report", então reaproveita a MESMA fonte em vez de criar uma
+        //   configuração nova. null quando o servidor não é Caçador ou não
+        //   configurou nada — o card cai no visual padrão (sem tint).
+        // - panelHref: só preenchido quando o jogador tem acesso de
+        //   staff/admin NAQUELE servidor (mesmo critério de otherGuilds,
+        //   que já é "admin OU staff com o bot", igual exigido por
+        //   /moderacao/:guildId) — sem acesso, o card não mostra o botão
+        //   "Painel" (link quebrado seria pior que não ter botão).
+        playedGuilds = playedGuilds.map((pg) => {
+            const stats = PlayerRegistry.getGuildPlayerStats(pg.guildId, link.alderon_id);
+            const bones = PlayerRegistry.getBonesBalance(userId, pg.guildId);
+            const personalization = ConfigSystem.getPanelPersonalization(pg.guildId);
+            const accentHex = personalization.accentColor != null
+                ? personalization.accentColor.toString(16).padStart(6, '0').toUpperCase()
+                : null;
+            const hasPanelAccess = otherGuilds.some((g) => g.id === pg.guildId);
+            return {
+                ...pg,
+                kills: stats.kills,
+                bones,
+                accentHex,
+                panelHref: hasPanelAccess ? `/moderacao/${pg.guildId}` : null,
+            };
+        });
+
         // Tempo de jogo TOTAL (soma de todo servidor já jogado) — pedido do
         // dono, 2026-08-10, ver comentário completo em perfil.ejs perto do
         // card "Tempo de Jogo". Cada pg.totalPlaytime já vem com o tempo AO
@@ -1923,8 +1963,9 @@ function loadDashboard(client) {
         // Ossos — saldo por servidor (reforma 2026-08-15), somado entre
         // todo servidor já jogado pra essa página global mostrar UM número
         // (mesmo padrão de totalPlaytimeSeconds acima). 0 se não vinculado
-        // (playedGuilds vazio nesse caso).
-        const bonesBalance = playedGuilds.reduce((sum, pg) => sum + PlayerRegistry.getBonesBalance(userId, pg.guildId), 0);
+        // (playedGuilds vazio nesse caso). Reaproveita pg.bones calculado
+        // acima em vez de consultar de novo.
+        const bonesBalance = playedGuilds.reduce((sum, pg) => sum + pg.bones, 0);
 
         res.render('perfil', {
             nickname: req.user.global_name || req.user.username,

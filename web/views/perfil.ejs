@@ -396,6 +396,84 @@
             box-shadow: 0.5px -0.5px 0.5px #F8DCC0, -25px 47px 68.1px rgba(0, 0, 0, 0.74);
         }
 
+        /* ==================== CARDS DE SERVIDOR JOGADO ====================
+           Um card por servidor onde o jogador já apareceu (pedido do dono,
+           2026-08-20: "Pagina de perfil deve ter os cards de cada servidor
+           que a pessoa jogou abaixo dos cargs de listas"), portado do
+           Figma (medidas fixas do Figma viram responsivas aqui, mesmo
+           tratamento já usado no card de identidade — proporção/hierarquia
+           preservadas, não os px exatos, que eram pra UM card só). Cores
+           customizadas: --srv-accent só existe inline no HTML quando o
+           servidor é Caçador E configurou uma cor em /config personalizar
+           (ver ConfigSystem.getPanelPersonalization em dashboard.js — MESMA
+           cor usada nos painéis de report/log do Discord, pedido explícito
+           do dono de reaproveitar em vez de criar uma cor nova só pra
+           isto). color-mix() deriva borda/fundo/divisória a partir dela —
+           sem fórmula "oficial" do Figma pra isso (só um exemplo único,
+           Atlas, pra ilustrar o conceito), pesos escolhidos visualmente. */
+        .pf-srv-card {
+            --srv-border: #000000;
+            --srv-bg-a: #1F1D20;
+            --srv-bg-b: #111111;
+            --srv-divider: #F8DCC0;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            gap: 12px;
+            border: 3px solid var(--srv-border);
+            border-radius: 10px;
+            background: radial-gradient(225.25% 94.36% at 0% 86.37%, var(--srv-bg-a) 0%, var(--srv-bg-b) 100%);
+            /* "CardShadow" — mesma receita de .pf-id-card.has-bg .pf-id-level acima. */
+            box-shadow: 0.5px -0.5px 0.5px #F8DCC0, -25px 47px 68.1px rgba(0, 0, 0, 0.74);
+        }
+        .pf-srv-card--accent {
+            --srv-border: color-mix(in srgb, var(--srv-accent) 45%, #000000);
+            --srv-bg-a: color-mix(in srgb, var(--srv-accent) 22%, #1F1D20);
+            --srv-divider: var(--srv-accent);
+        }
+        .pf-srv-head { display: flex; align-items: center; gap: 10px; width: 100%; }
+        .pf-srv-logo { width: 56px; height: 56px; flex: none; object-fit: contain; opacity: 0.8; border-radius: 12px; }
+        .pf-srv-name {
+            font-family: 'Tilt Warp', cursive;
+            font-size: clamp(18px, 2vw, 24px);
+            color: #F8DCC0;
+            text-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+            min-width: 0;
+            overflow-wrap: break-word;
+        }
+        .pf-srv-divider { width: 100%; height: 0; border: none; border-top: 1px solid var(--srv-divider); margin: 0; }
+        .pf-srv-stats { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+        .pf-srv-stat {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 16px;
+            color: #F8DCC0;
+            filter: drop-shadow(5px 5px 10px rgba(0, 0, 0, 0.5)) drop-shadow(-5px -5px 10px rgba(0, 0, 0, 0.7));
+        }
+        .pf-srv-stat i { width: 26px; height: 26px; flex: none; color: #F8DCC0; }
+        .pf-srv-panel-btn {
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 22px;
+            background: radial-gradient(225.25% 94.36% at 0% 86.37%, #111111 0%, #1F1D20 57.07%, #29272A 91.53%);
+            border: 1px solid #F8DCC0;
+            box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 14px;
+            color: #F8DCC0;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
         .pf-tab-panel.is-hidden { display: none; }
     </style>
 </head>
@@ -880,6 +958,51 @@
                 <% } %>
             </section>
         </div>
+
+        <%#
+            Cards de servidor jogado (pedido do dono, 2026-08-20, ver
+            docblock do <style> .pf-srv-card acima) — um card por entrada
+            de playedGuilds (já vem enriquecido com kills/bones/accentHex/
+            panelHref em dashboard.js). Só renderiza a seção quando existe
+            pelo menos 1 servidor jogado — sem isso (conta nova, nunca
+            jogou em servidor nenhum com o bot) a página simplesmente não
+            mostra grade vazia.
+        %>
+        <% if (playedGuilds && playedGuilds.length > 0) { %>
+            <h2 class="section-title text-lg opacity-70"><span data-i18n-pt>Servidores que você jogou</span><span data-i18n-en>Servers you've played</span></h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[20px] lg:gap-[30px]">
+                <% playedGuilds.forEach(pg => { %>
+                    <div class="pf-srv-card<%= pg.accentHex ? ' pf-srv-card--accent' : '' %>"<% if (pg.accentHex) { %> style="--srv-accent: #<%= pg.accentHex %>;"<% } %>>
+                        <div class="pf-srv-head">
+                            <% if (pg.iconUrl) { %>
+                                <img class="pf-srv-logo" src="<%= pg.iconUrl %>" alt="">
+                            <% } else { %>
+                                <img class="pf-srv-logo" src="/images/pot-logo.webp" alt="">
+                            <% } %>
+                            <span class="pf-srv-name"><%= pg.name %></span>
+                        </div>
+                        <hr class="pf-srv-divider">
+                        <div class="pf-srv-stats">
+                            <span class="pf-srv-stat">
+                                <i data-lucide="clock"></i>
+                                <span data-i18n-pt><%= pg.playtimeLabel || '0h' %> jogadas</span><span data-i18n-en><%= pg.playtimeLabel || '0h' %> played</span>
+                            </span>
+                            <span class="pf-srv-stat">
+                                <img src="/images/icons/hunt.webp" alt="" style="width: 26px; height: 26px; flex: none;">
+                                <span data-i18n-pt><%= pg.kills %> caçadas</span><span data-i18n-en><%= pg.kills %> hunts</span>
+                            </span>
+                            <span class="pf-srv-stat">
+                                <img src="/images/icons/bone.webp" alt="" style="width: 26px; height: 26px; flex: none;">
+                                <span><%= pg.bones %></span>
+                            </span>
+                        </div>
+                        <% if (pg.panelHref) { %>
+                            <a class="pf-srv-panel-btn" href="<%= pg.panelHref %>"><span data-i18n-pt>Painel</span><span data-i18n-en>Panel</span></a>
+                        <% } %>
+                    </div>
+                <% }); %>
+            </div>
+        <% } %>
 
         <footer class="flex justify-end pb-2">
             <span class="bebas text-[12px] uppercase tracking-[6px] text-titan-cream opacity-10 hover:opacity-30 transition-opacity">
