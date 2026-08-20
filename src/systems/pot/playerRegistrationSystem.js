@@ -449,6 +449,28 @@ class PlayerRegistrationSystem {
                 // plano de fundo continua isolado (.catch cai pra null, sem
                 // derrubar a foto nem o card inteiro — mesmo comportamento
                 // de antes, só concorrente).
+                // Cargo de staff (card novo, linha condicional) — mesma
+                // checagem já usada mais abaixo pro bloco de texto "Cargo de
+                // Staff" (targetMember/staffCategory, ver lá pro comentário
+                // completo); resolvida aqui também porque o card já precisa
+                // dela ANTES daquele bloco (mais barato que reestruturar a
+                // ordem das seções desta função). ConfigSystem.
+                // memberHasAnyStaffRole/staffRoleCategoryLabel já existem.
+                const ConfigSystemForCard = require('../core/configSystem');
+                const cardTargetMember = guild.members.cache.get(targetUser.id)
+                    || await guild.members.fetch(targetUser.id).catch(() => null);
+                const cardStaffLabel = ConfigSystemForCard.staffRoleCategoryLabel(guild.id, cardTargetMember);
+
+                // Emblemas conquistados (ownedItems tipo 'badge') — mesma
+                // fonte de dado do card do site (pfIdBadges, ver
+                // dashboard.js), aqui resolvidos como Buffer (não URL, o
+                // canvas do card precisa dos bytes) via
+                // ProfileImagePool.resolveImageBuffer. Até 4 exibidos.
+                const badgeRows = require('./imageShopSystem').getInventory(targetUser.id, 'badge').slice(0, 4);
+                const badgeBuffers = (await Promise.all(
+                    badgeRows.map((row) => ProfileImagePool.resolveImageBuffer(interaction.client, 'badge', row.pool_id).catch(() => null)),
+                )).filter(Boolean);
+
                 const [photoBuffer, backgroundBuffer] = await Promise.all([
                     this._resolveCardPhotoBuffer(interaction, targetUser, player, playerTier),
                     this._resolveBackgroundBuffer(interaction, player, playerTier).catch((error) => {
@@ -456,27 +478,25 @@ class PlayerRegistrationSystem {
                         return null;
                     }),
                 ]);
+                const cardSpeciesLabel = PlayerRegistry.getMostPlayedDinosaur(player.alderon_id) || 'Ainda sem registro';
                 const cardBuffer = await renderProfileCard({
                     tier: playerTier,
                     photoBuffer,
                     backgroundBuffer,
                     nickname: player.player_name || targetUser.username,
                     alderonId: player.alderon_id,
-                    discordUsername: targetUser.username,
                     // Texto livre do jogador (Raptor, ver /perfil-edit) — sem
                     // um definido, mantém o placeholder de sempre.
                     titleLabel: player.profile_title || 'Em breve (missões)',
-                    // Nível real (pedido do dono, 2026-08-11: "Implemente um
-                    // sistema de progressão de níveis infinito baseado em
-                    // horas jogadas") — antes fixo em "Nível 1"; calculado
-                    // dinamicamente a partir do XP total, ver
-                    // PlayerRegistry.getLevelProgress/levelSystem.js.
-                    levelLabel: `Nível ${PlayerRegistry.getLevelProgress(targetUser.id).level}`,
                     // Espécie MAIS jogada (por nº de vezes escolhida), não a
                     // última — essa continua só no painel "Offline" abaixo,
                     // vinda de stats.dinosaurType (getGlobalPlayerStats).
-                    speciesLabel: PlayerRegistry.getMostPlayedDinosaur(player.alderon_id) || 'Ainda sem registro',
+                    speciesLabel: cardSpeciesLabel,
+                    isCarnivore: PlayerRegistry.isDinosaurCarnivore(cardSpeciesLabel),
                     honorStars: PunishmentSystem.getGlobalHonorStars(PunishmentSystem._resolveHistoryUserIds(targetUser.id, player.alderon_id)),
+                    isStaff: !!cardStaffLabel,
+                    staffLabel: cardStaffLabel,
+                    badges: badgeBuffers,
                 });
                 extraFiles.push(new AttachmentBuilder(cardBuffer, { name: 'perfil-card.png' }));
                 addSeparatorIfNeeded();
@@ -569,7 +589,11 @@ class PlayerRegistrationSystem {
         const staffCategory = ConfigSystem.staffRoleCategoryLabel(guild.id, targetMember);
         const staffRoleName = ConfigSystem.highestStaffRoleName(guild.id, targetMember);
         const extraLines = [];
-        if (staffCategory) {
+        // Card novo já mostra o cargo de staff (linha condicional, ver
+        // renderProfileCard) quando ele renderiza — sem duplicar aqui nesse
+        // caso. No fallback (cardRendered false: sem vínculo ou falha no
+        // render), o card não existe pra mostrar isso, então continua.
+        if (staffCategory && !cardRendered) {
             extraLines.push(`${EMOJIS.shield || '🛡️'} **Cargo de Staff:** ${staffCategory}${staffRoleName ? ` (${staffRoleName})` : ''}`);
         }
         if (player?.registered_at) {

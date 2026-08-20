@@ -1,34 +1,25 @@
 // src/utils/profileCardRenderer.js
 /**
- * Gera o card de perfil (banner do /perfil) a partir dos SVGs reais
- * exportados do Figma em assets/cards/{tier}.svg — moldura, sombra e badges
- * vêm 100% desses arquivos, sem redesenho (a fileira de 6 ícones de missão
- * do Figma é removida do render — ver stripMissionIcons — até o sistema de
- * emblemas/missões existir de verdade). Este módulo só substitui as partes
- * que precisam ser dinâmicas por jogador:
+ * Gera o card de perfil (banner do /perfil) — moldura/foto vêm do path real
+ * exportado do Figma em assets/cards/{tier}.svg (só a moldura é extraída do
+ * SVG, clip-path da foto; nada mais do arquivo é rasterizado), o resto do
+ * card (filete metálico, estrelas, emblemas, pílula de espécie, coluna de
+ * identidade) é desenhado com @napi-rs/canvas. Layout espelha o card novo
+ * do site (web/views/perfil.ejs, .pf-id-card) — mesmo path de moldura, mesma
+ * técnica de "cópia maior/menor da mesma forma" pro filete/estrelas.
  *
- *  - a foto (recortada exatamente na moldura recortada do card);
- *  - as 5 estrelas de honra (troca cheia/vazia pela contagem real);
- *  - os textos das 3 badges (Título/Nível/Espécie) e do nome/identificação,
- *    que no Figma saem como texto convertido em vetor (não editável).
- *
- * O texto original do Figma é removido do SVG e redesenhado com
- * @napi-rs/canvas nas MESMAS posições/cores, extraídas do próprio arquivo —
- * nada de coordenada fixa "no olho": ver extractCardMeta().
- *
- * O gradiente dourado das estrelas do Figma usa um truque (foreignObject +
- * mix-blend-mode) que o librsvg (usado pelo sharp pra rasterizar o SVG) não
- * suporta — por isso as estrelas têm arte própria em assets/cards/star-*.svg
- * (mesmo formato, gradiente reconstruído com um <linearGradient> padrão).
+ * Sem barra de XP/Caçadas e sem Premium Tier no card (pedido do dono) — só
+ * nickname, título, Alderon ID e cargo de staff (condicional).
  */
 const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
-const { createCanvas, GlobalFonts, loadImage } = require('@napi-rs/canvas');
+const { createCanvas, GlobalFonts, loadImage, Path2D } = require('@napi-rs/canvas');
 
 const PROJECT_ROOT = path.join(__dirname, '..', '..');
 const FONTS_DIR = path.join(PROJECT_ROOT, 'assets', 'fonts');
 const CARDS_DIR = path.join(PROJECT_ROOT, 'assets', 'cards');
+const ICONS_DIR = path.join(PROJECT_ROOT, 'assets', 'icons');
 
 GlobalFonts.registerFromPath(path.join(FONTS_DIR, 'TiltWarp.ttf'), 'Tilt Warp');
 GlobalFonts.registerFromPath(path.join(FONTS_DIR, 'Poppins-Medium.ttf'), 'Poppins Medium');
@@ -40,17 +31,25 @@ const TIER_FILES = {
     raptor: 'raptor.svg',
 };
 
-const SCALE = 2; // upscala o SVG (rasterizado em escala nativa) pra sair nítido
-const STAR_SIZE = 46; // em unidades do card (716 de largura), antes do SCALE
+const SCALE = 2; // upscala o card (rasterizado em escala nativa) pra sair nítido
 
-// Sombra dupla ("glow") replicando os filtros nativos do próprio SVG do
-// Figma (filter6_dd/filter7_dd/filter8_dd, que envolvem nome/Alderon/
-// Discord no arquivo original) — removidos junto com o texto/ícone que
-// embrulhavam (stripPathByPrefix não preserva o wrapper `<g filter=...>`),
-// então precisam ser reconstruídos aqui. Duas sombras diagonais opostas
-// (-5,-5 e +5,+5, ambas com blur 5, em unidades de card) em vez de uma
-// única sombra simples — é bem mais evidente/parecida com o mockup do que
-// uma sombra de um lado só.
+// Paleta por tier (mesmos valores do rascunho/card do site — filete
+// metálico + cores da pílula de espécie).
+const TIER_PALETTE = {
+    free: { a: '#A6917D', b: '#F8DCC0', text: '#1F1D20', accent: '#F8DCC0', rimDark: '#A6917D', rimMid: '#F8DCC0', rimLight: '#FFF8EF' },
+    compy: { a: '#A25E2D', b: '#DCA15E', text: '#F8DCC0', accent: '#FFAB4C', rimDark: '#8C5E2A', rimMid: '#FFAB4C', rimLight: '#FFD9AE' },
+    raptor: { a: '#4B2427', b: '#803E30', text: '#DCA15E', accent: '#DE6045', rimDark: '#7A3526', rimMid: '#E89078', rimLight: '#F0B7AB' },
+};
+
+// Foto encolhe 20% (pedido do dono: mais espaço de fundo visível), ancorada
+// no canto superior-esquerdo da moldura — mesma técnica do card do site.
+const PHOTO_SHRINK = 0.8;
+
+// Sombra dupla ("glow") pro nickname/título/linhas de identificação —
+// necessário porque esse trecho do card fica fora da moldura preenchida,
+// então quando há plano de fundo (foto) atrás, precisa de mais contraste
+// pra continuar legível. Duas sombras diagonais opostas em vez de uma
+// única sombra simples — mais evidente contra qualquer fundo.
 function drawWithGlow(ctx, drawFn) {
     ctx.save();
     ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
@@ -66,6 +65,21 @@ function drawWithGlow(ctx, drawFn) {
     drawFn(); // desenho final nítido, sem sombra, por cima das 2 sombras
 }
 
+// Sombra pra ícones pequenos e isolados (emblemas, ícone de espécie, ícones
+// das linhas de identidade) — a dupla acima usa offset de ±5*SCALE, pensado
+// pro texto grande; num ícone de ~20-24px isso "descola" a sombra em dois
+// blobs separados em vez de um contorno colado. Uma única sombra próxima
+// resolve.
+function drawIconShadow(ctx, drawFn) {
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+    ctx.shadowBlur = 5 * SCALE;
+    ctx.shadowOffsetX = 2 * SCALE;
+    ctx.shadowOffsetY = 3 * SCALE;
+    drawFn();
+    ctx.restore();
+}
+
 // ==================== estrelas — pré-rasterizadas uma vez ====================
 
 let starImagesPromise = null;
@@ -79,7 +93,7 @@ function loadStarImages() {
     return starImagesPromise;
 }
 
-// ==================== extração de metadados do SVG do Figma ====================
+// ==================== moldura por tier — path real do Figma ====================
 
 async function bboxOfPath(d, viewW, viewH, style = 'fill="#ffffff"') {
     const svg = `<svg width="${viewW}" height="${viewH}" xmlns="http://www.w3.org/2000/svg"><path d="${d}" ${style}/></svg>`;
@@ -92,129 +106,48 @@ async function bboxOfPath(d, viewW, viewH, style = 'fill="#ffffff"') {
     };
 }
 
-async function extractCardMeta(svg) {
-    const [, viewW, viewH] = svg.match(/viewBox="0 0 ([0-9.]+) ([0-9.]+)"/) || [null, 716, 458];
-    // Moldura = o path logo dentro do primeiro grupo "<g filter=...filterN_ddi...>"
-    // (a sombra dupla + inner shadow do card todo) — detecção ESTRUTURAL, não
-    // pelo valor do fill: versões antigas do Figma exportavam esse path com
-    // fill="black" fill-opacity="0.01" (só uma máscara invisível); exports
-    // mais novos vêm com fill="url(#patternN_...)" (o Figma preenche com uma
-    // foto de preview qualquer) — o fill nunca importa de verdade aqui, só o
-    // "d" (usado como clip-path pra foto real, inserida em runtime).
-    const frameMatch = svg.match(/<g filter="url\(#filter\d+_ddi[^)]*\)">\s*<path d="(M[^"]+)"[^>]*\/>/);
-    const solidPaths = [...svg.matchAll(/<path d="([^"]+)" fill="(#[0-9A-Fa-f]{6})"\/>/g)];
-    // Ordem estável no arquivo: 0,1,2 = textos das badges (Título/Nível/Espécie);
-    // 3 = nome do jogador; 4,5 = as 2 linhas de identificação (Alderon/Discord).
-    // Largura da pílula capturada dinamicamente (não fixa em "309") — mudou
-    // pra "353.02" no redesenho mais recente, e pode variar de novo no futuro.
-    const badgeRectMatch = [...svg.matchAll(/<rect x="([0-9.]+)" y="([0-9.]+)" width="([0-9.]+)" height="43" rx="9.5" fill=/g)];
-    const iconRectMatch = [...svg.matchAll(/<rect x="([0-9.]+)" y="([0-9.]+)" width="3[23]" height="33" fill="url\(#pattern/g)];
-    const starTopMatch = [...svg.matchAll(/<path d="M([0-9.]+) ([0-9.]+)(?:[LH][0-9.]+(?: [0-9.]+)?)+Z" data-figma-gradient-fill/g)];
-
-    if (!frameMatch) throw new Error('profileCardRenderer: moldura (frame path) não encontrada no SVG');
-    if (solidPaths.length < 6) throw new Error(`profileCardRenderer: esperava 6 textos vetorizados, achei ${solidPaths.length}`);
-    if (badgeRectMatch.length < 3) throw new Error(`profileCardRenderer: esperava 3 badges, achei ${badgeRectMatch.length}`);
-    if (iconRectMatch.length < 2) throw new Error(`profileCardRenderer: esperava 2 ícones de identificação, achei ${iconRectMatch.length}`);
-    if (starTopMatch.length < 5) throw new Error(`profileCardRenderer: esperava 5 estrelas, achei ${starTopMatch.length}`);
-
-    const bboxes = [];
-    for (const p of solidPaths) bboxes.push({ color: p[2], bbox: await bboxOfPath(p[1], viewW, viewH) });
-    const frameBbox = await bboxOfPath(frameMatch[1], viewW, viewH);
-
+// Mesma técnica acima, só que num PNG já renderizado (canal alfa) em vez de
+// SVG cru — usada pra cortar o canvas do tier Free (sem plano de fundo) no
+// tamanho exato do conteúdo real.
+async function bboxOfPng(buffer) {
+    const { info } = await sharp(buffer).extractChannel(3).trim({ threshold: 1 }).toBuffer({ resolveWithObject: true });
     return {
-        viewW: Number(viewW),
-        viewH: Number(viewH),
-        frameD: frameMatch[1],
-        frameBbox,
-        solidPaths,
-        bboxes,
-        badgeBoxes: badgeRectMatch.map(m => ({ x: Number(m[1]), y: Number(m[2]), w: Number(m[3]), h: 43 })),
-        iconBoxes: iconRectMatch.map(m => ({ x: Number(m[1]), y: Number(m[2]), w: 32, h: 33 })),
-        starTops: starTopMatch.map(m => ({ x: Number(m[1]), y: Number(m[2]) })),
+        x: info.trimOffsetLeft !== undefined ? -info.trimOffsetLeft : 0,
+        y: info.trimOffsetTop !== undefined ? -info.trimOffsetTop : 0,
+        width: info.width,
+        height: info.height,
     };
 }
 
-// ==================== edição cirúrgica do SVG (remove o que vira dinâmico) ====================
-
-function stripStarGroup(svg, filterIndex) {
-    const marker = svg.match(new RegExp(`<g filter="url\\(#filter${filterIndex}_dd_\\d+_\\d+\\)">`));
-    if (!marker) return svg; // já removido / não encontrado — segue sem quebrar
-    const start = svg.indexOf(marker[0]);
-    let cursor = start;
-    // grupo = <g filter><g clip-path><g transform><foreignObject/></g></g><path/><path/><path/></g>
-    // 3 ocorrências de "</g>" fecham (nessa ordem) o transform-g, o clip-path-g e o próprio filter-g.
-    for (let i = 0; i < 3; i++) cursor = svg.indexOf('</g>', cursor) + 4;
-    return svg.slice(0, start) + svg.slice(cursor);
-}
-
-function stripPathByPrefix(svg, dPrefix) {
-    const needle = `<path d="${dPrefix}`;
-    const start = svg.indexOf(needle);
-    if (start === -1) throw new Error('profileCardRenderer: path não encontrado pra remover: ' + dPrefix.slice(0, 40));
-    const end = svg.indexOf('/>', start);
-    return svg.slice(0, start) + svg.slice(end + 2);
-}
-
-// Fileira de 6 ícones (troféu/espada/etc) abaixo da foto — placeholder de um
-// futuro sistema de emblemas/missões que ainda não existe. Removida do
-// render por enquanto (pedido explícito: "remova dos perfis por hora").
-//
-// BUG CORRIGIDO: filtrar só pelo traço compartilhado (cor+espessura) não
-// bastava — o SVG do Raptor usa o MESMO estilo de traço nos 3 ícones
-// dentro das badges (Título/Nível/Espécie, ~20x20px, y≈39/92/143), então
-// o replace por regex também apagava esses por engano (Free/Compy nunca
-// tiveram ícone nenhum ali, só texto — por isso só o Raptor mostrava esse
-// sintoma: "aparece sem ícones nas badges de missão/nível/dinossauro").
-// Confirmado com bounding box real (rasterizado via sharp, não regex de
-// coordenada — paths com curva/H/V não dão pra medir por regex ingênuo):
-// a fileira de 6 ícones sempre cai em y≈264-287 (logo abaixo da foto, que
-// vai até y=294); os ícones das badges ficam em y≈39-176. ICON_ROW_MIN_Y
-// fica bem no meio dessas duas faixas.
-const ICON_ROW_MIN_Y = 220;
-async function stripMissionIcons(svg, viewW, viewH) {
-    const matches = [...svg.matchAll(/<path d="([^"]+)" stroke="#DCA15E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"\/>/g)];
-    let result = svg;
-    for (const m of matches) {
-        const bbox = await bboxOfPath(m[1], viewW, viewH, 'fill="none" stroke="#000" stroke-width="2"');
-        if (bbox.y >= ICON_ROW_MIN_Y) {
-            result = result.replace(m[0], '');
-        }
-    }
-    return result;
-}
-
-// ==================== template por tier — pré-processado uma vez ====================
-
-// extractCardMeta + as 3 remoções (estrelas/textos vetorizados/ícones de
-// missão) são uma função PURA do SVG estático de cada tier — nunca mudam
-// entre chamadas do mesmo tier, só o card final varia (foto/nome/badges).
-// Antes isso rodava DE NOVO em TODO /perfil (pedido do dono, 2026-08-12:
-// "o comando perfil demora um pouquinho") — cada chamada fazia ~10-15
-// rasterizações via sharp só pra extrair bounding boxes que já tinham sido
-// calculadas na chamada anterior — provavelmente o gargalo real do
-// comando, já que a VPS de produção roda com pouca RAM. Cacheado por tier
-// (só 3 valores possíveis) pelo tempo de vida do processo — os SVGs em
-// assets/cards/ só mudam num deploy, que já reinicia o processo (pm2
-// restart) de qualquer forma.
-const cardTemplateCache = new Map();
-function loadCardTemplate(tier) {
+// Só extrai o path da moldura (clip-path da foto) — o resto do card antigo
+// (texto/pílulas vetorizados do Figma) não é mais usado, o layout novo
+// desenha tudo do zero. Cacheado por tier (só 3 valores possíveis) pelo
+// tempo de vida do processo, mesmo motivo de antes: assets/cards/ só muda
+// num deploy, que já reinicia o processo.
+const frameCache = new Map();
+function loadFrame(tier) {
     const key = TIER_FILES[tier] ? tier : 'free';
-    if (!cardTemplateCache.has(key)) {
+    if (!frameCache.has(key)) {
         const promise = (async () => {
             const svgPath = path.join(CARDS_DIR, TIER_FILES[key]);
-            let svg = fs.readFileSync(svgPath, 'utf8');
-            const meta = await extractCardMeta(svg);
-            for (let i = 1; i <= 5; i++) svg = stripStarGroup(svg, i);
-            for (const p of meta.solidPaths) svg = stripPathByPrefix(svg, p[1].slice(0, 60));
-            svg = await stripMissionIcons(svg, meta.viewW, meta.viewH);
-            return { meta, strippedSvg: svg };
+            const svg = fs.readFileSync(svgPath, 'utf8');
+            const [, viewWStr, viewHStr] = svg.match(/viewBox="0 0 ([0-9.]+) ([0-9.]+)"/) || [null, '800', '430'];
+            const viewW = Number(viewWStr);
+            const viewH = Number(viewHStr);
+            // Detecção ESTRUTURAL (grupo com filtro de sombra dupla+inner
+            // shadow), não pelo valor do fill — versões do Figma variam o
+            // fill desse path (máscara invisível ou preview pattern), só o
+            // "d" importa de verdade (clip-path pra foto real).
+            const frameMatch = svg.match(/<g filter="url\(#filter\d+_ddi[^)]*\)">\s*<path d="(M[^"]+)"[^>]*\/>/);
+            if (!frameMatch) throw new Error('profileCardRenderer: moldura (frame path) não encontrada no SVG');
+            const frameD = frameMatch[1];
+            const frameBbox = await bboxOfPath(frameD, viewW, viewH);
+            return { viewW, viewH, frameD, frameBbox };
         })();
-        // Se falhar, não deixa o erro "grudado" no cache pro resto da vida do
-        // processo — tira a entrada pra tentar de novo na próxima chamada.
-        promise.catch(() => cardTemplateCache.delete(key));
-        cardTemplateCache.set(key, promise);
+        promise.catch(() => frameCache.delete(key));
+        frameCache.set(key, promise);
     }
-    return cardTemplateCache.get(key);
+    return frameCache.get(key);
 }
 
 // ==================== render principal ====================
@@ -225,147 +158,199 @@ function loadCardTemplate(tier) {
  * @param {Buffer} opts.photoBuffer - bytes da foto (qualquer formato que o sharp leia)
  * @param {Buffer|null} [opts.backgroundBuffer] - bytes do plano de fundo (opcional).
  *   Quando presente, o canvas final fica no tamanho EXATO do card (mesma
- *   resolução nativa, sem caixa custom separada) — o plano de fundo cobre
- *   esse canvas inteiro (cover fit) e funciona literalmente como o fundo
- *   do próprio card, aparecendo só nos espaços transparentes que o card já
- *   tem (à direita dos badges, embaixo da identificação). Cantos
- *   arredondados na composição final (detalhe presente nos mockups do
- *   Compy/Raptor). Sombra projetada (drop shadow) no card pra se destacar
- *   do plano de fundo atrás.
+ *   resolução nativa) — o plano de fundo cobre esse canvas inteiro (cover
+ *   fit) e funciona como o fundo do próprio card. Cantos arredondados +
+ *   sombra projetada na composição final.
+ *   Quando AUSENTE (sempre o caso do tier Free — "não tem fundo, pedido do
+ *   dono"), o canvas não fica no tamanho fixo do card: é cortado pro
+ *   tamanho real do conteúdo (foto+emblemas+pílula+coluna de texto), com
+ *   5px de margem em cima/embaixo — largura continua fixa.
  * @param {string} opts.nickname
  * @param {string} opts.alderonId
- * @param {string} opts.discordUsername
  * @param {string} opts.titleLabel
- * @param {string} opts.levelLabel
  * @param {string} opts.speciesLabel
+ * @param {boolean} [opts.isCarnivore] - dieta da espécie mais jogada (ver
+ *   PlayerRegistry.isDinosaurCarnivore) — decide CarniSkull vs HerbSkull.
  * @param {number} opts.honorStars - 0 a 5
+ * @param {boolean} [opts.isStaff] - true quando o jogador tem cargo de staff
+ *   configurado NESTE servidor (ver ConfigSystem.memberHasAnyStaffRole) —
+ *   decide se a linha de cargo aparece.
+ * @param {string} [opts.staffLabel] - categoria(s) de staff (ver
+ *   ConfigSystem.staffRoleCategoryLabel) — só usado quando isStaff.
+ * @param {Buffer[]} [opts.badges] - bytes de cada emblema conquistado
+ *   (ProfileImagePool.resolveImageBuffer tipo 'badge') — até 4 exibidos.
  * @returns {Promise<Buffer>} PNG pronto (card, ou card+plano de fundo compostos)
  */
-async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname, alderonId, discordUsername, titleLabel, levelLabel, speciesLabel, honorStars }) {
-    const { meta, strippedSvg } = await loadCardTemplate(tier);
-    let svg = strippedSvg;
+async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname, alderonId, titleLabel, speciesLabel, isCarnivore, honorStars, isStaff, staffLabel, badges }) {
+    const palette = TIER_PALETTE[tier] || TIER_PALETTE.free;
+    const { viewW, viewH, frameD, frameBbox } = await loadFrame(tier);
 
-    // .rotate() sem argumento = auto-orienta pela tag EXIF antes de virar PNG
-    // — defesa extra além da já aplicada no upload (imageStorage.js): fotos
-    // vindas do banner do próprio Discord ou de uploads antigos (antes dessa
-    // correção) podem chegar aqui sem já terem passado por lá.
-    const photoPng = await sharp(photoBuffer).rotate().png().toBuffer();
-    // Retângulo da foto = bounding box real da própria moldura (frameBbox,
-    // medido via bboxOfPath em extractCardMeta) — não mais coordenadas fixas
-    // "no olho". Cobre a moldura inteira; o clip-path (mesmo "d" da moldura)
-    // recorta pro formato certo (cantos arredondados/chanfrados).
-    const { x: fx, y: fy, width: fw, height: fh } = meta.frameBbox;
-    const clipInsert = `
-<clipPath id="profileCardPortraitClip"><path d="${meta.frameD}"/></clipPath>
-<g clip-path="url(#profileCardPortraitClip)">
-<image href="data:image/png;base64,${photoPng.toString('base64')}" x="${fx}" y="${fy}" width="${fw}" height="${fh}" preserveAspectRatio="xMidYMid slice"/>
-</g>
-`;
-    const frameGroupStart = svg.indexOf('<g filter="url(#filter0_ddi');
-    const frameCloseIdx = svg.indexOf('</g>', frameGroupStart) + 4;
-    svg = svg.slice(0, frameCloseIdx) + clipInsert + svg.slice(frameCloseIdx);
-
-    // Rasteriza em escala nativa (density/filter em escalas diferentes geram
-    // artefatos de antialiasing) e só depois amplia o bitmap resultante.
-    const nativePng = await sharp(Buffer.from(svg)).png().toBuffer();
-    const nativeMeta = await sharp(nativePng).metadata();
-    const basePng = await sharp(nativePng)
-        .resize(nativeMeta.width * SCALE, nativeMeta.height * SCALE)
-        .png()
-        .toBuffer();
-    const base = await loadImage(basePng);
-
-    const canvas = createCanvas(base.width, base.height);
+    const canvas = createCanvas(viewW * SCALE, viewH * SCALE);
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(base, 0, 0);
 
-    // Sombra atrás dos ícones de identificação (Alderon/Discord) — pedido
-    // do dono pra melhorar a legibilidade agora que esse trecho do card
-    // pode sentar sobre um plano de fundo (foto), não só o fundo escuro
-    // padrão. Os ícones já vêm RASTERIZADOS dentro de `base` (fill="url(#
-    // pattern...)" no SVG de origem, não desenhados à parte pelo canvas),
-    // então não dá pra só ligar sombra antes de "desenhar o ícone" como se
-    // faz com texto — em vez disso, recorta exatamente a caixa de cada
-    // ícone (meta.iconBoxes, já teve a mesma imagem `base` como origem) e
-    // redesenha esse recorte por cima, na MESMA posição, com drawWithGlow
-    // — o canvas calcula a sombra a partir do canal alfa do que for
-    // desenhado, então funciona sem precisar saber o desenho exato do
-    // ícone.
-    for (const box of meta.iconBoxes) {
-        const sx = box.x * SCALE;
-        const sy = box.y * SCALE;
-        const sw = box.w * SCALE;
-        const sh = box.h * SCALE;
-        drawWithGlow(ctx, () => ctx.drawImage(base, sx, sy, sw, sh, sx, sy, sw, sh));
-    }
+    // Box da foto JÁ reduzida (20%), em pixels nativos (escala aplicada na
+    // mão em todo o resto da função — sem ctx.scale global, pra não
+    // interferir com os offsets de sombra já em pixels de drawWithGlow
+    // acima). Fixo no canto superior-esquerdo da moldura original.
+    const scaledBbox = {
+        x: frameBbox.x * SCALE,
+        y: frameBbox.y * SCALE,
+        width: frameBbox.width * SCALE * PHOTO_SHRINK,
+        height: frameBbox.height * SCALE * PHOTO_SHRINK,
+    };
 
+    // ── Moldura + filete metálico + foto — path2D nas coordenadas RAW do
+    // SVG (viewBox), por isso SÓ este bloco entra num ctx.scale(SCALE)
+    // próprio (restaurado no fim); desenha a MESMA forma da moldura (sem
+    // reaproximar), com uma escala extra ancorada no canto superior-
+    // esquerdo pra encolher a foto sem mover sua posição. ─────────────────
+    ctx.save();
+    ctx.scale(SCALE, SCALE);
+    ctx.translate(frameBbox.x, frameBbox.y);
+    ctx.scale(PHOTO_SHRINK, PHOTO_SHRINK);
+    ctx.translate(-frameBbox.x, -frameBbox.y);
+
+    // Filete metálico (cópia da MESMA forma, um pouco maior, atrás da
+    // foto) — desenhado ANTES de qualquer clip() pra sombra/brilho não
+    // ficarem cortados junto.
+    const rimPath = new Path2D(frameD);
+    ctx.save();
+    ctx.translate(frameBbox.x + frameBbox.width / 2, frameBbox.y + frameBbox.height / 2);
+    ctx.scale(1.018, 1.018);
+    ctx.translate(-(frameBbox.x + frameBbox.width / 2), -(frameBbox.y + frameBbox.height / 2));
+    const rimGrad = ctx.createLinearGradient(frameBbox.x, frameBbox.y, frameBbox.x + frameBbox.width, frameBbox.y + frameBbox.height);
+    rimGrad.addColorStop(0, palette.rimLight);
+    rimGrad.addColorStop(0.2, palette.rimMid);
+    rimGrad.addColorStop(0.38, palette.rimDark);
+    rimGrad.addColorStop(0.52, palette.rimLight);
+    rimGrad.addColorStop(0.68, palette.rimDark);
+    rimGrad.addColorStop(0.85, palette.rimMid);
+    rimGrad.addColorStop(1, palette.rimLight);
+    ctx.fillStyle = rimGrad;
+    ctx.shadowColor = palette.accent;
+    ctx.shadowBlur = 6;
+    ctx.fill(rimPath);
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 14;
+    ctx.shadowOffsetX = 5;
+    ctx.shadowOffsetY = 6;
+    ctx.fill(rimPath);
+    ctx.restore();
+
+    // Foto — clip na forma real, foto "cover".
+    const framePath = new Path2D(frameD);
+    ctx.save();
+    ctx.clip(framePath);
+    const photo = await loadImage(await sharp(photoBuffer).rotate().resize(Math.round(frameBbox.width), Math.round(frameBbox.height), { fit: 'cover' }).png().toBuffer());
+    ctx.drawImage(photo, frameBbox.x, frameBbox.y, frameBbox.width, frameBbox.height);
+    ctx.restore();
+
+    ctx.restore(); // fecha o scale(PHOTO_SHRINK)
+    ctx.restore(); // fecha o scale(SCALE) deste bloco
+
+    // ── Estrelas de honra — ancoradas no canto inferior-esquerdo da foto
+    // já reduzida. ──────────────────────────────────────────────────────
     const [starFull, starEmpty] = await loadStarImages();
-    const starSize = STAR_SIZE * SCALE;
-    for (let i = 0; i < meta.starTops.length; i++) {
-        const top = meta.starTops[i];
-        const cx = top.x * SCALE;
-        const cy = (top.y + 13.5) * SCALE; // centro aproximado abaixo da ponta superior
+    const starSize = 30 * PHOTO_SHRINK * SCALE;
+    const starsY = scaledBbox.y + scaledBbox.height - 18 * PHOTO_SHRINK * SCALE;
+    for (let i = 0; i < 5; i++) {
         const img = i < honorStars ? starFull : starEmpty;
-        ctx.drawImage(img, cx - starSize / 2, cy - starSize / 2, starSize, starSize);
+        ctx.drawImage(img, scaledBbox.x + 14 * PHOTO_SHRINK * SCALE + i * (starSize + 4 * PHOTO_SHRINK * SCALE), starsY - starSize / 2, starSize, starSize);
     }
 
-    // Texto das badges — baseline ancorada na geometria da pílula (não na caixa
-    // do texto original), porque a caixa varia com descendentes ("y", "g"...)
-    // e desalinha o texto de reposição conforme a palavra.
+    // ── Emblemas conquistados — DENTRO do recorte/chanfro do canto
+    // inferior-direito da moldura (mesmo lugar do card do site, mesma
+    // "prateleira" a ~84% da altura do frame nas 3 tiers) — PNG sem fundo,
+    // sombra preta simples (sem glow). Até 4, mesmo dado real do card do
+    // site (ownedItems tipo 'badge'). ───────────────────────────────────
+    const badgeSize = 22 * SCALE;
+    const badgesY = scaledBbox.y + scaledBbox.height * 0.84 + 12 * SCALE;
+    let bx = scaledBbox.x + scaledBbox.width - badgeSize;
+    const badgeImages = await Promise.all((badges || []).slice(0, 4).map((buf) => loadImage(buf)));
+    for (const badgeImg of badgeImages) {
+        drawIconShadow(ctx, () => ctx.drawImage(badgeImg, bx, badgesY, badgeSize, badgeSize));
+        bx -= badgeSize + 8 * SCALE;
+    }
+
+    // ── Pílula de espécie — direto abaixo da foto (18px de respiro, mesma
+    // margem do card do site), largura igual à foto reduzida. ──────────
+    const pillY = scaledBbox.y + scaledBbox.height + 18 * SCALE;
+    const pillH = 40 * SCALE;
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(scaledBbox.x, pillY, scaledBbox.width, pillH, 8 * SCALE);
+    const pillGrad = ctx.createLinearGradient(scaledBbox.x, pillY, scaledBbox.x, pillY + pillH);
+    pillGrad.addColorStop(0.47, palette.a);
+    pillGrad.addColorStop(1, palette.b);
+    ctx.fillStyle = pillGrad;
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 7 * SCALE;
+    ctx.shadowOffsetX = 7 * SCALE;
+    ctx.shadowOffsetY = 9 * SCALE;
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.strokeStyle = palette.accent;
+    ctx.lineWidth = 1 * SCALE;
+    ctx.stroke();
+    ctx.restore();
+
+    const speciesIcon = await loadImage(path.join(ICONS_DIR, isCarnivore ? 'CarniSkull.webp' : 'HerbSkull.webp'));
+    drawIconShadow(ctx, () => ctx.drawImage(speciesIcon, scaledBbox.x + 10 * SCALE, pillY + (pillH - 24 * SCALE) / 2, 24 * SCALE, 24 * SCALE));
+    ctx.textBaseline = 'middle';
+    ctx.font = `700 ${15 * SCALE}px "Tilt Warp"`;
+    ctx.fillStyle = palette.text;
+    ctx.fillText((speciesLabel || '').toUpperCase(), scaledBbox.x + 42 * SCALE, pillY + pillH / 2 + 1 * SCALE);
+
+    // ── Coluna de identidade — nickname/título + linhas com ícone, colada
+    // na foto já reduzida com 24px de margem (mesma margem do card do
+    // site entre a coluna da foto e a coluna de texto). Sem Premium Tier
+    // (removido do grupo); cargo de staff só aparece se isStaff. ───────
+    const infoX = scaledBbox.x + scaledBbox.width + 24 * SCALE;
+    let cy = frameBbox.y * SCALE;
+    ctx.fillStyle = '#F8DCC0'; // nickname sempre cream, não segue a cor por tier
+    ctx.font = `${34 * SCALE}px "Tilt Warp"`;
     ctx.textBaseline = 'alphabetic';
-    const badgeLabels = [titleLabel, levelLabel, speciesLabel];
-    const BADGE_FONT = 18;
-    const BADGE_BASELINE_OFFSET = 6;
-    for (let i = 0; i < 3; i++) {
-        const { color, bbox } = meta.bboxes[i];
-        const pill = meta.badgeBoxes[i];
-        ctx.fillStyle = color;
-        ctx.font = `${BADGE_FONT * SCALE}px "Poppins SemiBold"`;
-        ctx.fillText(badgeLabels[i], bbox.x * SCALE, (pill.y + pill.h / 2 + BADGE_BASELINE_OFFSET) * SCALE);
+    drawWithGlow(ctx, () => ctx.fillText((nickname || '').toUpperCase(), infoX, cy + 30 * SCALE));
+    cy += 42 * SCALE;
+    ctx.font = `${15 * SCALE}px "Poppins Medium"`;
+    ctx.fillStyle = '#F8DCC0';
+    drawWithGlow(ctx, () => ctx.fillText(titleLabel || '', infoX, cy + 14 * SCALE));
+    cy += 32 * SCALE;
+
+    const rows = [{ icon: 'logopot.webp', text: alderonId || '' }];
+    if (isStaff && staffLabel) {
+        rows.push({ icon: 'DiscordLOGO.webp', text: staffLabel });
     }
-
-    // Nome + linhas de identificação ganham a mesma sombra dupla ("glow")
-    // dos ícones acima (drawWithGlow) — mesmo motivo: esse trecho do card
-    // fica fora da moldura preenchida, então quando há plano de fundo
-    // (foto) atrás dele, precisa de mais contraste pra continuar legível.
-    // Badges (acima) já sentam num fundo de pílula opaco, não precisam.
-
-    // Nome (Tilt Warp, sempre caixa alta) — ancorado acima do primeiro ícone de identificação.
-    const nickBox = meta.bboxes[3];
-    ctx.fillStyle = nickBox.color;
-    ctx.font = `${46 * SCALE}px "Tilt Warp"`;
-    const nickX = nickBox.bbox.x * SCALE;
-    const nickY = (meta.iconBoxes[0].y - 6) * SCALE;
-    drawWithGlow(ctx, () => ctx.fillText(nickname.toUpperCase(), nickX, nickY));
-
-    // Linhas de identificação — mesma lógica de âncora geométrica das badges.
-    const IDENTITY_FONT = 17;
-    const IDENTITY_BASELINE_OFFSET = 6;
-    ctx.font = `${IDENTITY_FONT * SCALE}px "Poppins Medium"`;
-    const line1 = meta.bboxes[4];
-    ctx.fillStyle = line1.color;
-    const line1X = line1.bbox.x * SCALE;
-    const line1Y = (meta.iconBoxes[0].y + meta.iconBoxes[0].h / 2 + IDENTITY_BASELINE_OFFSET) * SCALE;
-    drawWithGlow(ctx, () => ctx.fillText(alderonId, line1X, line1Y));
-    const line2 = meta.bboxes[5];
-    ctx.fillStyle = line2.color;
-    const line2X = line2.bbox.x * SCALE;
-    const line2Y = (meta.iconBoxes[1].y + meta.iconBoxes[1].h / 2 + IDENTITY_BASELINE_OFFSET) * SCALE;
-    drawWithGlow(ctx, () => ctx.fillText(discordUsername, line2X, line2Y));
+    for (const row of rows) {
+        const icon = await loadImage(path.join(ICONS_DIR, row.icon));
+        drawIconShadow(ctx, () => ctx.drawImage(icon, infoX, cy, 24 * SCALE, 24 * SCALE));
+        ctx.font = `${16 * SCALE}px "Poppins SemiBold"`;
+        ctx.fillStyle = '#F8DCC0';
+        drawWithGlow(ctx, () => ctx.fillText(row.text, infoX + 32 * SCALE, cy + 17 * SCALE));
+        cy += 40 * SCALE;
+    }
 
     if (!backgroundBuffer) {
-        return canvas.toBuffer('image/png');
+        // Tier Free (sem plano de fundo, pedido do dono) — corta o canvas
+        // fixo pro tamanho REAL do conteúdo (largura continua fixa) em vez
+        // de devolver o card com um monte de transparência sobrando
+        // embaixo, já que não tem mais barra de XP/Caçadas nem foto atrás.
+        const fullBuffer = canvas.toBuffer('image/png');
+        const contentBox = await bboxOfPng(fullBuffer);
+        const marginPx = 5 * SCALE;
+        const outHeightPx = contentBox.height + marginPx * 2;
+        const finalCanvas = createCanvas(canvas.width, outHeightPx);
+        const fctx = finalCanvas.getContext('2d');
+        const fullImg = await loadImage(fullBuffer);
+        fctx.drawImage(fullImg, 0, contentBox.y, canvas.width, contentBox.height, 0, marginPx, canvas.width, contentBox.height);
+        return finalCanvas.toBuffer('image/png');
     }
 
     // ── Plano de fundo full-bleed atrás do card inteiro ────────────────────
     // Canvas final no tamanho EXATO do card (mesma resolução nativa, sem
-    // caixa custom separada) — pedido do dono: o plano de fundo tem que
-    // ficar "no tamanho exato do png" do card, igual ao mockup do Figma
-    // (o retângulo full-canvas de fundo que veio nos SVGs do Compy/Raptor
-    // era 800x427, do tamanho do card). O card cobre 100% do canvas (sem
-    // escalar/reposicionar) — o plano de fundo só aparece nos espaços
-    // transparentes que o próprio card já tem (à direita dos badges,
-    // embaixo da identificação).
+    // caixa custom separada) — o plano de fundo cobre esse canvas inteiro
+    // (sem escalar/reposicionar) — só aparece nos espaços transparentes que
+    // o próprio card já tem.
     const FINAL_W = canvas.width;
     const FINAL_H = canvas.height;
     const CARD_W = canvas.width;
@@ -385,10 +370,7 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
 
     const finalCanvas = createCanvas(FINAL_W, FINAL_H);
     const fctx = finalCanvas.getContext('2d');
-    // Cantos arredondados na imagem final inteira — detalhe presente nos
-    // mockups mais recentes do Compy/Raptor (um rect full-canvas com
-    // rx="20", na resolução nativa de 800 de largura do card; aqui escalado
-    // proporcionalmente pro nosso canvas de 1000). Clip aplicado ANTES de
+    // Cantos arredondados na imagem final inteira — clip aplicado ANTES de
     // desenhar qualquer coisa, então cobre plano de fundo + escurecida +
     // card + sombra de uma vez, sem precisar recortar cada camada.
     const CORNER_RADIUS = Math.round(20 * (FINAL_W / 800));
@@ -399,15 +381,14 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
 
     fctx.drawImage(bgImage, 0, 0);
     // Leve escurecida — sem isso, um plano de fundo muito claro/colorido
-    // compete visualmente com o card por cima (mesmo o card tendo seu
-    // próprio contraste interno, a MOLDURA em si fica menos destacada).
+    // compete visualmente com o card por cima.
     fctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
     fctx.fillRect(0, 0, FINAL_W, FINAL_H);
 
-    // Sombra projetada em cima do CONTORNO real do card (moldura+badges+
-    // texto, via canal alfa do canvas do card) — não uma sombra "no olho"
-    // desenhada por cima de uma forma fixa, então acompanha automaticamente
-    // qualquer ajuste futuro de layout do card.
+    // Sombra projetada em cima do CONTORNO real do card (via canal alfa do
+    // canvas do card) — não uma sombra "no olho" desenhada por cima de uma
+    // forma fixa, então acompanha automaticamente qualquer ajuste futuro
+    // de layout do card.
     fctx.save();
     fctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
     fctx.shadowBlur = 22 * SCALE;

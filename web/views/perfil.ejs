@@ -40,6 +40,16 @@
         /* Estilos só desta página (mesmo padrão de dev-image-pool.ejs:
            componente usado numa página só não precisa entrar no
            style.css compartilhado). */
+        /* Variáveis globais do card de identidade (.pf-id-*) — cor/tipo
+           padrão da marca, usadas em cima das cores por tier
+           (--pf-tier-*/--pf-rim-*, essas sim aplicadas via style inline
+           por jogador, ver pfIdCardGradients no JS mais abaixo). */
+        :root {
+            --pf-text: #F8DCC0;
+            --pf-accent: #DCA15E;
+            --font-head: 'Tilt Warp', cursive;
+            --font-body: 'Poppins', sans-serif;
+        }
         /* Fundo personalizado direto no <body> (pedido do dono, 2026-08-06:
            "a imagem de plano de fundo de perfil deve cobrir a página
            inteira abaixo dos cards" — a tentativa anterior usava uma
@@ -73,161 +83,13 @@
            dele. O grupo avatar+nome continua centralizado ENTRE SI (ver
            .flex.items-center por cima dos dois no HTML), só a linha
            externa (esse grupo vs. o selo de Hunt) é que virou flex-start. */
-        .perfil-hero {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-        .perfil-hero-avatar {
-            box-sizing: border-box;
-            flex: none;
-            width: 96px;
-            height: 96px;
-            border-radius: 50%;
-            background: #4B2427;
-            border: 4px solid #803E30;
-            box-shadow: 0px 12px 18px 11px rgba(1, 2, 10, 0.45);
-            overflow: hidden;
-        }
-        .perfil-hero-avatar img { width: 100%; height: 100%; object-fit: cover; }
-        /* line-height apertado nas 2 linhas de texto (pedido do dono:
-           "espaçamentos não parecem muito proporcionais") — sem isso, a
-           métrica de fonte do Tilt Warp/Poppins soma uma folga invisível
-           por cima do gap-3 do flex, fazendo o espaço nome->ID parecer
-           diferente do espaço ID->selo de tier (que não sofre isso, é uma
-           cápsula com padding próprio). Com os 3 no mesmo line-height
-           "apertado" + mesmo gap-3 do container pai, a distância visual
-           entre os 3 fica igual de verdade, não só no código. */
-        .perfil-hero-name { font-family: 'Tilt Warp', cursive; font-size: clamp(20px, 3vw, 28px); line-height: 1.2; color: #F8DCC0; }
-        .perfil-hero-id { font-family: 'Poppins', sans-serif; font-size: 13px; line-height: 1.2; opacity: 0.5; }
-        .perfil-tier-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 5px 16px;
-            border-radius: 147.5px;
-            font-family: 'Poppins', sans-serif;
-            font-weight: 600;
-            font-size: 13px;
-            line-height: 1.2;
-            border: 1px solid var(--pt-color, #F8DCC0);
-            color: var(--pt-color, #F8DCC0);
-        }
-        .perfil-hunt-pill {
-            box-sizing: border-box;
-            flex: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 16px;
-            border-radius: 147.5px;
-            background: #131314;
-            border: 1px solid rgba(217, 163, 98, 0.35);
-            font-family: 'Poppins', sans-serif;
-            font-weight: 600;
-            font-size: 13px;
-            color: #DCA15E;
-        }
-        .perfil-hunt-pill i { width: 16px; height: 16px; flex: none; }
-        .perfil-hunt-pill img { width: 18px; height: 18px; flex: none; border-radius: 4px; object-fit: cover; }
-        <%# Cor por moeda (pedido do dono, 2026-08-12): Caçadas sempre vermelho,
-            Ossos sempre amarelo, XP a cor "quase branca" padrão do bot — mesmas
-            classes/valores usados em loja.ejs (is-hunt/is-bones/is-xp) pra manter
-            o mesmo vocabulário visual entre as 2 páginas. %>
-        .perfil-hunt-pill.is-hunt { border-color: rgba(255, 78, 59, 0.35); color: #FF4E3B; }
-        .perfil-hunt-pill.is-bones { border-color: rgba(217, 163, 98, 0.35); color: #D9A362; }
-        .perfil-hunt-pill.is-xp { border-color: rgba(248, 220, 192, 0.35); color: #F8DCC0; }
-
-        <%#
-            Card de Nível/XP (pedido do dono, 2026-08-19: "Card de xp
-            coloque na pagina perfil") — realocado de loja.ejs pra cá, CSS
-            idêntico (só renomeado de .loja-currency-*/.loja-level-progress-*
-            pra .perfil-level-* já que agora vive só aqui, sem mais os
-            variants is-hunt/is-bones que só faziam sentido ao lado dos
-            outros 2 cards de saldo removidos de loja.ejs). Cor de XP
-            (quase branco, pedido do dono 2026-08-12) mantida.
-            levelProgress vem das rotas /perfil e /loja em dashboard.js,
-            matemática em src/systems/pot/levelSystem.js (XP_Total = 10 ×
-            Nível^2.2, sem teto de nível).
-        %>
-        .perfil-level-card { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
-        .perfil-level-icon {
-            width: 52px; height: 52px; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            flex: none;
-            background: rgba(248, 220, 192, 0.12); color: #F8DCC0;
-        }
-        .perfil-level-icon img { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; }
-        .perfil-level-title { font-family: 'Tilt Warp', cursive; font-size: 15px; color: #F8DCC0; }
-        .perfil-level-balance {
-            display: inline-flex;
-            align-items: baseline;
-            gap: 5px;
-            font-family: 'Poppins', sans-serif;
-        }
-        .perfil-level-balance-value { font-size: 22px; font-weight: 700; color: #F8DCC0; }
-        .perfil-level-balance-label { font-size: 11px; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.5px; }
-        .perfil-level-progress-track {
-            width: 100%;
-            height: 6px;
-            border-radius: 4px;
-            background: rgba(248, 220, 192, 0.12);
-            overflow: hidden;
-        }
-        .perfil-level-progress-fill {
-            height: 100%;
-            border-radius: 4px;
-            background: #F8DCC0;
-            transition: width 0.3s ease;
-        }
-
-        .perfil-guild-list { display: flex; flex-wrap: wrap; gap: 10px; }
-        .perfil-guild-chip {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 14px 6px 6px;
-            background: #131314;
-            border: 1px solid rgba(217, 163, 98, 0.25);
-            border-radius: 147.5px;
-            text-decoration: none;
-            transition: border-color 0.15s ease;
-        }
-        .perfil-guild-chip:hover { border-color: #DCA15E; }
-        .perfil-guild-chip img { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; }
-        .perfil-guild-chip span { font-family: 'Poppins', sans-serif; font-size: 13px; color: #F8DCC0; }
-        /* Chip de "servidores que você já jogou" ganhou uma 2ª linha (tempo
-           de jogo, pedido do dono 2026-08-10) — só essa lista usa a coluna
-           de texto; o chip de "servidores que administra" continua com
-           span solto (sem quebrar layout ali, .perfil-guild-chip span
-           acima segue valendo pros dois). */
-        .perfil-guild-chip-text { display: flex; flex-direction: column; gap: 1px; }
-        /* .perfil-guild-chip-text .perfil-guild-chip-playtime (2 classes)
-           de propósito, não só .perfil-guild-chip-playtime sozinho — precisa
-           bater a especificidade de ".perfil-guild-chip span" (1 classe + 1
-           elemento) acima sem depender de !important nem de ordem no CSS. */
-        .perfil-guild-chip-text .perfil-guild-chip-playtime { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: #A89986; }
+        /* .perfil-hero/.perfil-tier-pill/.perfil-hunt-pill/.perfil-level-*/
+           .perfil-guild-*/.perfil-staff-history-* removidas daqui (pedido
+           do dono, 2026-08-20: cards que usavam essas classes foram
+           removidos da página, ver comentário no HTML mais abaixo). */
         .perfil-stars { font-size: 20px; letter-spacing: 3px; color: #3E3D38; }
         .perfil-stars .is-filled { color: #DCA15E; }
         .perfil-stat-line { font-family: 'Poppins', sans-serif; font-size: 13px; opacity: 0.7; }
-        /* Histórico de Staff (pedido do dono, 2026-08-10) — 1 card por
-           servidor onde a pessoa é Moderador/Equipe de Eventos. */
-        .perfil-staff-history-card {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            padding: 12px 16px;
-            background: #131314;
-            border: 1px solid rgba(217, 163, 98, 0.25);
-            border-radius: 12px;
-        }
-        .perfil-staff-history-head { display: flex; align-items: center; gap: 8px; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 14px; color: #F8DCC0; }
-        .perfil-staff-history-head img { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex: none; }
-        .perfil-staff-history-stats { display: flex; flex-wrap: wrap; gap: 14px; font-family: 'Poppins', sans-serif; font-size: 12px; color: #F8DCC0; opacity: 0.8; }
-        .perfil-staff-history-stats span { display: inline-flex; align-items: center; gap: 4px; }
-        .perfil-staff-history-today { font-family: 'Poppins', sans-serif; font-size: 11px; color: #DCA15E; opacity: 0.85; margin: 0; }
         .perfil-soon-card {
             display: flex;
             flex-direction: column;
@@ -254,209 +116,242 @@
            .perfil-soon-text sozinho sem !important. */
         .perfil-soon-text.perfil-playtime-total { font-size: 20px; font-weight: 600; opacity: 1; color: #DCA15E; }
 
-        /* Card de identidade "estilo Discord" (pedido do dono, 2026-08-16:
-           reproduzir em CSS o mesmo cartão que /perfil gera no Discord via
-           Canvas, ver profileCardRenderer.js/assets/cards/{tier}.svg) — no
-           lugar do card de texto puro que existia antes aqui. Adaptado do
-           export do Figma (que usa position:absolute com pixels fixos, um
-           card de 701x997px) pra flexbox com unidades relativas: mesma
-           regra de responsividade já usada em .perfil-hero acima
-           (flex-wrap, sem media query dedicada) — a foto e as pílulas
-           empilham verticalmente em telas estreitas em vez de ficarem
-           cortadas.
-           Fundo do card: DECISÃO REVERTIDA no mesmo dia — a primeira
-           versão deixava o card opaco (cor sólida #131314), confiando só
-           no fundo da PÁGINA inteira (body.perfil-has-bg). Depois de ver
-           ao vivo, o dono pediu o contrário: "não deve haver esse fundo e
-           sim a imagem de plano de fundo dele" — o CARD em si também
-           mostra o plano de fundo do jogador (mesma URL,
-           backgroundPreviewUrl, aplicada via style inline no HTML — é
-           condicional, então não dá pra fixar no CSS puro). Sem plano de
-           fundo escolhido, fica transparente de propósito (sem cor sólida
-           de reserva) — deixa a página por trás aparecer, em vez de
-           simular um fundo que o jogador não configurou.
-           Cores por tier (--pf-id-grad-a/b/text, aplicadas via style
-           inline no HTML a partir de playerTier) espelham exatamente os
-           3 tiers do card do Discord (T1 Free bege claro, T2 Compy
-           mostarda, T3 Raptor terracota escuro — mesmos hex do export do
-           Figma). */
-        /* flex-direction:column explícito (não confia em quem usa a classe
-           lembrar de somar o utilitário Tailwind flex-col) — .titan-card-
-           premium (style.css compartilhado) já é display:flex, mas SEM
-           direção definida, então sem isso os filhos (.pf-id-top/.pf-id-
-           bottom) viravam uma LINHA em vez de empilhados (bug real,
-           2026-08-16: pílulas e nome ficavam lado a lado/sobrepostos). */
+        /* ==================== CARD DE IDENTIDADE ====================
+           Reconstrução do card novo aprovado no rascunho (Figma "Profile
+           Display big") — moldura/foto usam o MESMO path SVG exato já em
+           produção (clipPaths logo abaixo, nunca reaproximados). Sem
+           contorno/sombra de "card" — pedido do dono: os componentes
+           (foto/pílula/linhas/barra de nível/caçadas) ficam "flutuando na
+           página", cada um com a própria sombra, sem um container visível
+           por trás. Cores por tier (--pf-tier-*/--pf-rim-*) aplicadas via
+           style inline no HTML a partir de pfIdCardGradients (ver JS
+           acima) — mesmo padrão já usado antes (--pf-id-grad-a/b/text). */
         .pf-id-card {
+            width: 100%;
             display: flex;
             flex-direction: column;
             padding: 20px;
-            background-size: cover;
-            background-position: center;
-            border: 1px solid rgba(217, 163, 98, 0.25);
-            border-radius: 14px;
+            background: transparent;
         }
-        .pf-id-top { display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch; }
-        /* Recorte da foto (pedido do dono, 2026-08-16, com o SVG exportado
-           DIRETO do Figma da camada "Profile avatar") — path REAL, não
-           aproximado: extraído do export (viewBox 377x267, path com
-           bounding box exato de 350.85x238 — bate com o "width:350.85px;
-           height:238px" do CSS original) e normalizado aqui pra frações de
-           0 a 1 (script Node fora do código, um `.match` tokenizando os
-           comandos M/C/H/V/Z e dividindo cada coordenada pela largura/
-           altura real do path). Preserva TUDO do original: os 2 cantos
-           curvos (sup-esquerdo/inf-esquerdo, curva grande e suave) E um
-           degrau/recorte no canto inferior-direito que não é um chute meu
-           — é o desenho de verdade do Figma, bate exatamente com onde a
-           barra de estrelas (.pf-id-stars) fica ancorada (top:199.89 de
-           238 ≈ 0.838, mesma fração onde o degrau começa aqui). Duas
-           tentativas anteriores (polygon() reto, depois um path à mão com
-           Bezier quadrática aproximando as curvas) foram substituídas por
-           este path exato assim que o dono exportou o SVG de origem — não
-           reintroduzir a aproximação. clipPathUnits="objectBoundingBox"
-           (não userSpaceOnUse) é o que mantém isso responsivo — as frações
-           escalam sozinhas com qualquer largura de tela, sem pixel fixo
-           nem media query. */
+        /* Coluna de conteúdo — trava num tamanho máximo mesmo que o card
+           por fora fique bem mais largo/alto pra caber a foto de fundo
+           (Compy/Raptor, ver .pf-id-card.has-bg abaixo); sem isso o grupo
+           de identidade estica junto e vira enorme numa tela grande.
+           flex:1 é o que deixa .pf-id-bottom-row grudar no fim via
+           margin-top:auto mais abaixo. */
+        .pf-id-inner { display: flex; flex-direction: column; flex: 1; width: 100%; max-width: 1041px; gap: 20px; }
+        .pf-id-top { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+
+        /* ---- Coluna esquerda: foto + pílula de espécie ---- */
+        .pf-id-photo-col { flex: 1 1 380px; min-width: 260px; display: flex; flex-direction: column; gap: 0; }
+        /* Wrapper sem filter próprio, irmão (não pai) de .pf-id-photo-
+           shadow-wrap e .pf-id-photo-badges — um filter numa ancestral se
+           aplica a TODA a subárvore renderizada dela, então os emblemas
+           precisam ficar FORA da subárvore que carrega o glow da foto (só
+           dentro do MESMO wrapper posicional, pra ancorar no canto certo),
+           senão herdam o brilho junto da própria sombra deles. */
+        .pf-id-photo-frame { position: relative; }
+        /* filter:drop-shadow sozinho no MESMO elemento que tem
+           overflow:hidden fica invisível: overflow:hidden corta a própria
+           sombra ANTES dela conseguir aparecer (limitação real de CSS).
+           Fix: filter só neste wrapper de fora (sem overflow/clip nenhum)
+           — o recorte continua em .pf-id-photo, sem mudança na foto em
+           si. Glow do meio por tier (--pf-tier-accent) evita um dourado
+           fixo lavar a cor de bordas não-douradas (Raptor). */
+        .pf-id-photo-shadow-wrap {
+            position: relative;
+            width: 100%;
+            filter: drop-shadow(0px 0px 1px #FFFDF5) drop-shadow(0px 0px 3px var(--pf-tier-accent)) drop-shadow(12px 15px 11.5px rgba(0, 0, 0, 0.36));
+        }
+        /* Filete metálico — mesma técnica já usada no contorno das
+           estrelas (.pf-id-star-outline): cópia da MESMA forma (mesmo
+           clip-path), um pouco maior, atrás da foto — só a "sobra" nas
+           bordas fica visível. Gradiente claro/escuro alternado simula
+           reflexo de metal escovado; cor por tier via --pf-rim-*. */
+        .pf-id-photo-rim {
+            position: absolute;
+            inset: 0;
+            transform: scale(1.012);
+            background: linear-gradient(135deg, var(--pf-rim-light) 0%, var(--pf-rim-mid) 20%, var(--pf-rim-dark) 38%, var(--pf-rim-light) 52%, var(--pf-rim-dark) 68%, var(--pf-rim-mid) 85%, var(--pf-rim-light) 100%);
+            clip-path: url(#pf-id-photo-clip);
+        }
+        /* Recorte da foto (path REAL exportado do Figma, mesmo de sempre,
+           não reaproximado) — preserva os 2 cantos curvos e o degrau no
+           canto inferior-direito, onde os emblemas se encaixam (ver
+           .pf-id-photo-badges). */
         .pf-id-photo {
             position: relative;
-            flex: 1 1 280px;
-            min-width: 220px;
+            width: 100%;
             aspect-ratio: 350 / 238;
             background-color: #1F1D20;
             background-size: cover;
             background-position: center;
-            box-shadow: 0px 0px 2.3px #DCA15E, 12px 15px 11.5px rgba(0, 0, 0, 0.36), inset 0px 4px 4px rgba(0, 0, 0, 0.25);
+            /* Só a sombra INSET fica aqui — precisa do recorte pra seguir
+               o contorno da forma, diferente das de fora (no wrapper). */
+            box-shadow: inset 0px 4px 4px rgba(0, 0, 0, 0.25);
             overflow: hidden;
             clip-path: url(#pf-id-photo-clip);
         }
         .pf-id-stars {
             position: absolute;
-            left: 0; right: 0; bottom: 0;
+            left: 0; bottom: 0;
             display: flex;
             align-items: center;
             gap: 5px;
-            padding: 14px 12px 10px;
-            background: linear-gradient(0deg, rgba(0, 0, 0, 0.55) 10%, rgba(0, 0, 0, 0) 100%);
+            padding: 20px 0 18px 16px;
         }
-        /* Estrela com o formato REAL (path exato exportado do Figma, mesma
-           técnica de clipPath objectBoundingBox da foto acima), não mais o
-           caractere ★ dentro de uma caixa arredondada. Gradiente cônico
-           (SVG nativo não suporta conic-gradient nenhum — nem o próprio
-           export do Figma consegue: ele usa o MESMO truque de um <div>
-           com CSS conic-gradient dentro de um <foreignObject>, confirmado
-           no SVG que o dono mandou) fica no `background` normal do
-           elemento, recortado pelo clip-path — não dá pra fazer isso
-           direto num <path> SVG. Contorno escuro (border:1px do Figma)
-           também não dá pra fazer com `border` normal (viraria um
-           retângulo por cima da estrela) — .pf-id-star-outline é uma
-           cópia da MESMA forma, um pouco maior (scale 1.12) e atrás,
-           criando a borda pela sobra visível nas pontas. Sombra via
-           filter:drop-shadow (não box-shadow — esse segue o RETÂNGULO da
-           caixa, ignora o clip-path; drop-shadow segue o alfa real da
-           forma renderizada). */
-        /* Diminuídas um pouco (pedido do dono, 2026-08-16: "podem diminuir
-           um pouquinho de tamanho só para n ficar fora das bordas") —
-           18-24px em vez de 20-28px, e o outline (scale 1.12->1.08) reduz
-           junto, já que ele "sangra" pra fora do tamanho base da estrela. */
         .pf-id-star-wrap {
             position: relative;
-            width: clamp(18px, 3.4vw, 24px);
-            height: clamp(18px, 3.4vw, 24px);
-            filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.49));
+            width: clamp(18px, 2.6vw, 24px);
+            height: clamp(18px, 2.6vw, 24px);
+            filter: drop-shadow(0px -2px 10px rgba(255, 226, 129, 0.65)) drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.49));
         }
-        .pf-id-star-wrap.is-filled {
-            filter: drop-shadow(0px -2px 8.8px rgba(255, 226, 129, 0.35)) drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.49));
-        }
-        .pf-id-star-outline, .pf-id-star-fill {
-            position: absolute;
-            inset: 0;
-            clip-path: url(#pf-id-star-shape);
-        }
+        .pf-id-star-outline, .pf-id-star-fill { position: absolute; inset: 0; clip-path: url(#pf-id-star-shape); }
         .pf-id-star-outline { background: #1F1D20; transform: scale(1.08); }
-        .pf-id-star-fill { background: #3E3D38; }
-        .pf-id-star-wrap.is-filled .pf-id-star-fill {
-            background: linear-gradient(0deg, rgba(197, 59, 0, 0.54), rgba(197, 59, 0, 0.54)), conic-gradient(from 180deg at 50% 50%, #DCA15E 0deg, #F8DCC0 360deg);
+        .pf-id-star-fill {
+            background: linear-gradient(0deg, rgba(255, 145, 60, 0.22), rgba(255, 145, 60, 0.22)), conic-gradient(from 180deg at 50% 50%, #FFE9B8 0deg, #FFFDF5 360deg);
             background-blend-mode: plus-lighter, normal;
         }
-        /* justify-content:flex-start (pedido do dono, 2026-08-16: "não
-           estão alinhadas ao topo junto da imagem de perfil") — antes
-           "center" centralizava as 3 pílulas na altura toda da foto
-           (herdada via align-items:stretch do .pf-id-top pai); flex-start
-           alinha o topo da 1ª pílula com o topo da foto, igual à
-           referência do Discord. */
-        .pf-id-pills { flex: 1 1 260px; min-width: 220px; display: flex; flex-direction: column; justify-content: flex-start; gap: 8px; }
-        .pf-id-pill {
+
+        /* Emblemas conquistados (mesmo dado real de ownedItems tipo
+           'badge', só que agora encaixados no chanfro/degrau da moldura
+           em vez de numa linha embaixo do card inteiro) — PNG sem fundo,
+           sem círculo/borda, só uma sombra preta simples na LINHA inteira
+           (não por ícone, export exato do Figma). */
+        .pf-id-photo-badges {
+            position: absolute;
+            right: 12px; bottom: 0px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            padding: 0px;
+            gap: 10px;
+            filter: drop-shadow(3px 2px 6px rgba(0, 0, 0, 0.9)) drop-shadow(-3px -2px 6px rgba(0, 0, 0, 0.9));
+        }
+        .pf-id-photo-badges .badge-circle { width: 33px; height: 33px; display: flex; align-items: center; justify-content: center; flex: none; }
+        .pf-id-photo-badges .badge-circle img { width: 100%; height: 100%; object-fit: contain; }
+
+        /* Pílula de espécie — mesma técnica de gradiente por tier de
+           antes (--pf-tier-a/b/text), 1 pílula só, larga, colada embaixo
+           da foto. */
+        .pf-id-species {
             box-sizing: border-box;
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 12px 16px;
+            gap: 12px;
+            margin-top: 18px;
+            padding: 12px 18px;
             border-radius: 10px;
-            border: 1px solid #DCA15E;
-            background: linear-gradient(179.54deg, var(--pf-id-grad-a) 47.59%, var(--pf-id-grad-b) 99.6%);
-            font-family: 'Poppins', sans-serif;
-            font-weight: 600;
-            font-size: 15px;
-            color: var(--pf-id-text);
+            border: 1px solid var(--pf-tier-accent);
+            background: linear-gradient(179.54deg, var(--pf-tier-a) 47.59%, var(--pf-tier-b) 99.6%);
+            /* "SIMPLE SHADOW" — mesma receita em todo item que não seja
+               texto (texto já tem o próprio text-shadow/filter). */
+            box-shadow: 0px 0px 2.3px #DCA15E, 8px 11px 6px rgba(0, 0, 0, 0.43);
+            color: var(--pf-tier-text);
+            font-family: var(--font-head);
+            font-size: 18px;
+            text-transform: uppercase;
         }
-        .pf-id-pill i { width: 20px; height: 20px; flex: none; }
-        .pf-id-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .pf-id-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 16px; }
-        .pf-id-name { font-family: 'Tilt Warp', cursive; font-size: clamp(26px, 5vw, 40px); line-height: 1.1; color: #F8DCC0; word-break: break-word; }
-        /* Emblemas conquistados (pedido do dono, 2026-08-16: "os emblemas
-           que os jogadores conquistaram", até 6 — MESMO pool type='badge'
-           já usado na Loja/Missões e Recompensas, ver ownedItems filtrado
-           em JS acima). Imagem de verdade (não ícone fixo), então usa
-           object-fit:cover num círculo pequeno com borda dourada — mesmo
-           tratamento visual dos chips de .perfil-guild-chip img. */
-        .pf-id-badges { display: flex; align-items: center; gap: 6px; flex: none; flex-wrap: wrap; }
-        .pf-id-badges img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1.5px solid #DCA15E; }
+        .pf-id-species img { width: 35px; height: 35px; flex: none; object-fit: contain; }
 
-        /* Nome/AGID + registro + KDA (pedido do dono, 2026-08-16) — o que
-           saiu do card de texto do Path of Titans, movido pra cá. Mesmo
-           tratamento visual de .perfil-stat-line (Poppins 13px, opacity
-           0.7), só que já dentro deste card em vez do outro. */
-        .pf-id-meta {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid rgba(217, 163, 98, 0.15);
+        /* ---- Coluna direita: nome/título + linhas de identificação ---- */
+        .pf-id-info { flex: 1 1 420px; min-width: 260px; display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
+        .pf-id-nickname {
+            font-family: var(--font-head);
+            font-size: clamp(28px, 4vw, 48px);
+            line-height: 1.15;
+            color: var(--pf-text);
+            text-shadow: 3px 2px 6px rgba(0,0,0,0.9), -3px -2px 6px rgba(0,0,0,0.9);
+            text-wrap: balance;
         }
-        .pf-id-meta-line {
+        /* text-shadow só sombreia TEXTO — os ícones (<img>) precisam de
+           filter:drop-shadow na linha inteira (ícone + texto juntos) pra
+           continuarem legíveis em cima de qualquer foto de fundo. */
+        .pf-id-row {
             display: flex;
             align-items: center;
-            gap: 6px;
-            font-family: 'Poppins', sans-serif;
-            font-size: 13px;
-            color: #F8DCC0;
-            opacity: 0.7;
-        }
-        .pf-id-meta-logo { width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex: none; }
-
-        /* Abas Perfil/Personalização (pedido do dono, 2026-08-05) — só
-           existem quando a conta está vinculada (sem link não tem stats
-           nem o que personalizar, ver bloco !link mais abaixo). Mesmo
-           visual de "aba ativa" já padronizado no resto do site
-           (.tp-sidebar-btn.active/.nav-btn.is-active: fundo #4B2427,
-           borda #DCA15E). JS troca só a classe is-active/is-hidden, sem
-           navegação/reload — mesmo estilo de script pequeno e autocontido
-           já usado em sidebar-v2.ejs (toggle)/page-header.ejs (switcher). */
-        .pf-tab-nav { display: flex; gap: 12px; flex-wrap: wrap; }
-        .pf-tab-btn {
-            font-family: 'Poppins', sans-serif;
+            gap: 12px;
+            font-family: var(--font-body);
             font-weight: 600;
-            font-size: 14px;
-            padding: 10px 24px;
-            border-radius: 15px;
-            background: #2A2A2A;
-            border: 1px solid #803E30;
-            color: #F8DCC0;
-            cursor: pointer;
-            transition: background 0.15s ease, border-color 0.15s ease;
+            font-size: 18px;
+            color: var(--pf-text);
+            filter: drop-shadow(3px 2px 6px rgba(0,0,0,0.9)) drop-shadow(-3px -2px 6px rgba(0,0,0,0.9));
         }
-        .pf-tab-btn:hover { background: #803E30; border-color: #F8DCC0; }
-        .pf-tab-btn.is-active { background: #4B2427; border-color: #DCA15E; }
+        .pf-id-row img { width: 35px; height: 35px; flex: none; object-fit: contain; }
+        .pf-id-row .dim { opacity: 0.6; font-weight: 400; font-size: 15px; }
+
+        /* ---- Barra inferior: nível + caçadas ---- */
+        /* margin-top:auto empurra a barra pro FIM de .pf-id-inner (flex:1,
+           preenche a altura toda de .pf-id-card) — é isso que deixa a
+           barra "no fim da foto" quando o card fica alto (Compy/Raptor com
+           foto de fundo), com a imagem respirando no meio. */
+        .pf-id-bottom-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: auto; }
+        .pf-id-level {
+            box-sizing: border-box;
+            flex: 1 1 500px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 20px;
+            background: linear-gradient(179.54deg, var(--pf-tier-a) 47.59%, var(--pf-tier-b) 99.6%);
+            border: 1px solid var(--pf-tier-accent);
+            box-shadow: 0px 0px 2.3px #DCA15E, 8px 11px 6px rgba(0, 0, 0, 0.43);
+            border-radius: 10px;
+            color: var(--pf-tier-text);
+        }
+        .pf-id-level img { width: 35px; height: 35px; flex: none; object-fit: contain; }
+        .pf-id-level-label { font-family: var(--font-head); font-size: 16px; flex: none; white-space: nowrap; }
+        .pf-id-level-track-wrap { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+        .pf-id-level-count { font-family: var(--font-head); font-size: 13px; }
+        .pf-id-level-track { width: 100%; height: 8px; border-radius: 10px; background: #3E3D38; border: 1px solid #2A2A2A; overflow: hidden; }
+        .pf-id-level-fill { height: 100%; background: var(--pf-accent); border-radius: 10px 0 0 10px; }
+        .pf-id-level-caption { font-family: var(--font-head); font-size: 12px; text-align: center; opacity: 0.85; }
+
+        .pf-id-hunt {
+            box-sizing: border-box;
+            flex: 0 0 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 10px 20px;
+            background: linear-gradient(90deg, #1F1D20 36.06%, #803E30 100%);
+            border: 1px solid #803E30;
+            box-shadow: 0px 0px 2.3px #DCA15E, 8px 11px 6px rgba(0, 0, 0, 0.43);
+            border-radius: 10px;
+        }
+        .pf-id-hunt img { width: 35px; height: 35px; flex: none; object-fit: contain; }
+        .pf-id-hunt-label { font-family: var(--font-body); font-weight: 900; font-size: 16px; color: var(--pf-tier-hunt-color, var(--pf-text)); }
+
+        @media (max-width: 640px) { .pf-id-hunt { flex: 1 1 100%; } }
+
+        /* Foto de fundo real (Compy/Raptor com backgroundPreviewUrl
+           definido — via style inline no HTML, mesmo padrão de antes) —
+           altura pra dar valor à foto: aspect-ratio mantém a PROPORÇÃO
+           enquanto a largura encolhe (tablet/mobile), max-height trava em
+           800px pra não crescer além disso em telas enormes, min-height é
+           só um piso de segurança pra telas estreitas onde o conteúdo
+           empilhado (foto+coluna vira 1 coluna) precisa de mais altura do
+           que a proporção sozinha daria. Sem foto escolhida (mesmo em
+           tier com direito a uma), o card fica compacto igual ao Free —
+           sem simular um fundo que o jogador não configurou. */
+        .pf-id-card.has-bg {
+            padding: 24px;
+            border-radius: 24px;
+            background-size: cover;
+            background-position: center;
+            aspect-ratio: 4 / 3;
+            max-height: 800px;
+            min-height: 420px;
+        }
+        /* "CardShadow" — substitui o SIMPLE SHADOW só na barra de nível
+           quando tem fundo, pra descolar mais de uma foto ocupada atrás
+           (offset/blur bem maiores). Caçadas/pílula de espécie continuam
+           no SIMPLE SHADOW — só a cor deles muda (variável por tier). */
+        .pf-id-card.has-bg .pf-id-level {
+            box-shadow: 0.5px -0.5px 0.5px #F8DCC0, -25px 47px 68.1px rgba(0, 0, 0, 0.74);
+        }
+
         .pf-tab-panel.is-hidden { display: none; }
     </style>
 </head>
@@ -488,14 +383,9 @@
             // Sem partials/page-header aqui (pedido do dono, 2026-08-05:
             // "não precisa estar escrito DASHBOARD/MEU PERFIL, pode
             // remover essa head, e não precisa do ícone do usuário no
-            // topo direito também") — o bloco logo abaixo (perfil-hero,
-            // avatar+nome+tier) já apresenta quem é o usuário, então o
-            // cabeçalho genérico + segundo avatar no canto ficava
-            // redundante só nesta página.
-            const pfAvatarUrl = discordUser.avatar
-                ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
-                : `https://cdn.discordapp.com/embed/avatars/${discordUser.id % 5}.png`;
-            const pfTierColors = { free: '#F8DCC0', compy: '#DCA15E', raptor: '#FF4E3B' };
+            // topo direito também") — o card de identidade logo abaixo já
+            // apresenta quem é o usuário, então o cabeçalho genérico +
+            // segundo avatar no canto ficava redundante só nesta página.
             const pfTierLabels = { free: 'Free', compy: 'Compy', raptor: 'Raptor' };
         %>
         <%#
@@ -503,8 +393,8 @@
             eu pedi pra remover? coloque novo só texto") — SÓ texto desta
             vez, sem repetir o componente antigo (título "DASHBOARD" +
             ícone de usuário no canto, ver page-header.ejs) que já tinha
-            sido removido daqui por ser redundante com o perfil-hero logo
-            abaixo.
+            sido removido daqui por ser redundante com o card de
+            identidade logo abaixo.
         %>
         <%- include('partials/testing-phase-banner') %>
 
@@ -514,31 +404,47 @@
         <%- include('partials/save-result-overlay', { saved }) %>
 
         <%
-            // Card de identidade "estilo Discord" (pedido do dono,
-            // 2026-08-16) — ver docblock do <style> .pf-id-card acima pra
+            // Card de identidade novo (pedido do dono, 2026-08-16 até
+            // 2026-08-20) — ver docblock do <style> .pf-id-card acima pra
             // explicação completa (fonte da foto/fundo, cores por tier,
-            // responsividade). PRIMEIRO card da página (pedido do dono:
-            // "essa apresentação... deve vir como primeiro dos cards") —
-            // antes do próprio .perfil-hero (identidade Discord), que
-            // sempre foi o primeiro até agora. Só existe com `link`
-            // (precisa de AGID pra título/nível/espécie/foto) — sem
-            // vínculo, .perfil-hero volta a ser o primeiro card de fato,
-            // sem gap nenhum aqui. Emblemas: até 6 ícones de EMBLEMA JÁ
-            // RESGATADO pelo jogador (não decorativo fixo como o mockup do
-            // Figma sugeria — o dono confirmou que representam conquistas
-            // de verdade, mesmo pool type='badge' já usado na Loja/Missões
-            // e Recompensas). ownedItems já vem calculado (todos os tipos)
-            // pra seção "Seus Itens" mais abaixo — só filtra por tipo aqui,
-            // sem query nova.
+            // responsividade). ÚNICO card no topo da página agora (pedido
+            // do dono, 2026-08-20: "remover todos os outros cards" — o
+            // bloco "hero" que antes existia aqui foi removido). Só existe
+            // com `link` (precisa de AGID pra título/nível/espécie/foto) —
+            // sem vínculo, cai no aviso "ainda não vinculado" mais abaixo.
+            // Emblemas: até 4 ícones de EMBLEMA JÁ RESGATADO pelo jogador
+            // (não decorativo fixo como o mockup do Figma sugeria — o dono
+            // confirmou que representam conquistas de verdade, mesmo pool
+            // type='badge' já usado na Loja/Missões e Recompensas).
+            // ownedItems já vem calculado (todos os tipos) — só filtra por
+            // tipo aqui, sem query nova.
+            // Cores por tier (mesmos hex do card do Discord —
+            // TIER_PALETTE em profileCardRenderer.js, mantidas em
+            // sincronia manual: mudar uma cor aqui sem mudar lá faz o
+            // site e o Discord divergirem de propósito, então trocar as
+            // duas juntas sempre que for ajustar o visual do card).
             const pfIdCardGradients = {
-                free: { a: '#A6917D', b: '#F8DCC0', text: '#1F1D20' },
-                compy: { a: '#A25E2D', b: '#DCA15E', text: '#F8DCC0' },
-                raptor: { a: '#4B2427', b: '#803E30', text: '#DCA15E' },
+                free: { a: '#A6917D', b: '#F8DCC0', text: '#1F1D20', accent: '#F8DCC0', rimDark: '#A6917D', rimMid: '#F8DCC0', rimLight: '#FFF8EF', huntColor: null },
+                compy: { a: '#A25E2D', b: '#DCA15E', text: '#F8DCC0', accent: '#FFAB4C', rimDark: '#8C5E2A', rimMid: '#FFAB4C', rimLight: '#FFD9AE', huntColor: '#DCA15E' },
+                raptor: { a: '#4B2427', b: '#803E30', text: '#DCA15E', accent: '#DE6045', rimDark: '#7A3526', rimMid: '#E89078', rimLight: '#F0B7AB', huntColor: '#DCA15E' },
             };
             const pfIdCardGrad = pfIdCardGradients[playerTier] || pfIdCardGradients.free;
             const pfIdCardDefaultPhotos = { free: '/images/perfil-foto-free.webp', compy: '/images/perfil-foto-compy.webp', raptor: '/images/perfil-foto-raptor.webp' };
             const pfIdCardPhoto = link ? (avatarPreviewUrl || pfIdCardDefaultPhotos[playerTier] || pfIdCardDefaultPhotos.free) : null;
-            const pfIdBadges = link ? ownedItems.filter((i) => i.type === 'badge').slice(0, 6) : [];
+            const pfIdBadges = link ? ownedItems.filter((i) => i.type === 'badge').slice(0, 4) : [];
+            const pfIdSpeciesIcon = mostPlayedDinosaurIsCarnivore ? '/images/icons/CarniSkull.webp' : '/images/icons/HerbSkull.webp';
+            // Cargo de staff — pode ter mais de um (staffRoles é por
+            // servidor, ver getStaffRoles em dashboard.js); a linha só
+            // cabe 1, mostra o primeiro + contador do resto.
+            const pfIdStaffLabel = staffRoles.length > 0
+                ? staffRoles[0].category + (staffRoles.length > 1 ? ` +${staffRoles.length - 1}` : '')
+                : null;
+            const pfIdCardStyle = [
+                `--pf-tier-a: ${pfIdCardGrad.a}`, `--pf-tier-b: ${pfIdCardGrad.b}`, `--pf-tier-text: ${pfIdCardGrad.text}`,
+                `--pf-tier-accent: ${pfIdCardGrad.accent}`, `--pf-rim-dark: ${pfIdCardGrad.rimDark}`, `--pf-rim-mid: ${pfIdCardGrad.rimMid}`, `--pf-rim-light: ${pfIdCardGrad.rimLight}`,
+            ];
+            if (pfIdCardGrad.huntColor) pfIdCardStyle.push(`--pf-tier-hunt-color: ${pfIdCardGrad.huntColor}`);
+            if (backgroundPreviewUrl) pfIdCardStyle.push(`background-image: url('${backgroundPreviewUrl}')`);
         %>
         <% if (link) { %>
             <%# clipPaths do recorte da foto e da forma da estrela (path
@@ -557,214 +463,100 @@
                     </clipPath>
                 </defs>
             </svg>
-            <section class="titan-card-premium pf-id-card"<% if (backgroundPreviewUrl) { %> style="background-image:url('<%= backgroundPreviewUrl %>')"<% } %>>
+            <section class="titan-card-premium pf-id-card<%= backgroundPreviewUrl ? ' has-bg' : '' %>" style="<%= pfIdCardStyle.join('; ') %>">
+                <div class="pf-id-inner">
                 <div class="pf-id-top">
-                    <div class="pf-id-photo" style="background-image:url('<%= pfIdCardPhoto %>')">
-                        <div class="pf-id-stars">
-                            <% for (let i = 1; i <= 5; i++) { %>
-                                <span class="pf-id-star-wrap <%= i <= honorStars ? 'is-filled' : '' %>">
-                                    <span class="pf-id-star-outline"></span>
-                                    <span class="pf-id-star-fill"></span>
-                                </span>
+                    <div class="pf-id-photo-col">
+                        <div class="pf-id-photo-frame">
+                            <div class="pf-id-photo-shadow-wrap">
+                                <div class="pf-id-photo-rim"></div>
+                                <div class="pf-id-photo" style="background-image:url('<%= pfIdCardPhoto %>')">
+                                    <div class="pf-id-stars">
+                                        <% for (let i = 1; i <= 5; i++) { %>
+                                            <span class="pf-id-star-wrap <%= i <= honorStars ? 'is-filled' : '' %>">
+                                                <span class="pf-id-star-outline"></span>
+                                                <span class="pf-id-star-fill"></span>
+                                            </span>
+                                        <% } %>
+                                    </div>
+                                </div>
+                            </div>
+                            <% if (pfIdBadges.length > 0) { %>
+                                <div class="pf-id-photo-badges">
+                                    <% pfIdBadges.forEach((b) => { %>
+                                        <span class="badge-circle"><img src="<%= b.url %>" alt="" title="<%= b.label %>"></span>
+                                    <% }); %>
+                                </div>
                             <% } %>
                         </div>
-                    </div>
-                    <div class="pf-id-pills" style="--pf-id-grad-a: <%= pfIdCardGrad.a %>; --pf-id-grad-b: <%= pfIdCardGrad.b %>; --pf-id-text: <%= pfIdCardGrad.text %>;">
-                        <div class="pf-id-pill">
-                            <i data-lucide="medal"></i>
-                            <span><% if (link.profile_title) { %><%= link.profile_title %><% } else { %><span data-i18n-pt>Em breve (missões)</span><span data-i18n-en>Coming soon (quests)</span><% } %></span>
-                        </div>
-                        <div class="pf-id-pill">
-                            <i data-lucide="play"></i>
-                            <span><span data-i18n-pt>Nível</span><span data-i18n-en>Level</span> <%= levelProgress.level %></span>
-                        </div>
-                        <div class="pf-id-pill">
-                            <i data-lucide="star"></i>
+                        <div class="pf-id-species">
+                            <img src="<%= pfIdSpeciesIcon %>" alt="">
                             <span><% if (mostPlayedDinosaur) { %><%= mostPlayedDinosaur %><% } else { %><span data-i18n-pt>Ainda sem registro</span><span data-i18n-en>No record yet</span><% } %></span>
                         </div>
                     </div>
-                </div>
-                <div class="pf-id-bottom">
-                    <span class="pf-id-name"><%= link.player_name || discordUser.username %></span>
-                    <% if (pfIdBadges.length > 0) { %>
-                        <div class="pf-id-badges">
-                            <% pfIdBadges.forEach((b) => { %>
-                                <img src="<%= b.url %>" alt="" title="<%= b.label %>">
-                            <% }); %>
-                        </div>
-                    <% } %>
+
+                    <%#
+                        Nome/título + Alderon ID/Premium Tier/Cargo de staff
+                        (pedido do dono, 2026-08-20: card novo consolida
+                        tudo que antes ficava espalhado entre o card de
+                        identidade, o bloco "hero" e o card de nível/XP —
+                        ver remoção desses cards mais abaixo na página).
+                    %>
+                    <div class="pf-id-info">
+                        <span class="pf-id-nickname"><%= link.player_name || discordUser.username %></span>
+                        <span class="pf-id-row">
+                            <img src="/images/icons/medal.webp" alt="">
+                            <span><% if (link.profile_title) { %><%= link.profile_title %><% } else { %><span data-i18n-pt>Em breve (missões)</span><span data-i18n-en>Coming soon (quests)</span><% } %></span>
+                        </span>
+                        <span class="pf-id-row">
+                            <img src="/images/pot-logo.webp" alt="">
+                            <span><%= link.player_name || discordUser.username %> <span class="dim">| <%= link.alderon_id %></span></span>
+                        </span>
+                        <span class="pf-id-row">
+                            <img src="/images/icons/gem.webp" alt="">
+                            <span><span data-i18n-pt>Player Premium</span><span data-i18n-en>Player Premium</span> <span class="dim">| <%= pfTierLabels[playerTier] %><% if (playerTier !== 'free' && premiumInfo.expires_at) { %> — <%= new Date(premiumInfo.expires_at).toLocaleDateString('pt-BR') %><% } else if (playerTier !== 'free') { %> — <span data-i18n-pt>vitalício</span><span data-i18n-en>lifetime</span><% } %></span></span>
+                        </span>
+                        <% if (pfIdStaffLabel) { %>
+                            <span class="pf-id-row">
+                                <img src="/images/icons/DiscordLOGO.webp" alt="">
+                                <span><%= pfIdStaffLabel %></span>
+                            </span>
+                        <% } %>
+                    </div>
                 </div>
 
-                <%#
-                    Nome/AGID + data de registro + KDA (pedido do dono,
-                    2026-08-16: "coloque elas entro do card do perfil que
-                    montamos agora, logo após de tudo") — o que o card de
-                    texto do Path of Titans mostrava antes, movido pra cá
-                    (removido de lá, ver comentário no outro card). Mesmo
-                    critério de privacidade do card antigo: KDA só aparece
-                    se kdStats existir (respeita hide_kda, Compy+).
-                %>
-                <div class="pf-id-meta">
-                    <span class="pf-id-meta-line">
-                        <img src="/images/pot-logo.webp" alt="" class="pf-id-meta-logo">
-                        <%= link.player_name || discordUser.username %> | <%= link.alderon_id %>
-                    </span>
-                    <% if (link.registered_at) { %>
-                        <span class="pf-id-meta-line"><span data-i18n-pt>Registrado em:</span><span data-i18n-en>Registered on:</span> <%= new Date(link.registered_at).toLocaleDateString('pt-BR') %></span>
-                    <% } %>
-                    <% if (kdStats) { %>
-                        <span class="pf-id-meta-line">Kills: <%= kdStats.kills %> Deaths: <%= kdStats.deaths %> K/D: <%= kdStats.kd %> <span class="opacity-60">(<span data-i18n-pt>soma de todos os servidores</span><span data-i18n-en>sum of all servers</span>)</span></span>
-                    <% } %>
+                <div class="pf-id-bottom-row">
+                    <div class="pf-id-level">
+                        <img src="/images/icons/DinoFootprint.webp" alt="">
+                        <span class="pf-id-level-label"><span data-i18n-pt>Nível</span><span data-i18n-en>Level</span> <%= levelProgress.level %></span>
+                        <div class="pf-id-level-track-wrap">
+                            <span class="pf-id-level-count"><%= levelProgress.xpTotal %> XP</span>
+                            <div class="pf-id-level-track"><div class="pf-id-level-fill" style="width: <%= levelProgress.percent.toFixed(1) %>%;"></div></div>
+                            <span class="pf-id-level-caption"><span data-i18n-pt>XP para o próximo nível</span><span data-i18n-en>XP to next level</span></span>
+                        </div>
+                    </div>
+                    <div class="pf-id-hunt">
+                        <img src="/images/icons/hunt.webp" alt="">
+                        <span class="pf-id-hunt-label"><%= huntBalance %></span>
+                    </div>
+                </div>
                 </div>
             </section>
         <% } %>
 
-        <section class="titan-card-premium flex-col gap-5">
-            <div class="perfil-hero">
-                <div class="flex items-center gap-5">
-                    <div class="perfil-hero-avatar"><img src="<%= pfAvatarUrl %>" alt=""></div>
-                    <div class="flex flex-col gap-3 items-start">
-                        <span class="perfil-hero-name"><%= discordUser.global_name || discordUser.username %></span>
-                        <span class="perfil-hero-id">Discord ID: <%= discordUser.id %></span>
-                        <span class="perfil-tier-pill" style="--pt-color: <%= pfTierColors[playerTier] %>">
-                            <i data-lucide="badge" class="w-4 h-4"></i> <span data-i18n-pt>Player Premium:</span><span data-i18n-en>Player Premium:</span> <%= pfTierLabels[playerTier] %>
-                            <% if (playerTier !== 'free' && premiumInfo.expires_at) { %> — <span data-i18n-pt>expira em</span><span data-i18n-en>expires on</span> <%= new Date(premiumInfo.expires_at).toLocaleDateString('pt-BR') %><% } %>
-                            <% if (playerTier !== 'free' && !premiumInfo.expires_at) { %> — <span data-i18n-pt>vitalício</span><span data-i18n-en>lifetime</span><% } %>
-                        </span>
-                        <%#
-                            Cargo(s) de staff (pedido do dono, 2026-08-07:
-                            "quando um usuário tiver o cargo staff
-                            configurado no discord, adicionar esse cargo ao
-                            perfil dele no site") — não depende de `link`
-                            (é sobre a conta Discord, não sobre vínculo
-                            PoT), por isso fica aqui na hero, fora do bloco
-                            que exige vínculo. Uma pill por servidor onde a
-                            pessoa é staff (pode ser mais de um) — ver
-                            getStaffRoles em dashboard.js.
-                        %>
-                        <% staffRoles.forEach(sr => { %>
-                            <span class="perfil-tier-pill" style="--pt-color: #DCA15E;" title="<%= sr.guildName %>">
-                                <i data-lucide="shield" class="w-4 h-4"></i> <span data-i18n-pt>Staff:</span><span data-i18n-en>Staff:</span> <%= sr.category %> — <%= sr.guildName %>
-                            </span>
-                        <% }); %>
-                    </div>
-                </div>
-                <%#
-                    Saldo de Caçadas (pedido do dono, 2026-08-05: "pode
-                    ficar no primeiro bloco de perfil no canto direito
-                    superior do mesmo") — real a partir de 2026-08-07
-                    (pedido do dono: "Libere o farm dos itens por hora
-                    jogada agora"), ver PlayerRegistry.getHuntBalance/
-                    _creditPlaytimeCurrency em potPlayerRegistry.js. Nome
-                    da moeda bilíngue (pedido do dono, 2026-08-07: "traduza
-                    a moeda hunt para Caçadas no português") — PT mostra
-                    "Caçadas", EN continua "Hunt" (nome original, sem
-                    tradução).
-                %>
-                <%#
-                    Ossos e XP (pedido do dono, 2026-08-10: "Adicionar
-                    todos os saldos de moedas no perfil" + "logo abaixo
-                    adicione o inventario de ossos" — "abaixo" do saldo de
-                    Caçadas acima) — mesma pill, empilhadas. Ícones dedicados
-                    e cores fixas por moeda (pedido do dono, 2026-08-12):
-                    Caçadas sempre vermelho, Ossos sempre amarelo, XP a cor
-                    "quase branca" padrão do bot — mesmo vocabulário visual
-                    de loja.ejs (classes is-hunt/is-bones/is-xp).
-
-                    Ossos virou saldo POR SERVIDOR (reforma 2026-08-15,
-                    pedido do dono: "gostaria que ossos fossem um saldo
-                    por servidor") — esta página é global (sem seletor de
-                    servidor), então bonesBalance aqui já vem como a SOMA
-                    de todos (dashboard.js), mesmo padrão de
-                    totalPlaytimeSeconds mais abaixo. O saldo de verdade
-                    por servidor aparece em /loja (catálogo/conversor, já
-                    por servidor de propósito) — texto pequeno abaixo da
-                    pill deixa isso claro sem quebrar o layout compacto
-                    das 3 pills empilhadas.
-                %>
-                <div class="flex flex-col gap-2 items-end">
-                    <div class="perfil-hunt-pill is-hunt">
-                        <img src="/images/icons/hunt.webp" alt="">
-                        <span><span data-i18n-pt>Caçadas</span><span data-i18n-en>Hunt</span>: <strong><%= huntBalance %></strong></span>
-                    </div>
-                    <div class="flex flex-col items-end gap-0.5">
-                        <div class="perfil-hunt-pill is-bones">
-                            <img src="/images/icons/bone.webp" alt="">
-                            <span><span data-i18n-pt>Ossos</span><span data-i18n-en>Bones</span>: <strong><%= bonesBalance %></strong></span>
-                        </div>
-                        <span class="text-[10px] opacity-40"><span data-i18n-pt>soma de todos os servidores</span><span data-i18n-en>sum across all servers</span></span>
-                    </div>
-                    <div class="perfil-hunt-pill is-xp">
-                        <img src="/images/icons/DinoFootprint.webp" alt="">
-                        <span>XP: <strong><%= xpBalance %></strong></span>
-                    </div>
-                </div>
-            </div>
-
-            <% if (otherGuilds.length > 0) { %>
-                <div>
-                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Servidores que você administra</span><span data-i18n-en>Servers you manage</span></h3>
-                    <div class="perfil-guild-list">
-                        <% otherGuilds.forEach(g => { %>
-                            <% const gIconUrl = g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : `/images/guild-fallback-${(g.id % 4) + 1}.svg`; %>
-                            <a href="/moderacao/<%= g.id %>" class="perfil-guild-chip">
-                                <img src="<%= gIconUrl %>" alt="">
-                                <span><%= g.name %></span>
-                            </a>
-                        <% }); %>
-                    </div>
-                </div>
-            <% } %>
-
-            <%#
-                Histórico de Staff (pedido do dono, 2026-08-10: "Adicionar
-                histórico de staff no perfil de staffs apenas para
-                vizualização de quem é parte da equipe do servidor como
-                staff... no comando do discord e no site") — self-view
-                sempre (esta página é sempre a do PRÓPRIO usuário logado),
-                então não precisa do gate de "quem pode ver" que o /perfil
-                do Discord precisa (lá dá pra ver o perfil de qualquer um).
-                Um card por servidor onde a pessoa é Moderador/Equipe de
-                Eventos (Supervisor puro fica de fora, mesma regra de
-                /historico staff — ver getStaffHistoryForProfile em
-                dashboard.js). Dado já é apagado sozinho ao perder todos os
-                cargos de staff (AnalyticsSystem.purgeStaffOnRoleLoss).
-            %>
-            <% if (staffHistory.length > 0) { %>
-                <div>
-                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Histórico de Staff</span><span data-i18n-en>Staff History</span></h3>
-                    <div class="flex flex-col gap-3">
-                        <% staffHistory.forEach(sh => { %>
-                            <div class="perfil-staff-history-card">
-                                <div class="perfil-staff-history-head">
-                                    <% if (sh.guildIconUrl) { %><img src="<%= sh.guildIconUrl %>" alt=""><% } %>
-                                    <span><%= sh.guildName %></span>
-                                    <span class="opacity-50 text-xs">— <%= sh.category %></span>
-                                </div>
-                                <% if (sh.totals) { %>
-                                    <div class="perfil-staff-history-stats">
-                                        <span><i data-lucide="gavel" class="w-3.5 h-3.5"></i> <span data-i18n-pt>Punições</span><span data-i18n-en>Punishments</span>: <strong><%= sh.totals.punishmentsApplied %></strong></span>
-                                        <span><i data-lucide="ticket" class="w-3.5 h-3.5"></i> Reports: <strong><%= sh.totals.reportsJoined %></strong> <span data-i18n-pt>entrados</span><span data-i18n-en>joined</span> / <strong><%= sh.totals.reportsClosed %></strong> <span data-i18n-pt>fechados</span><span data-i18n-en>closed</span></span>
-                                        <span><i data-lucide="calendar-days" class="w-3.5 h-3.5"></i> <span data-i18n-pt>Eventos</span><span data-i18n-en>Events</span>: <strong><%= sh.totals.eventsCreated %></strong></span>
-                                    </div>
-                                <% } else { %>
-                                    <p class="text-xs opacity-40"><span data-i18n-pt>Nenhum registro de atividade ainda.</span><span data-i18n-en>No activity recorded yet.</span></p>
-                                <% } %>
-                                <p class="perfil-staff-history-today">
-                                    <span data-i18n-pt>Hoje:</span><span data-i18n-en>Today:</span>
-                                    <% if (sh.today) { %>
-                                        <%= sh.today.punishmentsApplied %> <span data-i18n-pt>punições</span><span data-i18n-en>punishments</span>, <%= sh.today.reportsJoined %> reports
-                                    <% } else { %>
-                                        <span data-i18n-pt>nenhuma atividade ainda</span><span data-i18n-en>no activity yet</span>
-                                    <% } %>
-                                </p>
-                            </div>
-                        <% }); %>
-                    </div>
-                </div>
-            <% } %>
-        </section>
-
+        <%#
+            Bloco "hero" (avatar Discord grande, Premium Tier/staff pills,
+            saldos de Ossos/Caçadas/XP, servidores administrados/jogados,
+            Histórico de Staff, Seus Itens) REMOVIDO daqui (pedido do dono,
+            2026-08-20: "remover todos os outros cards, permanecendo
+            apenas o perfil... e o grupo com 4 cards"). O card de
+            identidade novo acima já cobre nickname/título/Alderon ID/
+            Premium Tier/cargo de staff/espécie/estrelas/emblemas/XP/
+            Caçadas — o resto (Ossos, avatar/ID grande, listas de
+            servidores, Seus Itens, Histórico de Staff, KDA) fica sem
+            substituto nesta página por decisão explícita (o dado
+            continua no banco, só parou de aparecer aqui).
+        %>
         <% if (!link) { %>
             <section class="titan-card-premium flex-col gap-3">
                 <h2 class="section-title text-lg flex items-center gap-3">
@@ -775,128 +567,17 @@
                 <p class="text-[13px] opacity-40"><span data-i18n-pt>Use</span><span data-i18n-en>Use</span> <code>/registrar</code> <span data-i18n-pt>no Discord pra vincular sua conta — depois disso seu perfil, emblema e personalização ficam disponíveis aqui.</span><span data-i18n-en>on Discord to link your account — after that your profile, badge and customization become available here.</span></p>
             </section>
         <% } else { %>
-            <div class="pf-tab-nav">
-                <button type="button" class="pf-tab-btn is-active" data-pf-tab="perfil"><span data-i18n-pt>Perfil</span><span data-i18n-en>Profile</span></button>
-                <button type="button" class="pf-tab-btn" data-pf-tab="personalizacao"><span data-i18n-pt>Personalização</span><span data-i18n-en>Customization</span></button>
-            </div>
-
-            <div class="pf-tab-panel flex flex-col gap-[20px] lg:gap-[30px]" data-pf-panel="perfil">
-                <%#
-                    Card de Nível/XP (pedido do dono, 2026-08-19: "Card de
-                    xp coloque na pagina perfil") — realocado de loja.ejs,
-                    onde vivia como um dos 3 cards-resumo de saldo no topo
-                    da página (removidos dali no mesmo pedido). Markup
-                    idêntico ao original, só a classe raiz mudou de
-                    .loja-currency-card pra .perfil-level-card (ver <style>
-                    acima). Continua sem depender de nada exclusivo de
-                    /loja — levelProgress já vinha calculado pras 2 rotas.
-                %>
-                <section class="titan-card-premium perfil-level-card">
-                    <div class="perfil-level-icon"><img src="/images/icons/DinoFootprint.webp" alt=""></div>
-                    <span class="perfil-level-title"><span data-i18n-pt>NÍVEL — Experiência</span><span data-i18n-en>LEVEL — Experience</span></span>
-                    <div class="perfil-level-balance">
-                        <span class="perfil-level-balance-value"><span data-i18n-pt>Nível <%= levelProgress.level %></span><span data-i18n-en>Level <%= levelProgress.level %></span></span>
-                        <span class="perfil-level-balance-label"><span data-i18n-pt><%= levelProgress.xpTotal %> XP acumulado</span><span data-i18n-en><%= levelProgress.xpTotal %> XP earned</span></span>
-                    </div>
-                    <div class="perfil-level-progress-track" role="progressbar" aria-valuenow="<%= levelProgress.percent.toFixed(0) %>" aria-valuemin="0" aria-valuemax="100">
-                        <div class="perfil-level-progress-fill" style="width: <%= levelProgress.percent.toFixed(1) %>%;"></div>
-                    </div>
-                </section>
-
-                <section class="titan-card-premium flex-col gap-5">
-                    <h2 class="section-title text-lg flex items-center gap-3">
-                        <img src="/images/pot-logo.webp" alt="" class="w-8 h-8 rounded-full">
-                        Path of Titans
-                    </h2>
-
-                    <%#
-                        Identidade/estatísticas (nome, AGID, data de
-                        registro, título, espécie, nível, KDA, honra) SAÍRAM
-                        daqui (pedido do dono, 2026-08-16: "Vamos manter no
-                        card do path of titans apenas os servidores que
-                        jogou e os itens") — tudo isso já aparece no card de
-                        identidade novo (.pf-id-card, ver mais acima, agora
-                        o 1º card da página), que também ganhou nome/AGID/
-                        data de registro/KDA no próprio rodapé (ver
-                        .pf-id-meta). Mostrar os dois ao mesmo tempo virava
-                        duplicação pura.
-
-                        Servidores que já jogou (pedido do dono, 2026-08-05)
-                        — DIFERENTE da lista "administra" lá em cima (essa é
-                        de permissão/Discord; esta é histórico de jogo, ver
-                        dashboard.js getPlayedGuilds/pot_players). Não é
-                        link pra lugar nenhum (diferente do chip de
-                        "administra"): jogar num servidor não dá acesso
-                        nenhum ao dashboard dele, então o chip aqui é só
-                        informativo (<div>, não <a>).
-                    %>
-                    <% if (playedGuilds.length > 0) { %>
-                        <div>
-                            <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Servidores que você já jogou</span><span data-i18n-en>Servers you've played on</span></h3>
-                            <div class="perfil-guild-list">
-                                <% playedGuilds.forEach(pg => { %>
-                                    <div class="perfil-guild-chip" title="Última vez: <%= pg.lastSeen ? new Date(pg.lastSeen).toLocaleDateString('pt-BR') : '—' %>">
-                                        <% if (pg.iconUrl) { %>
-                                            <img src="<%= pg.iconUrl %>" alt="">
-                                        <% } else { %>
-                                            <img src="/images/guild-fallback-1.svg" alt="">
-                                        <% } %>
-                                        <div class="perfil-guild-chip-text">
-                                            <span><%= pg.name %></span>
-                                            <% if (pg.playtimeLabel) { %>
-                                                <span class="perfil-guild-chip-playtime"><i data-lucide="clock" class="w-3 h-3"></i> <%= pg.playtimeLabel %></span>
-                                            <% } %>
-                                        </div>
-                                    </div>
-                                <% }); %>
-                            </div>
-                        </div>
-                    <% } %>
-
-                    <%#
-                        Seus Itens (pedido do dono, 2026-08-10: "Adicionar
-                        itens de jogo no perfil do site") — inventário REAL
-                        de compras da Loja de Personalização (image_inventory,
-                        ver ImageShopSystem.getInventory em dashboard.js),
-                        só leitura. Diferente do card "Lista de Badges" (mais
-                        abaixo, ainda "em breve") — aquele é a VITRINE de
-                        emblemas disponíveis pra colecionar; este é só o que
-                        o jogador JÁ comprou, de qualquer tipo (avatar/fundo/
-                        emblema).
-                    %>
-                    <%#
-                        Seção sempre visível pra quem tem vínculo (mesmo com
-                        0 itens) — antes sumia inteira com o inventário
-                        vazio, o que na prática parecia "o recurso não
-                        existe" pra quem nunca comprou nada na Loja
-                        (confirmado como confusão real, 2026-08-10: o dono
-                        reportou o inventário como "faltando" testando uma
-                        conta sem compra nenhuma). Estado vazio agora mostra
-                        uma dica com link direto pra /loja em vez de nada.
-                    %>
-                    <div>
-                        <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Seus Itens</span><span data-i18n-en>Your Items</span></h3>
-                        <% if (ownedItems.length > 0) { %>
-                            <div class="perfil-guild-list">
-                                <% ownedItems.forEach(item => { %>
-                                    <div class="perfil-guild-chip" title="<%= item.label %>">
-                                        <% if (item.url) { %>
-                                            <img src="<%= item.url %>" alt="">
-                                        <% } %>
-                                        <span><%= item.label %></span>
-                                    </div>
-                                <% }); %>
-                            </div>
-                        <% } else { %>
-                            <p class="text-sm" style="font-family:'Poppins',sans-serif; opacity: 0.5;">
-                                <span data-i18n-pt>Você ainda não comprou nenhum item. Dê uma olhada na <a href="/loja" style="color:#DCA15E; text-decoration:underline;">Loja</a>.</span>
-                                <span data-i18n-en>You haven't bought any items yet. Check out the <a href="/loja" style="color:#DCA15E; text-decoration:underline;">Shop</a>.</span>
-                            </p>
-                        <% } %>
-                    </div>
-                </section>
-            </div>
-
+            <%#
+                Card de Nível/XP e o card "servidores jogados + Seus Itens"
+                (ambos REMOVIDOS daqui, pedido do dono, 2026-08-20 — Nível/
+                XP já vive dentro do card de identidade novo acima, os
+                outros dois ficam sem substituto nesta página). O botão
+                "Personalização" (era .pf-tab-nav aqui) migrou pra virar
+                item de verdade na sidebar (ver NAV_ITEMS restrito em
+                sidebar-v2.ejs) — o script no fim do arquivo abre este
+                <form> quando a página carrega com ?tab=personalizacao na
+                URL, em vez de um clique de botão nesta mesma página.
+            %>
             <%#
                 Sem "contents" aqui de propósito (diferente do padrão usado
                 em moderacao.ejs/events.ejs) — este <form> É o próprio
@@ -1159,17 +840,18 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script>if (window.lucide) window.lucide.createIcons();</script>
     <script>
+        // Botão "Personalizar" migrou da aba desta página pra virar item de
+        // verdade na sidebar (pedido do dono, 2026-08-20) — href="/perfil?
+        // tab=personalizacao" (ver NAV_ITEMS em sidebar-v2.ejs), então em
+        // vez de um clique trocando classes na mesma página, abre esse
+        // painel (único .pf-tab-panel que sobrou aqui) já ao carregar,
+        // quando a URL pede. Sem o parâmetro, a página mostra só o card de
+        // identidade + o grupo de 4 (comportamento padrão do <form>, que já
+        // nasce com is-hidden).
         (function () {
-            var buttons = document.querySelectorAll('.pf-tab-btn');
-            var panels = document.querySelectorAll('.pf-tab-panel');
-            if (!buttons.length || !panels.length) return;
-            buttons.forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    var target = btn.getAttribute('data-pf-tab');
-                    buttons.forEach(function (b) { b.classList.toggle('is-active', b === btn); });
-                    panels.forEach(function (p) { p.classList.toggle('is-hidden', p.getAttribute('data-pf-panel') !== target); });
-                });
-            });
+            if (new URLSearchParams(location.search).get('tab') !== 'personalizacao') return;
+            var panel = document.querySelector('.pf-tab-panel[data-pf-panel="personalizacao"]');
+            if (panel) panel.classList.remove('is-hidden');
         })();
     </script>
 </body>

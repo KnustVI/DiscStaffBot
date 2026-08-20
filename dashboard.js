@@ -1827,6 +1827,11 @@ function loadDashboard(client) {
 
         let honorStars = null;
         let mostPlayedDinosaur = null;
+        // Dieta da espécie mais jogada — decide CarniSkull vs HerbSkull na
+        // pílula de espécie do card de identidade novo (ver
+        // PlayerRegistry.isDinosaurCarnivore, mesma lógica do card do
+        // Discord em playerRegistrationSystem.js).
+        let mostPlayedDinosaurIsCarnivore = false;
         let kdStats = null;
         let playedGuilds = [];
         let badgeOptions = [];
@@ -1843,6 +1848,7 @@ function loadDashboard(client) {
         if (link) {
             honorStars = PunishmentSystem.getGlobalHonorStars(PunishmentSystem._resolveHistoryUserIds(userId, link.alderon_id));
             mostPlayedDinosaur = PlayerRegistry.getMostPlayedDinosaur(link.alderon_id);
+            mostPlayedDinosaurIsCarnivore = PlayerRegistry.isDinosaurCarnivore(mostPlayedDinosaur);
             // KDA (pedido do dono, 2026-08-05: "tá faltando KDA no perfil
             // também") — GLOBAL (soma de todo servidor, ver
             // getGlobalPlayerStats), diferente do /perfil no Discord (que
@@ -1933,6 +1939,7 @@ function loadDashboard(client) {
             isRaptor,
             honorStars,
             mostPlayedDinosaur,
+            mostPlayedDinosaurIsCarnivore,
             kdStats,
             huntBalance,
             bonesBalance,
@@ -2543,17 +2550,22 @@ function loadDashboard(client) {
                     system._resolveCardPhotoBuffer({ client }, targetUser, player, playerTier),
                     system._resolveBackgroundBuffer({ client }, player, playerTier),
                 ]);
+                const portalSpeciesLabel = PlayerRegistry.getMostPlayedDinosaur(player.alderon_id) || 'Ainda sem registro';
                 const cardBuffer = await renderProfileCard({
                     tier: playerTier,
                     photoBuffer,
                     backgroundBuffer,
                     nickname: player.player_name || targetUser.username,
                     alderonId: player.alderon_id,
-                    discordUsername: targetUser.username,
                     titleLabel: player.profile_title || 'Em breve (missões)',
-                    levelLabel: 'Nível 1',
-                    speciesLabel: PlayerRegistry.getMostPlayedDinosaur(player.alderon_id) || 'Ainda sem registro',
+                    speciesLabel: portalSpeciesLabel,
+                    isCarnivore: PlayerRegistry.isDinosaurCarnivore(portalSpeciesLabel),
                     honorStars: PunishmentSystem.getGlobalHonorStars(PunishmentSystem._resolveHistoryUserIds(req.user.id, player.alderon_id)),
+                    // Sem isStaff/badges aqui de propósito — o Portal não é
+                    // por servidor (diferente de /perfil no Discord), então
+                    // "é staff" não tem um único servidor óbvio pra checar;
+                    // fica sem essa linha e sem emblemas neste card menor,
+                    // mesmo comportamento de antes (campos não existiam).
                 });
                 profileCard = `data:image/png;base64,${cardBuffer.toString('base64')}`;
             } catch (error) {

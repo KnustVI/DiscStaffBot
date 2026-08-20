@@ -127,6 +127,15 @@
         // neste arquivo, continua existindo do jeito que já era), agora
         // também vira um item normal de nav.
         { key: 'perfil', labelPt: 'Perfil', labelEn: 'Profile', icon: 'user', href: '/perfil' },
+        // Botão "Personalizar" migrado da aba que existia dentro de
+        // /perfil (pedido do dono, 2026-08-20: "Botão personalizar vai
+        // migrar para a side bar") — vira link de verdade (funciona de
+        // qualquer uma das 4 páginas desta lista, não só de dentro de
+        // /perfil), abrindo a MESMA aba/form de sempre (agora o único
+        // .pf-tab-panel que sobrou em perfil.ejs) via ?tab=personalizacao
+        // — ver o script no fim de perfil.ejs que lê esse parâmetro no
+        // carregamento e remove is-hidden do painel.
+        { key: 'personalizar', labelPt: 'Personalizar', labelEn: 'Customize', icon: 'brush', href: '/perfil?tab=personalizacao' },
         { key: 'minhas-denuncias', labelPt: 'Suas Denúncias', labelEn: 'Your Reports', icon: 'message-square-warning', href: '/perfil/denuncias' },
         // Histórico de reputação/punições (pedido do dono, 2026-08-07) —
         // pedido explícito de ficar na sidebar junto dos outros botões

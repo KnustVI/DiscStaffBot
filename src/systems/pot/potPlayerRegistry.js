@@ -500,6 +500,34 @@ function getMostPlayedDinosaur(alderonId) {
     }
 }
 
+// Dieta por espécie — usada só pelo ícone da pílula de espécie do card de
+// perfil novo (CarniSkull vs HerbSkull, site e Discord). O webhook do jogo
+// manda um campo Diet em eventos ao vivo (ver dietEmoji em
+// webhookPayloads.js), mas isso NUNCA é persistido junto de
+// pot_dinosaur_picks (só o nome da espécie é gravado), então não dá pra
+// derivar do banco — precisa de uma tabela própria. Nomes batem com o
+// dinosaur_type que o próprio jogo manda (PascalCase, ex: "Tyrannosaurus").
+// Lista best-effort do elenco jogável conhecido — espécie nova/não
+// reconhecida cai no fallback herbívoro (ver isDinosaurCarnivore).
+const CARNIVORE_SPECIES = new Set([
+    'tyrannosaurus', 'allosaurus', 'ceratosaurus', 'dilophosaurus', 'utahraptor',
+    'troodon', 'cryolophosaurus', 'herrerasaurus', 'compsognathus', 'deinosuchus',
+    'austroraptor', 'giganotosaurus', 'suchomimus', 'baryonyx', 'concavenator',
+    'megalania', 'quetzalcoatlus', 'rhamphorhynchus', 'anhanguera',
+].map((s) => s.toLowerCase()));
+
+/**
+ * True se a espécie for carnívora, false se for herbívora (ou desconhecida
+ * — fallback herbívoro, mais comum no elenco jogável hoje). Comparação
+ * case-insensitive (dinosaur_type já vem do jogo, mas por segurança).
+ * @param {string|null} dinosaurType
+ * @returns {boolean}
+ */
+function isDinosaurCarnivore(dinosaurType) {
+    if (!dinosaurType) return false;
+    return CARNIVORE_SPECIES.has(String(dinosaurType).trim().toLowerCase());
+}
+
 /**
  * Catálogo de espécies já vistas neste servidor — deriva de
  * pot_dinosaur_picks (já grava toda espécie que algum jogador spawnou,
@@ -1726,6 +1754,7 @@ module.exports = {
     getGlobalPlayerStats,
     getGuildPlayerStats,
     getMostPlayedDinosaur,
+    isDinosaurCarnivore,
     getKnownSpecies,
     recordKillEvent,
     // Grupo (matilha/pack) atual do jogador — ver PlayerJoinedGroup/
