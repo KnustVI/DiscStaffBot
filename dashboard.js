@@ -1087,23 +1087,60 @@ function loadDashboard(client) {
     // preço (setShopConfig só aceita 'personalizacao' agora), usa o
     // editor de requisito próprio (ver bloco separado na view).
 
+    // Servidor(es) que um emblema/título/missão referencia — pedido do
+    // dono, 2026-08-20: "Na configuração de emblemas e titulos e
+    // missões, quero que identifique de qual servidor é a missão." Hoje
+    // isso já aparecia, mas ESCONDIDO dentro do texto corrido de
+    // requisito/recompensa (ex: describeRequirement já produz "50h
+    // jogadas em Atlas Brasil") — sem um jeito rápido de escanear a
+    // lista inteira e ver de cara qual servidor cada item é. Junta o(s)
+    // guildId(s) de QUALQUER requisito por-servidor
+    // (server_playtime_hours/registered_on_server, ver
+    // achievementSystem.js) + o guildId da recompensa em Ossos (a ÚNICA
+    // recompensa por-servidor que existe — Caçadas/Emblema/Título são
+    // globais, ver missionSystem.js). Na prática quase sempre dá 0 ou 1
+    // servidor, mas devolve um ARRAY (Set, sem duplicar) por segurança —
+    // nada impede o dono de configurar requisito de um servidor com
+    // recompensa de outro. Vazio = item GLOBAL (não amarrado a nenhum
+    // servidor específico); a UI (dev-lojas.ejs) decide como exibir
+    // isso, esta função só resolve os nomes.
+    function resolveItemServerNames(requirement, reward) {
+        const guildIds = new Set();
+        (Array.isArray(requirement) ? requirement : []).forEach((r) => {
+            if (r && r.guildId && (r.type === 'server_playtime_hours' || r.type === 'registered_on_server')) {
+                guildIds.add(r.guildId);
+            }
+        });
+        if (reward?.type === 'ossos' && reward.guildId) guildIds.add(reward.guildId);
+        return [...guildIds].map((guildId) => {
+            const config = PoTConfigSystem.getServerConfig(guildId);
+            return config?.server_name || client.guilds.cache.get(guildId)?.name || 'Servidor removido';
+        });
+    }
+
     app.get('/dev/Loja', checkAuth, async (req, res) => {
         if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
 
         const groups = await Promise.all(IMAGE_POOL_TYPES.map(async ({ type, label }) => {
             const rows = ProfileImagePool.listImages(type).filter(r => !r.pending_review);
-            const images = await Promise.all(rows.map(async row => ({
-                ...row,
-                url: await ProfileImagePool.resolveImageUrl(client, type, row.id),
-                // requirement/requirementLabel só têm efeito real pra
-                // 'titulo' (o outro tipo com resgate por requisito, ver
-                // partials/requirement-form.ejs — personalizacao/banner
-                // nunca gravam essa coluna, então ficam sempre null aqui,
-                // sem custo/risco nenhum de calcular do mesmo jeito pra
-                // manter os 3 tipos consistentes nesta mesma lista).
-                requirement: AchievementSystem.parseRequirement(row),
-                requirementLabel: AchievementSystem.describeRequirement(AchievementSystem.parseRequirement(row)),
-            })));
+            const images = await Promise.all(rows.map(async row => {
+                const requirement = AchievementSystem.parseRequirement(row);
+                return {
+                    ...row,
+                    url: await ProfileImagePool.resolveImageUrl(client, type, row.id),
+                    // requirement/requirementLabel só têm efeito real pra
+                    // 'titulo' (o outro tipo com resgate por requisito, ver
+                    // partials/requirement-form.ejs — personalizacao/banner
+                    // nunca gravam essa coluna, então ficam sempre null aqui,
+                    // sem custo/risco nenhum de calcular do mesmo jeito pra
+                    // manter os 3 tipos consistentes nesta mesma lista).
+                    requirement,
+                    requirementLabel: AchievementSystem.describeRequirement(requirement),
+                    // Servidor(es) que o requisito referencia (pedido do
+                    // dono, 2026-08-20) — ver resolveItemServerNames acima.
+                    serverNames: resolveItemServerNames(requirement, null),
+                };
+            }));
             return { type, label, images };
         }));
 
@@ -1115,12 +1152,16 @@ function loadDashboard(client) {
         const titulos = groups.find((g) => g.type === 'titulo')?.images || [];
 
         const badgeRows = ProfileImagePool.listImages('badge').filter(r => !r.pending_review);
-        const badges = await Promise.all(badgeRows.map(async row => ({
-            ...row,
-            url: await ProfileImagePool.resolveImageUrl(client, 'badge', row.id),
-            requirement: AchievementSystem.parseRequirement(row),
-            requirementLabel: AchievementSystem.describeRequirement(AchievementSystem.parseRequirement(row)),
-        })));
+        const badges = await Promise.all(badgeRows.map(async row => {
+            const requirement = AchievementSystem.parseRequirement(row);
+            return {
+                ...row,
+                url: await ProfileImagePool.resolveImageUrl(client, 'badge', row.id),
+                requirement,
+                requirementLabel: AchievementSystem.describeRequirement(requirement),
+                serverNames: resolveItemServerNames(requirement, null),
+            };
+        }));
 
         // Missões (pedido do dono, 2026-08-19) — mesma receita de
         // requirement/requirementLabel de badges/groups acima + rewardLabel
@@ -1130,12 +1171,18 @@ function loadDashboard(client) {
         const missionRows = MissionSystem.listMissions();
         const missions = missionRows.map((row) => {
             const requirement = AchievementSystem.parseRequirement(row);
+            const reward = MissionSystem.parseReward(row);
             return {
                 ...row,
                 requirement,
                 requirementLabel: AchievementSystem.describeRequirement(requirement),
-                reward: MissionSystem.parseReward(row),
+                reward,
                 rewardLabel: MissionSystem.describeReward(row),
+                // Servidor(es) da missão (pedido do dono, 2026-08-20:
+                // "quero que identifique de qual servidor é a missão") —
+                // junta guildId de requisito por-servidor E de recompensa
+                // em Ossos (a única recompensa por-servidor que existe).
+                serverNames: resolveItemServerNames(requirement, reward),
             };
         });
 

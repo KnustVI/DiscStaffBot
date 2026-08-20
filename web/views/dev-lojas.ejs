@@ -103,6 +103,16 @@
         .pool-item-badge.is-public { background: rgba(165, 255, 161, 0.15); color: #A5FFA1; }
         .pool-item-badge.is-private { background: rgba(255, 78, 59, 0.15); color: #FF4E3B; }
         .pool-item-badge.is-coming-soon { background: rgba(217, 163, 98, 0.18); color: #DCA15E; }
+        /* Servidor do requisito/recompensa (pedido do dono, 2026-08-20:
+           "quero que identifique de qual servidor é a missão") — cor
+           própria (azul), distinta de público/privado/em breve, pra não
+           confundir com os outros badges de status. is-global (nenhum
+           servidor específico) fica discreto de propósito — opacidade
+           baixa tipo .pool-item-meta, já que "sem servidor" é o caso
+           mais comum e não deveria chamar tanta atenção quanto um
+           servidor específico. */
+        .pool-item-badge.is-server { background: rgba(94, 168, 220, 0.18); color: #5EA8DC; }
+        .pool-item-badge.is-global { background: rgba(248, 220, 192, 0.08); color: #F8DCC0; opacity: 0.5; }
         .pool-item-actions { display: flex; flex-direction: column; gap: 6px; margin-top: auto; }
         .pool-toggle-btn, .pool-delete-btn, .pool-approve-btn, .pool-reject-btn {
             font-family: 'Poppins', sans-serif;
@@ -491,6 +501,17 @@
                                 <span class="pool-item-meta">#<%= img.id %> — <%= new Date(img.created_at).toLocaleDateString('pt-BR') %></span>
                                 <span class="pool-item-badge <%= img.is_public ? 'is-public' : 'is-private' %>"><%= img.is_public ? 'Público' : 'Privado' %></span>
                                 <% if (img.coming_soon) { %><span class="pool-item-badge is-coming-soon">Em breve</span><% } %>
+                                <%# Servidor do requisito (pedido do dono, 2026-08-20) — só faz
+                                    sentido pra Título (o único tipo aqui com requisito de
+                                    verdade, ver comentário de requirement/requirementLabel
+                                    em dashboard.js); personalização/banner nunca têm. %>
+                                <% if (group.type === 'titulo') { %>
+                                    <% if (img.serverNames.length > 0) { %>
+                                        <span class="pool-item-badge is-server"><%= img.serverNames.join(' + ') %></span>
+                                    <% } else { %>
+                                        <span class="pool-item-badge is-global">Global</span>
+                                    <% } %>
+                                <% } %>
                                 <% if (group.type === 'personalizacao') { %>
                                     <div class="pool-price-form">
                                         <span class="pool-price-current">
@@ -555,6 +576,12 @@
                             <span class="pool-item-meta">#<%= img.id %> — <%= new Date(img.created_at).toLocaleDateString('pt-BR') %></span>
                             <span class="pool-item-badge <%= img.is_public ? 'is-public' : 'is-private' %>"><%= img.is_public ? 'Público' : 'Privado' %></span>
                             <% if (img.coming_soon) { %><span class="pool-item-badge is-coming-soon">Em breve</span><% } %>
+                            <%# Servidor do requisito (pedido do dono, 2026-08-20). %>
+                            <% if (img.serverNames.length > 0) { %>
+                                <span class="pool-item-badge is-server"><%= img.serverNames.join(' + ') %></span>
+                            <% } else { %>
+                                <span class="pool-item-badge is-global">Global</span>
+                            <% } %>
                             <%- include('partials/requirement-form', { img, type: 'badge', requirementTypes, configuredServers }) %>
                             <div class="pool-item-actions">
                                 <form action="/dev/Loja/badge/<%= img.id %>/toggle" method="POST">
@@ -596,6 +623,15 @@
                             <span class="pool-item-meta">#<%= m.id %> — <%= new Date(m.created_at).toLocaleDateString('pt-BR') %></span>
                             <span class="pool-item-badge <%= m.is_public ? 'is-public' : 'is-private' %>"><%= m.is_public ? 'Público' : 'Privado' %></span>
                             <% if (m.coming_soon) { %><span class="pool-item-badge is-coming-soon">Em breve</span><% } %>
+                            <%# Servidor da missão (pedido do dono, 2026-08-20: "quero
+                                que identifique de qual servidor é a missão") — vem do
+                                requisito por-servidor e/ou da recompensa em Ossos, ver
+                                resolveItemServerNames em dashboard.js. %>
+                            <% if (m.serverNames.length > 0) { %>
+                                <span class="pool-item-badge is-server"><%= m.serverNames.join(' + ') %></span>
+                            <% } else { %>
+                                <span class="pool-item-badge is-global">Global</span>
+                            <% } %>
                             <%- include('partials/requirement-form', { img: { id: m.id, label: m.title, requirement: m.requirement, requirementLabel: m.requirementLabel }, type: 'missao', requirementTypes, configuredServers }) %>
                             <%- include('partials/mission-reward-form', { mission: m, configuredServers, badges, titulos }) %>
                             <div class="pool-item-actions">

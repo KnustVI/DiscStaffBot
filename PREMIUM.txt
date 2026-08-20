@@ -12836,3 +12836,36 @@ frente, nao so este relatorio):
   visível também. E confirmar que o cargo/tier bate com a conta
   logada (staff em algum servidor → cargo real; só jogador → tier
   Premium).
+
+
+251) Identifica de qual servidor é cada Emblema/Título/Missão no /dev/Loja (badge "Global" ou nome do servidor)
+------------------------------------------------------------------------------------------------------
+- Pedido do dono, 2026-08-20: "Na configuração de emblemas e titulos e
+  missões, quero que identifique de qual servidor é a missão."
+- Antes, o servidor de um item só aparecia ESCONDIDO dentro do texto
+  corrido do requisito/recompensa (ex: describeRequirement já produzia
+  "50h jogadas em Atlas Brasil") — sem um jeito rápido de escanear a
+  lista inteira (às vezes dezenas de itens de servidores diferentes) e
+  ver de cara qual pertence a qual servidor.
+- Nova função `resolveItemServerNames(requirement, reward)` em
+  dashboard.js — junta o(s) `guildId`(s) de QUALQUER requisito
+  por-servidor (`server_playtime_hours`/`registered_on_server`, os 2
+  únicos tipos de requisito com guildId) + o `guildId` da recompensa em
+  Ossos (a ÚNICA recompensa por-servidor que existe — Caçadas/Emblema/
+  Título são globais). Devolve um array (sem duplicar, via Set) — na
+  prática quase sempre 0 ou 1 servidor, mas trata o caso raro de
+  requisito de um servidor + recompensa de outro sem quebrar.
+- Novo badge colorido no card de cada Emblema/Título/Missão em
+  `/dev/Loja`: nome do(s) servidor(es) em azul (`.is-server`) quando o
+  item referencia algum, ou "Global" discreto/opaco (`.is-global`)
+  quando não referencia nenhum — todo item sempre ganha EXATAMENTE um
+  badge desses, pra lista inteira ficar igualmente escaneável (nunca
+  "ausência de badge" ambígua). Título entra no mesmo grupo `groups`
+  de Personalização/Banner mas só ELE tem requisito de verdade — os
+  outros dois nunca ganham esse badge (não faz sentido pra eles).
+- Verificado: `ejs.compile()` em dev-lojas.ejs; `node --check` em
+  dashboard.js; teste de lógica isolado com 6 casos (sem requisito nem
+  recompensa = vazio; só requisito; só recompensa Ossos; mesmo servidor
+  nos dois = deduplicado pra 1; servidores diferentes = 2 distintos;
+  tipo de requisito sem guildId relevante e recompensa em Caçadas
+  ignorados corretamente) — todos passaram.
