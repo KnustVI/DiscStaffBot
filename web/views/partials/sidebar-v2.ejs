@@ -413,11 +413,21 @@
            = 18px, usado em moderacao.ejs/reports.ejs/events.ejs/
            perfil.ejs) — todo valor em px abaixo é o original × 0.9. */
         --tp-w-expanded: clamp(235px, 23vw, 360px);
-        --tp-w-collapsed: 109px;
+        /* 109px -> 140px (pedido do dono, 2026-08-20: "consegue ajustar o
+           tamanho dela pra caber mantendo o design?") — o modo "Vertical
+           Mobile" do card Perfil do Figma (avatar+nome+pill do cargo
+           empilhados) não cabia no valor antigo: o pill sozinho já
+           precisa de mais espaço que os 109-36(padding)=73px que sobravam.
+           Ainda claramente "compacto/só ícone" (bem longe da largura
+           expandida, 235-360px), só o suficiente pra caber o card
+           empilhado sem cortar. Ver .tp-sidebar-profile-info dentro de
+           [data-collapsed="true"]/:not([data-user-set])/@container mais
+           abaixo pro resto da adaptação. */
+        --tp-w-collapsed: 140px;
         --tp-inner-pad-x: clamp(18px, 5vw, 45px);
         --tp-collapsed-pad: 18px;
         --tp-collapsed-btn: 54px;
-        --tp-collapsed-avatar: 72px;
+        --tp-collapsed-avatar: 60px;
         --tp-collapsed-logo: 72px;
         box-sizing: border-box;
         font-family: 'Poppins', sans-serif;
@@ -662,11 +672,21 @@
     @media (prefers-reduced-motion: reduce) {
         .tp-sidebar-avatar-btn.tp-avatar-hint { animation: none; box-shadow: 0 0 0 3px rgba(220, 161, 94, 0.55); }
     }
+    /* Card "Perfil" (Figma, pedido do dono 2026-08-19-20: "consegue fazer
+       esse visual?... no css temos diferentes tamanhos, consegue adaptar
+       pros tamanhos de tela?") — 3 modos do Figma mapeados nos 3 estados
+       reais que já existem: "Horizontal" (este bloco, sidebar expandida
+       ≥1500px) = maior; "Horizontal Mobile" (.tp-mobile-drawer-*, menu
+       hambúrguer ≤767px) = médio; "Vertical Mobile" (.tp-sidebar-* dentro
+       de [data-collapsed="true"] mais abaixo) = menor, adaptado (a
+       sidebar recolhida precisou alargar um pouco pra caber o pill do
+       cargo, ver comentário lá — dimensões do Figma eram baseadas num
+       texto de exemplo curto ("ROLE"), não em nomes de cargo reais). */
     .tp-sidebar-avatar {
         box-sizing: border-box;
         flex: none;
-        width: 68px;
-        height: 68px;
+        width: 100px;
+        height: 100px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -677,38 +697,39 @@
         overflow: hidden;
     }
     .tp-sidebar-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .tp-sidebar-avatar svg { width: 48px; height: 48px; color: #803E30; }
+    .tp-sidebar-avatar svg { width: 60px; height: 60px; color: #803E30; }
     .tp-sidebar-profile-info {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 5px;
+        gap: 10px;
         min-width: 0;
     }
     .tp-sidebar-nickname {
         font-family: 'Tilt Warp', sans-serif;
-        font-size: 18px;
-        line-height: 23px;
+        font-size: 32px;
+        line-height: 40px;
+        text-transform: uppercase;
         color: #F8DCC0;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        max-width: 162px;
+        max-width: 100%;
     }
     .tp-sidebar-role {
         box-sizing: border-box;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 5px 18px;
+        padding: 5px 20px;
         background: #4B2427;
         border: 1px solid #803E30;
         border-radius: 50px;
         font-family: 'Poppins', sans-serif;
-        font-weight: 300;
-        font-size: 13px;
-        line-height: 19px;
+        font-weight: 600;
+        font-size: 20px;
+        line-height: 30px;
         color: #F8DCC0;
         white-space: nowrap;
     }
@@ -755,7 +776,7 @@
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-inner { padding: var(--tp-collapsed-pad); gap: 30px; }
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-logo img { max-width: var(--tp-collapsed-logo); }
     /* Volta pro fluxo normal (não mais flutuando no canto) quando
-       colapsada — a sidebar fica estreita demais (109px) pro botão
+       colapsada — a sidebar fica estreita demais (140px) pro botão
        flutuante não sobrepor a logo, que também encolhe junto. */
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-top-actions { position: static; }
     .tp-sidebar[data-collapsed="true"] .tp-icon-expanded { display: none; }
@@ -763,9 +784,21 @@
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-nav { gap: 10px; padding: 0; }
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-btn { width: var(--tp-collapsed-btn); height: var(--tp-collapsed-btn); padding: 10px; gap: 0; }
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-label { display: none; }
-    .tp-sidebar[data-collapsed="true"] .tp-sidebar-profile { flex-direction: column; gap: 10px; }
+    /* "Vertical Mobile" do card Perfil do Figma (pedido do dono,
+       2026-08-19-20: "consegue ajustar o tamanho dela pra caber mantendo
+       o design?") — ANTES escondia .tp-sidebar-profile-info por completo
+       aqui (só o avatar sozinho ficava visível); agora mostra nome+cargo
+       empilhados, no menor dos 3 tamanhos do card. white-space:normal +
+       text-align:center no pill (diferente do "Horizontal"/"Horizontal
+       Mobile", que ficam nowrap) porque cargos reais podem ser mais
+       longos que o "ROLE" de exemplo do Figma (ex: "Administrador") —
+       deixa quebrar em 2 linhas em vez de vazar/cortar. */
+    .tp-sidebar[data-collapsed="true"] .tp-sidebar-profile { flex-direction: column; gap: 8px; }
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-avatar { width: var(--tp-collapsed-avatar); height: var(--tp-collapsed-avatar); }
-    .tp-sidebar[data-collapsed="true"] .tp-sidebar-profile-info { display: none; }
+    .tp-sidebar[data-collapsed="true"] .tp-sidebar-avatar svg { width: 32px; height: 32px; }
+    .tp-sidebar[data-collapsed="true"] .tp-sidebar-profile-info { gap: 6px; }
+    .tp-sidebar[data-collapsed="true"] .tp-sidebar-nickname { font-size: 16px; line-height: 20px; max-width: 100%; }
+    .tp-sidebar[data-collapsed="true"] .tp-sidebar-role { padding: 4px 10px; font-size: 12px; line-height: 18px; font-weight: 300; white-space: normal; text-align: center; max-width: 100%; }
 
     /* Sempre responsivo (padrão do site): telas estreitas começam
        colapsadas por padrão (só ícones), mesmo sem preferência salva.
@@ -805,9 +838,14 @@
         .tp-sidebar:not([data-user-set]) .tp-sidebar-nav { gap: 10px; padding: 0; }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-btn { width: var(--tp-collapsed-btn); height: var(--tp-collapsed-btn); padding: 10px; gap: 0; }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-label { display: none; }
-        .tp-sidebar:not([data-user-set]) .tp-sidebar-profile { flex-direction: column; gap: 10px; }
+        /* "Vertical Mobile" do card Perfil — mesma mudança/motivo de
+           [data-collapsed="true"] acima (comentário completo lá). */
+        .tp-sidebar:not([data-user-set]) .tp-sidebar-profile { flex-direction: column; gap: 8px; }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-avatar { width: var(--tp-collapsed-avatar); height: var(--tp-collapsed-avatar); }
-        .tp-sidebar:not([data-user-set]) .tp-sidebar-profile-info { display: none; }
+        .tp-sidebar:not([data-user-set]) .tp-sidebar-avatar svg { width: 32px; height: 32px; }
+        .tp-sidebar:not([data-user-set]) .tp-sidebar-profile-info { gap: 6px; }
+        .tp-sidebar:not([data-user-set]) .tp-sidebar-nickname { font-size: 16px; line-height: 20px; max-width: 100%; }
+        .tp-sidebar:not([data-user-set]) .tp-sidebar-role { padding: 4px 10px; font-size: 12px; line-height: 18px; font-weight: 300; white-space: normal; text-align: center; max-width: 100%; }
     }
 
     /* Mais um degrau, só pra celular pequeno (pedido do dono: "mais
@@ -873,9 +911,14 @@
         .tp-sidebar-nav { gap: 10px; padding: 0; }
         .tp-sidebar-btn { width: var(--tp-collapsed-btn); height: var(--tp-collapsed-btn); padding: 10px; gap: 0; }
         .tp-sidebar-label { display: none; }
-        .tp-sidebar-profile { flex-direction: column; gap: 10px; }
+        /* "Vertical Mobile" do card Perfil — mesma mudança/motivo de
+           [data-collapsed="true"] mais acima (comentário completo lá). */
+        .tp-sidebar-profile { flex-direction: column; gap: 8px; }
         .tp-sidebar-avatar { width: var(--tp-collapsed-avatar); height: var(--tp-collapsed-avatar); }
-        .tp-sidebar-profile-info { display: none; }
+        .tp-sidebar-avatar svg { width: 32px; height: 32px; }
+        .tp-sidebar-profile-info { gap: 6px; }
+        .tp-sidebar-nickname { font-size: 16px; line-height: 20px; max-width: 100%; }
+        .tp-sidebar-role { padding: 4px 10px; font-size: 12px; line-height: 18px; font-weight: 300; white-space: normal; text-align: center; max-width: 100%; }
     }
 
     /* ==================== DRAWER MOBILE ====================
@@ -997,11 +1040,19 @@
         border-bottom: 1px solid rgba(248, 220, 192, 0.12);
         margin-bottom: 10px;
     }
+    /* "Horizontal Mobile" do card Perfil do Figma (pedido do dono,
+       2026-08-19-20) — ver comentário completo mais acima, perto de
+       .tp-sidebar-avatar (mesmo card, tamanho médio dos 3 modos). Este
+       elemento nunca é o que o JS realmente ABRE em páginas que também
+       incluem top-nav.ejs (ele vem DEPOIS no DOM — getElementById sempre
+       acha o de top-nav.ejs primeiro), mas mantido em sincronia mesmo
+       assim: páginas hipotéticas que um dia usem só sidebar-v2.ejs sem
+       top-nav.ejs dependeriam deste. */
     .tp-mobile-drawer-avatar {
         box-sizing: border-box;
         flex: none;
-        width: 52px;
-        height: 52px;
+        width: 75px;
+        height: 75px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -1011,11 +1062,12 @@
         overflow: hidden;
     }
     .tp-mobile-drawer-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .tp-mobile-drawer-avatar svg { width: 30px; height: 30px; color: #803E30; }
-    .tp-mobile-drawer-profile-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .tp-mobile-drawer-avatar svg { width: 42px; height: 42px; color: #803E30; }
+    .tp-mobile-drawer-profile-info { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
     .tp-mobile-drawer-nickname {
         font-family: 'Tilt Warp', sans-serif;
-        font-size: 16px;
+        font-size: 20px;
+        line-height: 25px;
         color: #F8DCC0;
         white-space: nowrap;
         overflow: hidden;
@@ -1026,11 +1078,14 @@
         display: inline-flex;
         align-items: center;
         align-self: flex-start;
-        padding: 3px 12px;
+        padding: 5px 20px;
         background: #4B2427;
         border: 1px solid #803E30;
         border-radius: 50px;
-        font-size: 11px;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 300;
+        font-size: 14px;
+        line-height: 21px;
         color: #F8DCC0;
         white-space: nowrap;
     }

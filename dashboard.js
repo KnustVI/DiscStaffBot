@@ -865,6 +865,35 @@ function loadDashboard(client) {
         return (req._otherGuildsCache = resolved.filter(Boolean));
     }
 
+    // Cargo mostrado no card de perfil da sidebar em páginas GLOBAIS (sem
+    // :guildID — perfil/perfil-historico/perfil-denuncias/loja/staff-perfil),
+    // pedido do dono, 2026-08-19: "No lugar de role coloque o cargo dele se
+    // staff de um servidor, se for só um player sem ser staff, coloque o
+    // tier premium dele, free = membro." Antes essas 5 rotas hardcodavam
+    // role:'Membro' sempre, mesmo pra quem já tinha Premium ou era staff em
+    // outro servidor (o dado só não fazia sentido calcular NUMA página sem
+    // guild — agora calcula igual, só que globalmente). Reaproveita
+    // getAdminGuildsWithBot (já memoizado em req._otherGuildsCache) — sem
+    // fetch extra além do que a própria sidebar já paga pra montar
+    // "otherGuilds"; só busca o member DE NOVO pro 1º servidor onde a
+    // pessoa é staff, pra saber Administrador vs cargo específico (esse
+    // dado não vem armazenado em getAdminGuildsWithBot, que só devolve
+    // id/name/icon do servidor, não o cargo).
+    async function getSidebarRoleLabel(req) {
+        const staffGuilds = await getAdminGuildsWithBot(req);
+        if (staffGuilds.length > 0) {
+            const guild = client.guilds.cache.get(staffGuilds[0].id);
+            const member = guild ? await guild.members.fetch(req.user.id).catch(() => null) : null;
+            if (member) {
+                return ConfigSystem.memberIsGuildAdmin(staffGuilds[0].id, member)
+                    ? 'Administrador'
+                    : (highestStaffRoleName(staffGuilds[0].id, member) || 'Staff');
+            }
+        }
+        const tier = PremiumSystem.getPlayerTier(req.user.id);
+        return tier === 'free' ? 'Membro' : (tier.charAt(0).toUpperCase() + tier.slice(1));
+    }
+
     // Ver DASHBOARD_LOCKED_TO_OWNER no topo do arquivo — chamado logo após
     // checkAuth (que já garante req.user) em toda página/save de servidor
     // (moderação/reports/eventos), pra ninguém além do dono entrar
@@ -1846,7 +1875,7 @@ function loadDashboard(client) {
 
         res.render('perfil', {
             nickname: req.user.global_name || req.user.username,
-            role: 'Membro',
+            role: await getSidebarRoleLabel(req),
             isOwner: isOwnerSession(req),
             otherGuilds,
             discordUser: req.user,
@@ -1888,7 +1917,7 @@ function loadDashboard(client) {
         const { reputationByGuild, punishments } = getPlayerHistoryData(req.user.id, client);
         res.render('perfil-historico', {
             nickname: req.user.global_name || req.user.username,
-            role: 'Membro',
+            role: await getSidebarRoleLabel(req),
             isOwner: isOwnerSession(req),
             otherGuilds: await getAdminGuildsWithBot(req),
             reputationByGuild,
@@ -1908,7 +1937,7 @@ function loadDashboard(client) {
         const { openReports, openPagination, closedReports, closedPagination } = getUserReportsData(req.user.id, client, state);
         res.render('perfil-denuncias', {
             nickname: req.user.global_name || req.user.username,
-            role: 'Membro',
+            role: await getSidebarRoleLabel(req),
             isOwner: isOwnerSession(req),
             otherGuilds: await getAdminGuildsWithBot(req),
             openReports,
@@ -2080,7 +2109,7 @@ function loadDashboard(client) {
 
         res.render('loja', {
             nickname: req.user.global_name || req.user.username,
-            role: 'Membro',
+            role: await getSidebarRoleLabel(req),
             isOwner: isOwnerSession(req),
             otherGuilds: await getAdminGuildsWithBot(req),
             personalizacao,
@@ -2583,7 +2612,7 @@ function loadDashboard(client) {
 
         res.render('staff-perfil', {
             nickname: req.user.global_name || req.user.username,
-            role: 'Membro',
+            role: await getSidebarRoleLabel(req),
             isOwner: isOwnerSession(req),
             guild,
             discordUser: targetMember.user,

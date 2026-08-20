@@ -12765,3 +12765,74 @@ frente, nao so este relatorio):
   redimensionando a janela do desktop estreita de novo (o cenário
   exato que reproduziu o bug) e abrindo o menu — botão fechar e foto
   de perfil devem aparecer no topo do card agora.
+
+
+250) Card "Perfil" da sidebar redesenhado (3 tamanhos do Figma) + cargo de staff OU tier Premium em vez de "Membro" fixo
+------------------------------------------------------------------------------------------------------
+- Pedido do dono, 2026-08-19: "No caso do perfil da sidebar consegue
+  fazer esse visual? No lugar de role coloqueo cargo dele se staff de um
+  servidor, se for só um player sem ser staff, cooque o tier premium
+  dle, free = membro. No css temos diferentes tamanho consegue adaptar
+  para os tamanhos de telas?" (colado com o CSS exportado do Figma dos 3
+  modos do componente "Perfil": Horizontal/Horizontal Mobile/Vertical
+  Mobile). Esclarecido com uma pergunta de escopo sobre onde encaixar o
+  modo Vertical (não cabia na sidebar recolhida do jeito que estava,
+  109px de largura) — resposta: "Consegue ajustar o tamanho dela para
+  caber mantendo o design?"
+- PARTE 1 — cargo/tier em vez de "Membro" fixo: as 5 rotas GLOBAIS (sem
+  :guildID — GET /perfil, /perfil/historico, /perfil/denuncias, /loja,
+  /staff-perfil) sempre hardcodavam `role: 'Membro'` no card da sidebar,
+  mesmo pra quem já tinha Premium ou era staff em outro servidor (fazia
+  sentido não calcular isso numa página sem guild — agora calcula
+  globalmente). Nova função `getSidebarRoleLabel(req)` em dashboard.js:
+  se a pessoa é staff/admin de PELO MENOS 1 servidor (reaproveita
+  getAdminGuildsWithBot, já memoizado por request — sem fetch extra além
+  do que a sidebar já paga), mostra "Administrador" ou o cargo
+  específico (mesma função highestStaffRoleName já usada nas páginas
+  guild-scoped); senão, mostra o tier de Player Premium
+  (PremiumSystem.getPlayerTier) capitalizado — free vira "Membro", compy
+  vira "Compy", raptor vira "Raptor".
+- PARTE 2 — visual do card "Perfil" (3 modos do Figma, mapeados nos 3
+  estados reais que já existiam):
+    - "Horizontal" (sidebar expandida ≥1500px, `.tp-sidebar-*` em
+      sidebar-v2.ejs): avatar 68→100px, apelido 18→32px Tilt Warp
+      maiúsculo, pill do cargo 13→20px Poppins peso 600.
+    - "Horizontal Mobile" (menu hambúrguer ≤767px, `.tp-mobile-drawer-*`):
+      avatar 52→75px, apelido 16→20px, pill do cargo 11→14px peso 300 —
+      NOVO em top-nav.ejs: esse arquivo nunca mostrou cargo nenhum nesse
+      card (só apelido). BUG REAL descoberto no processo: como
+      top-nav.ejs é incluído ANTES de sidebar-v2.ejs em toda página com
+      sidebar, e os dois têm um elemento com `id="tpMobileDrawer"`,
+      `getElementById` sempre pega o de top-nav.ejs primeiro — o cargo
+      da versão de sidebar-v2.ejs NUNCA aparecia de verdade em produção,
+      mesmo já estando implementado lá. Corrigido adicionando a mesma
+      derivação de cargo/apelido (tnRolePt/tnNicknamePt, espelhando
+      sbRolePt/sbNicknamePt de sidebar-v2.ejs) e o `<span>` do cargo em
+      top-nav.ejs também.
+    - "Vertical Mobile" (sidebar RECOLHIDA — toggle manual, auto-colapso
+      ≤1000px, ou o `@container` de segurança ≤150px): ANTES escondia
+      nome+cargo por completo (`display:none`), só o avatar sozinho
+      ficava visível. Como o pill do cargo do Figma (82px) não cabia no
+      109px de largura da sidebar recolhida (73px úteis depois do
+      padding), a largura recolhida subiu pra 140px (`--tp-w-collapsed`)
+      — ainda claramente "só ícone", só o suficiente pra caber o card
+      empilhado sem cortar. Avatar 72→60px
+      (`--tp-collapsed-avatar`), apelido 16px, pill do cargo 12px peso
+      300 com `white-space:normal` (cargos reais tipo "Administrador"
+      podem ser mais longos que o "ROLE" de exemplo do Figma — quebra em
+      2 linhas em vez de vazar/cortar). Aplicado nos 3 seletores que já
+      replicavam esse estado (`[data-collapsed="true"]`,
+      `:not([data-user-set])` @1000px, `@container tpsidebar` ≤150px) —
+      o degrau "ícone-só, texto escondido" ≤1500px (sidebar expandida
+      mas estreita, ANTES de colapsar de verdade) ficou INTOCADO de
+      propósito, não é o mesmo estado.
+- Verificado: `ejs.compile()` + contagem de chaves dos `<style>`
+  embutidos (profundidade final 0) em sidebar-v2.ejs/top-nav.ejs;
+  `node --check` em dashboard.js; teste de lógica isolado confirmando
+  free→"Membro"/compy→"Compy"/raptor→"Raptor". Sem confirmação visual
+  real — o dono pode conferir: card cheio na sidebar expandida, card
+  colapsado (toggle manual ou ≤1000px) mostrando nome+cargo pequenos em
+  vez de só o avatar, e o drawer mobile agora com o pill do cargo
+  visível também. E confirmar que o cargo/tier bate com a conta
+  logada (staff em algum servidor → cargo real; só jogador → tier
+  Premium).

@@ -66,6 +66,23 @@
     const tnActive = typeof active !== 'undefined' ? active : null;
     const tnHideOnScroll = typeof hideOnScroll !== 'undefined' && hideOnScroll;
     const tnReserveSpace = typeof reserveSpace !== 'undefined' && reserveSpace;
+    // Cargo/nickname no card de perfil do drawer mobile (pedido do dono,
+    // 2026-08-19-20: card "Perfil" com cargo de staff OU tier Premium) —
+    // mesma derivação de partials/sidebar-v2.ejs (sbRolePt/sbNicknamePt),
+    // duplicada aqui pelo mesmo motivo do resto do CSS do drawer deste
+    // arquivo (página sem sidebar-v2.ejs). BUG REAL corrigido: este drawer
+    // nunca mostrou cargo nenhum antes (só nickname) — e como este arquivo
+    // é incluído ANTES de sidebar-v2.ejs em toda página com sidebar,
+    // #tpMobileDrawer daqui é sempre o que getElementById encontra
+    // primeiro (o que o JS de fato abre/fecha) — a versão de
+    // sidebar-v2.ejs com cargo nunca chegava a aparecer na prática.
+    const tnRolePt = typeof role !== 'undefined' ? role : 'Membro';
+    const tnRoleEn = tnRolePt === 'Membro' ? 'Member' : tnRolePt;
+    const tnNicknameReal = (typeof nickname !== 'undefined' && nickname)
+        || (tnUser && (tnUser.nickname || tnUser.global_name || tnUser.username))
+        || null;
+    const tnNicknamePt = tnNicknameReal || 'Convidado';
+    const tnNicknameEn = tnNicknameReal || 'Guest';
 %>
 <nav id="tpTopNav" class="tp-top-nav w-full flex flex-wrap items-center justify-center fixed top-0 left-0 right-0 z-50" style="gap: clamp(10px, 2vw, 20px); padding: 14px 16px; background: rgba(17, 17, 17, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid #3E3D38;">
     <%#
@@ -214,7 +231,8 @@
                     <img src="<%= tnUser.avatar ? `https://cdn.discordapp.com/avatars/${tnUser.id}/${tnUser.avatar}.png` : `https://cdn.discordapp.com/embed/avatars/${(tnUser.id % 5)}.png` %>" alt="">
                 </div>
                 <div class="tp-mobile-drawer-profile-info">
-                    <span class="tp-mobile-drawer-nickname"><%= (tnUser.nickname || tnUser.global_name || tnUser.username) %></span>
+                    <span class="tp-mobile-drawer-nickname"><span data-i18n-pt><%= tnNicknamePt %></span><span data-i18n-en><%= tnNicknameEn %></span></span>
+                    <span class="tp-mobile-drawer-role"><span data-i18n-pt><%= tnRolePt %></span><span data-i18n-en><%= tnRoleEn %></span></span>
                 </div>
             </a>
         <% } %>
@@ -484,11 +502,16 @@
         border-bottom: 1px solid rgba(248, 220, 192, 0.12);
         margin-bottom: 10px;
     }
+    /* "Horizontal Mobile" do card Perfil do Figma (pedido do dono,
+       2026-08-19-20) — ver comentário completo em partials/sidebar-v2.ejs
+       (mesmo card, tamanho médio dos 3 modos). .tp-mobile-drawer-role
+       NOVO aqui (não existia neste arquivo — ver comentário na derivação
+       de tnRolePt/tnNicknamePt mais acima). */
     .tp-mobile-drawer-avatar {
         box-sizing: border-box;
         flex: none;
-        width: 52px;
-        height: 52px;
+        width: 75px;
+        height: 75px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -498,15 +521,32 @@
         overflow: hidden;
     }
     .tp-mobile-drawer-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .tp-mobile-drawer-avatar svg { width: 30px; height: 30px; color: #803E30; }
-    .tp-mobile-drawer-profile-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .tp-mobile-drawer-avatar svg { width: 42px; height: 42px; color: #803E30; }
+    .tp-mobile-drawer-profile-info { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
     .tp-mobile-drawer-nickname {
         font-family: 'Tilt Warp', sans-serif;
-        font-size: 16px;
+        font-size: 20px;
+        line-height: 25px;
         color: #F8DCC0;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+    .tp-mobile-drawer-role {
+        box-sizing: border-box;
+        display: inline-flex;
+        align-items: center;
+        align-self: flex-start;
+        padding: 5px 20px;
+        background: #4B2427;
+        border: 1px solid #803E30;
+        border-radius: 50px;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 300;
+        font-size: 14px;
+        line-height: 21px;
+        color: #F8DCC0;
+        white-space: nowrap;
     }
     .tp-mobile-drawer-section + .tp-mobile-drawer-section { margin-top: 14px; }
     .tp-mobile-drawer-heading {
