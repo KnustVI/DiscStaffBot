@@ -129,10 +129,28 @@
            por trás. Cores por tier (--pf-tier-* / --pf-rim-*) aplicadas via
            style inline no HTML a partir de pfIdCardGradients (ver JS
            acima) — mesmo padrão já usado antes (--pf-id-grad-a/b/text). */
+        /* flex-shrink:0 (pedido do dono, 2026-08-20: card "quebrou" de novo
+           mesmo com display:flex funcionando — dessa vez o card em si
+           estava sendo COMPRIMIDO) — <body> no style.css compartilhado
+           tem height:100vh (fixo, não min-height) e <main> é esticado por
+           align-items:stretch pra caber exatamente nisso; quando o
+           conteúdo de <main> (banner+título+este card+grupo de 4 cards)
+           não cabe numa tela só, o flexbox precisa encolher algum filho
+           pra "sobrar" espaço. .pf-id-card é o único com aspect-ratio (uma
+           altura "elástica", que o flexbox trata como negociável, ao
+           contrário de altura vinda só de conteúdo normal) então ele
+           sozinho absorvia toda a compressão, sendo espremido até bater no
+           min-height — sobrando pouco espaço interno e o grupo de 4 cards
+           colando por cima. flex-shrink:0 tira este card da negociação:
+           ele sempre usa sua altura real (aspect-ratio/max-height/
+           min-height próprios), e se ainda assim não couber numa tela,
+           quem resolve é o scroll da própria página (<body>,
+           overflow:auto), do jeito que já era o comportamento pretendido. */
         .pf-id-card {
             width: 100%;
             display: flex;
             flex-direction: column;
+            flex-shrink: 0;
             padding: 20px;
             background: transparent;
         }
