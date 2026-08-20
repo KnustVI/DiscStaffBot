@@ -916,18 +916,28 @@
        horizontal" — "na horizontal" aqui é o EIXO da centralização,
        não a direção: centralizado na linha horizontal do meio da
        tela = centralizado verticalmente, mantendo a âncora à
-       esquerda). Antes esticava do topo até o rodapé (top/bottom:16px)
-       — agora `top:50%` + a MESMA transform que já fazia o slide
-       horizontal ganha um translateY(-50%) junto (truque padrão de
-       centralização vertical), então um card mais compacto (altura
-       intrínseca do conteúdo, com teto de max-height pro caso raro de
-       conteúdo maior que a tela) fica no centro vertical em vez de
-       esticado. */
+       esquerda). Antes esticava do topo até o rodapé (top/bottom:16px).
+       BUG REAL corrigido (pedido do dono, 2026-08-19: "Barra de
+       navegação do mobile ainda esta quebrada... Diminui a largura da
+       tela, e ao abrir o menu ele fica cortado ao meio na parte de cima
+       da tela") — a 1ª tentativa de centralizar (`top:50%` +
+       `transform: translateY(-50%)`) empurrava o topo do card (botão
+       fechar, foto de perfil) pra FORA da tela por cima em janelas
+       estreitas-mas-não-muito-altas (desktop redimensionado à mão, não
+       só celular de verdade) — o cálculo de "-50% da própria altura"
+       fica frágil combinado com max-height+flex+overflow-y:auto. Troca
+       pra um truque mais simples e sem essa fragilidade: `top`/`bottom`
+       fixos em 16px (mesma folga de antes) + `margin: auto 0` — o
+       navegador centraliza sozinho o espaço sobrando entre os dois,
+       sem depender de medir a própria altura do elemento. `transform`
+       agora só cuida do eixo X (slide fechado/aberto), nunca do Y. */
     .tp-mobile-drawer {
         box-sizing: border-box;
         position: fixed;
-        top: 50%;
+        top: 16px;
+        bottom: 16px;
         left: 16px;
+        margin: auto 0;
         max-height: calc(100vh - 32px);
         width: min(320px, calc(100vw - 32px));
         z-index: 100;
@@ -942,7 +952,7 @@
         border-radius: 20px;
         box-shadow: -15px 30px 50px rgba(0, 0, 0, 0.8), inset 0.5px 0.5px 0px rgba(248, 220, 192, 0.12);
         font-family: 'Poppins', sans-serif;
-        transform: translate(calc(-100% - 32px), -50%);
+        transform: translateX(calc(-100% - 32px));
         transition: transform 0.25s ease;
     }
     @media (prefers-reduced-motion: reduce) {
@@ -954,11 +964,11 @@
        display:none, sobrescrito só aqui dentro do media query), então
        não corre risco de aparecer sozinho numa tela grande por engano
        (ex: usuário abre no celular, gira/redimensiona a janela sem
-       fechar o drawer primeiro). translateY(-50%) SEMPRE junto do
-       translateX (aberto ou fechado) — mantém a centralização vertical
-       o tempo todo, só o eixo X anima entre fora/dentro da tela. */
+       fechar o drawer primeiro). Centralização vertical (top/bottom/
+       margin acima) é sempre automática, não precisa de transform —
+       só o eixo X anima entre fora/dentro da tela. */
     @media (max-width: 767px) {
-        .tp-mobile-drawer.is-open { transform: translate(0, -50%); }
+        .tp-mobile-drawer.is-open { transform: translateX(0); }
         .tp-mobile-drawer-backdrop.is-open { display: block; }
     }
     .tp-mobile-drawer-close {

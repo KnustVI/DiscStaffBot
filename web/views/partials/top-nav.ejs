@@ -422,12 +422,18 @@
        sidebar, custo conhecido da divisão em 2 arquivos). */
     /* Fica na lateral esquerda, porém centralizado verticalmente
        (pedido do dono, 2026-08-19) — mesma mudança de
-       partials/sidebar-v2.ejs, ver comentário completo lá. */
+       partials/sidebar-v2.ejs, ver comentário completo lá. BUG REAL
+       corrigido (pedido do dono, 2026-08-19: "cortado ao meio na parte
+       de cima da tela") — trocado de `top:50%`+`translateY(-50%)` pra
+       `top`/`bottom` fixos + `margin:auto 0`, mesmo motivo/fix de
+       sidebar-v2.ejs. */
     .tp-mobile-drawer {
         box-sizing: border-box;
         position: fixed;
-        top: 50%;
+        top: 16px;
+        bottom: 16px;
         left: 16px;
+        margin: auto 0;
         max-height: calc(100vh - 32px);
         width: min(320px, calc(100vw - 32px));
         z-index: 100;
@@ -442,14 +448,14 @@
         border-radius: 20px;
         box-shadow: -15px 30px 50px rgba(0, 0, 0, 0.8), inset 0.5px 0.5px 0px rgba(248, 220, 192, 0.12);
         font-family: 'Poppins', sans-serif;
-        transform: translate(calc(-100% - 32px), -50%);
+        transform: translateX(calc(-100% - 32px));
         transition: transform 0.25s ease;
     }
     @media (prefers-reduced-motion: reduce) {
         .tp-mobile-drawer { transition: none; }
     }
     @media (max-width: 767px) {
-        .tp-mobile-drawer.is-open { transform: translate(0, -50%); }
+        .tp-mobile-drawer.is-open { transform: translateX(0); }
         .tp-mobile-drawer-backdrop.is-open { display: block; }
     }
     .tp-mobile-drawer-close {

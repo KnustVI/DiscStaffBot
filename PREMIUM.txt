@@ -12727,3 +12727,41 @@ frente, nao so este relatorio):
   (5 checagens, banco SQLite temporário nunca `database.sqlite` real)
   confirmando ausência de exclusividade entre servidores E o novo texto
   aparecendo no overlay de progresso — todas passaram.
+
+
+249) Corrige menu de navegação mobile "cortado ao meio" no topo (troca top:50%+translateY(-50%) por top/bottom+margin:auto)
+------------------------------------------------------------------------------------------------------
+- Pedido do dono, 2026-08-19 (continuação da seção 247, mesmo dia):
+  "Barra de navegação do mobile ainda esta quebrada na pagina, quando
+  acessamos no desktop, no celular parece perfeito!" — esclarecido por
+  perguntas de escopo: "Diminui a largura da tela [desktop, de
+  propósito], e ao abrir o menu ele fica cortado ao meio na parte de
+  cima da tela." Confirmado pelo print: o topo do card (botão fechar,
+  foto/nome de perfil) não aparecia — a primeira coisa visível já era
+  o cabeçalho "SUA CONTA".
+- CAUSA: a técnica de centralização vertical adicionada na seção 242
+  (`top:50%` no elemento + `transform: translateY(-50%)`, cálculo
+  baseado na PRÓPRIA altura do elemento) fica frágil quando combinada
+  com `max-height` + `display:flex` + `overflow-y:auto` no mesmo
+  elemento — numa janela de desktop redimensionada estreita-mas-não-tão-
+  alta quanto um celular real, o topo do card acabava calculado ACIMA
+  do topo da tela (y negativo), escondendo a parte de cima do conteúdo.
+- FIX: trocado por uma técnica mais simples e sem essa fragilidade —
+  `top:16px; bottom:16px; margin:auto 0;` (mesma folga de 16px de
+  antes) em vez de `top:50%`. Com os dois lados fixos e margem
+  automática, o PRÓPRIO NAVEGADOR centraliza o espaço sobrando, sem
+  precisar medir/calcular a altura do elemento por conta própria —
+  elimina a classe inteira desse tipo de erro, não só o caso específico
+  reportado. `transform` (usado pro slide horizontal aberto/fechado)
+  ficou só com o eixo X (`translateX`), já que a centralização vertical
+  agora não depende mais dele.
+- Aplicado nos 2 arquivos que duplicam esse CSS (custo já conhecido da
+  divisão): `web/views/partials/sidebar-v2.ejs` (páginas com sidebar)
+  e `web/views/partials/top-nav.ejs` (hero/portal/termos + páginas com
+  sidebar, que incluem os dois).
+- Verificado: `ejs.compile()` nos 2 arquivos; contagem de chaves dos
+  blocos `<style>` embutidos (profundidade final 0, nenhuma quebrada
+  na edição). Sem confirmação visual real — o dono pode conferir
+  redimensionando a janela do desktop estreita de novo (o cenário
+  exato que reproduziu o bug) e abrindo o menu — botão fechar e foto
+  de perfil devem aparecer no topo do card agora.
