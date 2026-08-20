@@ -12688,3 +12688,42 @@ frente, nao so este relatorio):
   conferir no navegador de dentro do próprio app do Discord mobile
   (o caso mais provável de reproduzir o bug original) se o menu
   hamburguer volta a abrir/fechar normalmente.
+
+
+248) Renomeia requisito "Registrou-se em um servidor específico" pra "Já jogou em um servidor específico" (rótulo só, sem mudança de comportamento)
+------------------------------------------------------------------------------------------------------
+- Pergunta/pedido do dono, 2026-08-19: "Um dos requisitos que temos para
+  as missões, emblemas e titulos, é o registrar em um servidor
+  especifico, mas se uma pessoa se registrou em um servidor ela não
+  consegue se registrar em outro? Vamos mudar esse 'registro' para já
+  logou no servido, o que seria que alguma vez ela já entrou lá para
+  jogar."
+- INVESTIGADO: o requisito `registered_on_server`
+  (`src/systems/pot/achievementSystem.js`) NUNCA teve exclusividade
+  entre servidores — o check (`case 'registered_on_server'`) sempre foi
+  `SELECT 1 FROM pot_players WHERE guild_id = ? AND alderon_id = ?`, e
+  `pot_players` tem `UNIQUE(guild_id, alderon_id)` (não `UNIQUE(alderon_id)`
+  sozinho) — um jogador pode ter uma linha em N servidores diferentes ao
+  mesmo tempo, cada uma independente. Confirmado com um teste isolado
+  (banco SQLite temporário, técnica de `require.cache` já usada nesta
+  sessão): mesmo jogador cumprindo o requisito em 2 servidores diferentes
+  SIMULTANEAMENTE, e corretamente NÃO cumprindo num 3º onde nunca jogou.
+  A confusão era só de RÓTULO — "Registrou-se em um servidor específico"
+  soava como o MESMO tipo de registro exclusivo do `/registrar` global
+  (esse sim é 1 vínculo só por jogador, requisito `registered_between`,
+  não mexido aqui), quando na real esse tipo sempre checou só "apareceu
+  em algum webhook do jogo NESSE servidor" — exatamente o "já logou pra
+  jogar" que o dono queria.
+- MUDANÇA: `label`/`hint` de `REQUIREMENT_TYPES.registered_on_server` e o
+  texto de `describeRequirement` pra esse tipo trocaram de "Registrou-se
+  em..."/"Registrado em X" pra "Já jogou em um servidor específico"/"Já
+  jogou em X", com o hint agora deixando explícito que NÃO há
+  exclusividade entre servidores. A CHAVE do tipo no código
+  (`registered_on_server`) e o CHECK em si ficaram exatamente iguais —
+  de propósito, pra não quebrar nenhuma missão/emblema/título já salvo
+  no banco com esse requisito (o JSON em
+  `profile_image_pool.requirement` guarda essa chave literal).
+- Verificado: `node --check` em `achievementSystem.js`; script isolado
+  (5 checagens, banco SQLite temporário nunca `database.sqlite` real)
+  confirmando ausência de exclusividade entre servidores E o novo texto
+  aparecendo no overlay de progresso — todas passaram.

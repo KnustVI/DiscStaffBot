@@ -83,7 +83,7 @@ const REQUIREMENT_TYPES = {
     },
     // 2 tipos novos (pedido do dono, 2026-08-19, junto com o criador de
     // Missões — "Adicione mais 2 requisitos em tudo dessa área"): registro
-    // por período e registro num servidor específico. needsDateRange é uma
+    // por período e "já jogou nesse servidor". needsDateRange é uma
     // flag NOVA (só existia needsSpecies/needsServer/noValue até aqui) — ver
     // requirement-form.ejs pros 2 campos de data que ela liga.
     registered_between: {
@@ -93,10 +93,28 @@ const REQUIREMENT_TYPES = {
         noValue: true,
         needsDateRange: true,
     },
+    // RENOMEADO (pedido do dono, 2026-08-19, mesmo dia da criação — "esse
+    // requisito de registro em servidor especifico... mas se uma pessoa se
+    // registrou em um servidor ela não consegue se registrar em outro?
+    // Vamos mudar esse 'registro' para já logou no servidor, o que seria
+    // que alguma vez ela já entrou lá para jogar"). O CHECK em si (case
+    // 'registered_on_server' abaixo) já sempre foi por servidor de verdade
+    // (SELECT ... WHERE guild_id = ? AND alderon_id = ? em pot_players,
+    // UNIQUE(guild_id, alderon_id) no schema — um jogador pode ter uma
+    // linha em N servidores diferentes ao mesmo tempo, sem exclusividade
+    // nenhuma entre eles) — o "registro" nunca travou entre servidores,
+    // só o RÓTULO/texto é que dava a entender (por engano) que era o
+    // mesmo tipo de "registro" exclusivo do /registrar global (esse sim
+    // é 1 vínculo só, ver registered_between acima). Só label/hint/
+    // describeRequirement mudaram aqui — a CHAVE do tipo
+    // ('registered_on_server') continua igual de propósito, pra não
+    // quebrar missões/emblemas/títulos já salvos com esse requisito no
+    // banco (profile_image_pool.requirement guarda o JSON com essa chave
+    // literal).
     registered_on_server: {
-        label: 'Registrou-se em um servidor específico',
+        label: 'Já jogou em um servidor específico',
         valueLabel: 'Servidor',
-        hint: 'Jogador precisa ter aparecido pelo menos uma vez NESSE servidor específico (visto em algum webhook do jogo) — diferente do registro global (/registrar), que não é por servidor.',
+        hint: 'Jogador precisa ter entrado pelo menos uma vez NESSE servidor específico pra jogar (visto em algum webhook do jogo) — não tem exclusividade entre servidores, o mesmo jogador pode cumprir esse requisito em vários servidores diferentes ao mesmo tempo. Diferente do registro global (/registrar), que não é por servidor.',
         noValue: true,
         needsServer: true,
     },
@@ -305,7 +323,7 @@ function describeRequirement(requirements) {
                 case 'registered_on_server': {
                     const PoTConfigSystem = require('./potConfigSystem');
                     const name = PoTConfigSystem.getServerConfig(requirement.guildId)?.server_name || 'servidor removido';
-                    return `Registrado em ${name}`;
+                    return `Já jogou em ${name}`;
                 }
                 default: return null;
             }
