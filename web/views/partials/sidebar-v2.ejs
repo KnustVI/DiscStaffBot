@@ -721,10 +721,14 @@
         gap: 6px;
         min-width: 0;
     }
+    /* 3ª rodada, só o nome (pedido do dono, 2026-08-20: "diminua um pouco
+       o tamanho proporcionalmente da fonte do texto de nome") — 19px→16px,
+       line-height mantendo a mesma proporção; avatar/role/gap da 2ª rodada
+       acima não mudaram desta vez. */
     .tp-sidebar-nickname {
         font-family: 'Tilt Warp', sans-serif;
-        font-size: 19px;
-        line-height: 23px;
+        font-size: 16px;
+        line-height: 19px;
         text-transform: uppercase;
         color: #F8DCC0;
         white-space: nowrap;

@@ -903,6 +903,21 @@
             if (new URLSearchParams(location.search).get('tab') !== 'personalizacao') return;
             var panel = document.querySelector('.pf-tab-panel[data-pf-panel="personalizacao"]');
             if (panel) panel.classList.remove('is-hidden');
+            // A sidebar marca "active" (fundo vermelho) via activeKey no
+            // servidor (sidebar-v2.ejs) — sempre 'perfil' nesta página,
+            // então o item "Personalizar" nunca ganhava a classe mesmo
+            // com a aba dele aberta (pedido do dono, 2026-08-20: "botão de
+            // personalização não está ficando vermelho quando aberto").
+            // Corrigido aqui no cliente em vez de no servidor pra não
+            // precisar passar ?tab por toda a cadeia de locals do
+            // dashboard.js — troca a classe active do item "Perfil" pro
+            // "Personalizar" nos dois nav (sidebar desktop + menu mobile).
+            document.querySelectorAll('a[href="/perfil"].tp-sidebar-btn, a[href="/perfil"].tp-mobile-drawer-item').forEach(function (el) {
+                el.classList.remove('active');
+            });
+            document.querySelectorAll('a[href="/perfil?tab=personalizacao"]').forEach(function (el) {
+                el.classList.add('active');
+            });
         })();
     </script>
 </body>
