@@ -42,8 +42,11 @@
            style.css compartilhado). */
         /* Variáveis globais do card de identidade (.pf-id-*) — cor/tipo
            padrão da marca, usadas em cima das cores por tier
-           (--pf-tier-*/--pf-rim-*, essas sim aplicadas via style inline
-           por jogador, ver pfIdCardGradients no JS mais abaixo). */
+           (--pf-tier-* / --pf-rim-*, essas sim aplicadas via style inline
+           por jogador, ver pfIdCardGradients no JS mais abaixo). ATENÇÃO:
+           espaço antes da barra é proposital — asterisco colado numa
+           barra fecha o comentário sem querer e derruba a regra CSS
+           inteira (já aconteceu aqui 3x, ver histórico). */
         :root {
             --pf-text: #F8DCC0;
             --pf-accent: #DCA15E;
@@ -83,8 +86,8 @@
            dele. O grupo avatar+nome continua centralizado ENTRE SI (ver
            .flex.items-center por cima dos dois no HTML), só a linha
            externa (esse grupo vs. o selo de Hunt) é que virou flex-start. */
-        /* .perfil-hero/.perfil-tier-pill/.perfil-hunt-pill/.perfil-level-*/
-           .perfil-guild-*/.perfil-staff-history-* removidas daqui (pedido
+        /* .perfil-hero, .perfil-tier-pill, .perfil-hunt-pill, .perfil-level-*,
+           .perfil-guild-*, .perfil-staff-history-* removidas daqui (pedido
            do dono, 2026-08-20: cards que usavam essas classes foram
            removidos da página, ver comentário no HTML mais abaixo). */
         .perfil-stars { font-size: 20px; letter-spacing: 3px; color: #3E3D38; }
@@ -123,7 +126,7 @@
            contorno/sombra de "card" — pedido do dono: os componentes
            (foto/pílula/linhas/barra de nível/caçadas) ficam "flutuando na
            página", cada um com a própria sombra, sem um container visível
-           por trás. Cores por tier (--pf-tier-*/--pf-rim-*) aplicadas via
+           por trás. Cores por tier (--pf-tier-* / --pf-rim-*) aplicadas via
            style inline no HTML a partir de pfIdCardGradients (ver JS
            acima) — mesmo padrão já usado antes (--pf-id-grad-a/b/text). */
         .pf-id-card {
