@@ -488,17 +488,16 @@ async function renderXpHuntBar({ tier, levelProgress, huntBalance }) {
     ctx.stroke(levelPath);
 
     const levelIcon = await loadImage(path.join(ICONS_DIR, 'DinoFootprint.webp'));
-    // Ícone/fontes aumentados (pedido do dono, 2026-08-21: "aumente um
-    // pouco os icones e aumente o tamanho da fonte de todos os textos
-    // nesta barra") — 40→46 e cada fonte um degrau acima do valor
-    // original (comentado ao lado de cada uma).
-    const iconSize = 46 * SCALE;
+    // Ícone/fontes aumentados de novo (pedido do dono, 2026-08-21: "7/10
+    // mal da para ver sobre o xp" — a fração de XP era a menor fonte da
+    // barra, por isso o salto maior nela especificamente).
+    const iconSize = 52 * SCALE; // era 46
     const innerPad = 20 * SCALE;
     const iconX = LEVEL_BOX_X * SCALE + innerPad;
     const iconY = BOX_Y * SCALE + (BOX_H * SCALE - iconSize) / 2;
     drawIconShadow(ctx, () => ctx.drawImage(levelIcon, iconX, iconY, iconSize, iconSize));
 
-    ctx.font = `${24 * SCALE}px "Tilt Warp"`; // era 20
+    ctx.font = `${28 * SCALE}px "Tilt Warp"`; // era 24
     ctx.fillStyle = palette.text;
     ctx.textBaseline = 'middle';
     const levelLabel = `NÍVEL ${levelProgress.level}`;
@@ -521,17 +520,17 @@ async function renderXpHuntBar({ tier, levelProgress, huntBalance }) {
     const trackWrapCenterX = trackWrapX + trackWrapFullW / 2;
     const trackWrapStartX = trackWrapCenterX - trackWrapW / 2;
 
-    const trackH = 10 * SCALE;
-    const blockH = 20 * SCALE + 8 * SCALE + trackH; // texto + gap + barra
+    const trackH = 12 * SCALE; // era 10
+    const blockH = 26 * SCALE + 10 * SCALE + trackH; // texto + gap + barra
     const blockY = BOX_Y * SCALE + (BOX_H * SCALE - blockH) / 2;
 
-    ctx.font = `${16 * SCALE}px "Tilt Warp"`; // era 13
+    ctx.font = `${22 * SCALE}px "Tilt Warp"`; // era 16 — a fração de XP era a menor fonte da barra
     ctx.fillStyle = palette.text;
     ctx.textAlign = 'center';
-    ctx.fillText(`${levelProgress.xpIntoLevel}/${levelProgress.xpNeededForNextLevel}`, trackWrapCenterX, blockY + 14 * SCALE);
+    ctx.fillText(`${levelProgress.xpIntoLevel}/${levelProgress.xpNeededForNextLevel}`, trackWrapCenterX, blockY + 18 * SCALE);
     ctx.textAlign = 'left';
 
-    const trackY = blockY + 20 * SCALE + 8 * SCALE;
+    const trackY = blockY + 26 * SCALE + 10 * SCALE;
     const trackPath = new Path2D();
     trackPath.roundRect(trackWrapStartX, trackY, trackWrapW, trackH, 10 * SCALE);
     ctx.fillStyle = '#3E3D38';
@@ -565,7 +564,7 @@ async function renderXpHuntBar({ tier, levelProgress, huntBalance }) {
     ctx.stroke(huntPath);
 
     const huntIcon = await loadImage(path.join(ICONS_DIR, 'hunt.webp'));
-    ctx.font = `${24 * SCALE}px "Poppins SemiBold"`; // era 20
+    ctx.font = `${28 * SCALE}px "Poppins SemiBold"`; // era 24
     const huntText = String(huntBalance);
     const huntTextWidth = ctx.measureText(huntText).width;
     const huntGroupW = iconSize + 12 * SCALE + huntTextWidth;
