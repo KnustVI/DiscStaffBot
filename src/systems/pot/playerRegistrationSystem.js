@@ -672,21 +672,18 @@ class PlayerRegistrationSystem {
         // sistema) em vez de derrubar o resto do perfil em silêncio.
         if (player) {
             try {
-                await this._sendLoadingStage(interaction, `${EMOJIS.bone || '🦴'} Contando seus Ossos e Caçadas...`);
+                await this._sendLoadingStage(interaction, `${EMOJIS.bone || '🦴'} Contando seus Ossos...`);
                 const bonesBalance = PlayerRegistry.getBonesBalance(targetUser.id, guild.id);
-                const huntBalance = PlayerRegistry.getHuntBalance(targetUser.id);
-                const levelProgress = PlayerRegistry.getLevelProgress(targetUser.id);
                 addSeparatorIfNeeded();
+                // Caçadas e XP saíram deste texto (pedido do dono, 2026-08-21:
+                // "coloque somente Ossos: 101 / Ossos referentes a este
+                // servidor") — já aparecem na barra de XP/Caçadas renderizada
+                // logo abaixo (renderXpHuntBar), então repetir os dois aqui em
+                // texto virou redundante. huntBalance/levelProgress continuam
+                // lidos separadamente mais abaixo (bloco da barra), não aqui.
                 builder.text([
-                    [
-                        `${EMOJIS.bone || '🦴'} **Ossos:** ${bonesBalance}`,
-                        `${EMOJIS.Atack || '💎'} **Caçadas:** ${huntBalance}`,
-                        // Nível real ao lado do XP bruto (pedido do dono,
-                        // 2026-08-11 — ver comentário completo em levelLabel do
-                        // card de perfil, acima nesta mesma função).
-                        `${EMOJIS.DinoFootprint || '🦶'} **XP:** ${levelProgress.xpTotal} (Nível ${levelProgress.level})`,
-                    ].join(' | '),
-                    `-# ${EMOJIS.messagesquare || 'ℹ️'} Ossos referentes a este servidor — Caçadas e XP continuam globais entre todos os servidores.`,
+                    `${EMOJIS.bone || '🦴'} **Ossos:** ${bonesBalance}`,
+                    `-# ${EMOJIS.messagesquare || 'ℹ️'} Ossos referentes a este servidor.`,
                 ].join('\n'));
             } catch (error) {
                 const ErrorLogger = require('../core/errorLogger');
