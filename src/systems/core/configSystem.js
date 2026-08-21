@@ -2579,21 +2579,23 @@ const ConfigSystem = {
     /**
      * Botão "Inventário" do /perfil — pedido do dono, 2026-08-11: "botão
      * de inventário do jogador ao perfil, que manda uma mensagem
-     * ephemeral do inventario dele no discord". Lista os itens da Loja de
-     * Personalização já comprados (image_inventory, ver imageShopSystem.js
-     * — avatar/plano de fundo/emblema/banner/título comprados com
-     * Caçadas), agrupados por tipo, texto puro sem botão (não são
-     * "usáveis", só equipáveis via /perfil-edit).
+     * ephemeral do inventario dele no discord".
+     *
+     * Loja de Personalização REMOVIDA daqui (pedido do dono, 2026-08-21:
+     * "no discord não mostraremos itens de personalização no
+     * inventário") — esses itens (foto de perfil/plano de fundo
+     * comprados) só são realmente equipáveis pela aba Personalizar do
+     * site (/perfil?tab=personalizacao, ver web/views/perfil.ejs), então
+     * listá-los aqui também (texto puro, sem nenhuma ação possível) só
+     * duplicava informação sem servir pra nada de verdade.
      *
      * Loja de Jogo (pedido do dono, 2026-08-19: "adicione os itens de
-     * loja de jogo la, com botões de uso e nada mais") — ADICIONADO
-     * abaixo da seção acima, agrupado por servidor (o mesmo item pode
-     * existir em servidores diferentes). "Botões de uso e nada mais":
-     * cada item mostra só o nome + um botão "Usar", sem preço/descrição/
-     * outros detalhes — diferente da Loja de Personalização acima, que
-     * nunca teve isso. `GameShopSystem.getInventory` já filtra `used_at
-     * IS NULL` (só o que ainda não foi usado, exatamente o que faz
-     * sentido oferecer com botão). Botões só aparecem pra quem vê o
+     * loja de jogo la, com botões de uso e nada mais") — cada item
+     * agrupado por servidor (o mesmo item pode existir em servidores
+     * diferentes), mostra só o nome + um botão "Usar", sem preço/
+     * descrição/outros detalhes. `GameShopSystem.getInventory` já filtra
+     * `used_at IS NULL` (só o que ainda não foi usado, exatamente o que
+     * faz sentido oferecer com botão). Botões só aparecem pra quem vê o
      * PRÓPRIO perfil (isOwnProfile) — usar o item de outra pessoa não
      * faz sentido, mesmo critério já usado no redeemSelect de Emblema &
      * Título; pra quem vê perfil alheio, mostra só como texto informativo.
@@ -2609,35 +2611,15 @@ const ConfigSystem = {
      *   item recém-usado no lugar).
      */
     async handlePerfilInventory(interaction, targetUserId, { refresh = false } = {}) {
-        const ImageShopSystem = require('../pot/imageShopSystem');
-        const ProfileImagePool = require('../pot/profileImagePool');
         const GameShopSystem = require('../pot/gameShopSystem');
 
         const isOwnProfile = targetUserId === interaction.user.id;
-        const items = targetUserId ? ImageShopSystem.getInventory(targetUserId) : [];
         const gameItems = targetUserId ? GameShopSystem.getInventory(targetUserId) : [];
 
-        const TYPE_LABELS = { personalizacao: 'Foto de Perfil / Plano de Fundo', badge: 'Emblema', banner: 'Banner', titulo: 'Título' };
         const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         cb.text(`# ${EMOJIS.gift || '🎒'} INVENTÁRIO`);
 
-        cb.text('**Loja de Personalização**');
-        if (items.length === 0) {
-            cb.text('Nenhum item comprado na Loja de Personalização ainda.');
-        } else {
-            const byType = new Map();
-            for (const item of items) {
-                const poolItem = ProfileImagePool.getByTypeAndId(item.pool_type, item.pool_id);
-                if (!poolItem) continue; // item removido do pool depois da compra — não mostra órfão
-                if (!byType.has(item.pool_type)) byType.set(item.pool_type, []);
-                byType.get(item.pool_type).push(poolItem.label);
-            }
-            for (const [type, labels] of byType) {
-                cb.text(`**${TYPE_LABELS[type] || type}:** ${labels.join(', ')}`);
-            }
-        }
-
-        cb.text('\n**Loja de Jogo**');
+        cb.text('**Loja de Jogo**');
         const gameRows = [];
         const MAX_GAME_BUTTONS = 20;
         if (gameItems.length === 0) {
