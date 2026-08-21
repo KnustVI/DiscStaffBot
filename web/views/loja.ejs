@@ -453,6 +453,85 @@
         }
         .loja-perso-buy-form .btn-chip img { width: 12px; height: 12px; border-radius: 3px; object-fit: cover; }
 
+        /* Card de EMBLEMA (Missões e Recompensas) — componente Figma
+           "Emblema card" trazido pixel-a-pixel (pedido do dono,
+           2026-08-21: "Esse vai ser o card dos emblemas"), mesmo
+           tratamento de tamanho MÁXIMO/fluido já estabelecido nesta
+           sessão (254px vira max-width, não fixo). Escopo só em Emblema
+           via .loja-item-badge (classe extra só quando group.key===
+           'badge', junto com .loja-item de sempre) — Títulos e Missões,
+           que reaproveitam o MESMO loop/HTML, continuam com o visual
+           de antes, sem essa classe.
+
+           Diferente de todo outro card desta página até agora: o Figma
+           NÃO define background/border/box-shadow pro card em si — só
+           border-radius. O visual "de card" inteiro vem da MOLDURA do
+           emblema (.loja-item-thumb aqui embaixo, com o filter de
+           sombra dramática), não de um fundo preenchido atrás de tudo
+           — por isso a base .loja-item (fundo #131314 + borda) é
+           explicitamente zerada aqui, não só complementada. */
+        .loja-grid .loja-item.loja-item-badge {
+            width: 100%;
+            max-width: 254px;
+            box-sizing: border-box;
+            padding: 20px 40px;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            border-radius: 20px;
+        }
+        /* background-origin:content-box + padding faz a arte do emblema
+           (fundo via background-image, mesma convenção de .loja-item-thumb
+           em todo o resto do site) ficar ENCOLHIDA/centralizada dentro da
+           moldura em vez de esticada de ponta a ponta — Figma tinha
+           padding:30px num frame com filho de imagem de verdade; aqui,
+           sem filho, o mesmo respiro só existe se a origem do fundo
+           respeitar o padding. contain (não cover) porque isso é uma
+           insígnia/ícone, não uma foto — não faz sentido cortar as bordas
+           dela como corta numa foto de paisagem. */
+        .loja-grid .loja-item.loja-item-badge .loja-item-thumb {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            padding: 30px;
+            box-sizing: border-box;
+            background-origin: content-box;
+            background-size: contain;
+            background-repeat: no-repeat;
+            border-radius: 20px;
+            filter: drop-shadow(0.5px -0.5px 0.5px #F8DCC0) drop-shadow(-25px 47px 68.1px rgba(0, 0, 0, 0.74));
+        }
+        .loja-grid .loja-item.loja-item-badge .loja-item-label {
+            font-family: 'Tilt Warp', cursive;
+            font-weight: 400;
+            font-size: 24px;
+            line-height: 30px;
+            color: #F8DCC0;
+            text-align: center;
+            text-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+        }
+        /* Botão "Ver progresso" — mesmo botão de sempre (.loja-progress-btn,
+           compartilhado com Título/Missão), só que dourado (#DCA15E) em
+           vez do cream/verde genérico, só dentro de card de Emblema —
+           mesmo padrão de escopo já usado pros botões Comprar da Loja de
+           Jogo/Personalização (cor muda por seção, tamanho/estrutura do
+           .btn-chip continua o mesmo). text-transform:uppercase pra bater
+           com o "PROGRESSO" do Figma sem precisar de uma 2ª string
+           traduzida só maiúscula (o texto/ícone atual, "Ver progresso" +
+           trending-up, foi mantido — o Figma mostra o slot de ícone
+           desligado por padrão, mas isso já tinha sido pedido antes por
+           conta própria, não é algo a remover agora). */
+        .loja-item-badge .loja-progress-btn {
+            background: radial-gradient(225.25% 94.36% at 0% 86.37%, #111111 0%, #1F1D20 57.07%, #29272A 91.53%);
+            border: 1px solid #DCA15E;
+            border-radius: 15px;
+            box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+            color: #DCA15E;
+            text-transform: uppercase;
+        }
+        .loja-item-badge .loja-progress-btn i { color: #DCA15E; }
+
         /* Card da LOJA DE PERSONALIZAÇÃO (compra e venda de imagens) —
            componente Figma do card "Property 1=Variant4" (card de
            compra) trazido pixel-a-pixel (pedido do dono, 2026-08-21:
@@ -1118,7 +1197,7 @@
                     <% } else { %>
                         <div class="loja-grid">
                             <% group.items.forEach(item => { %>
-                                <div class="loja-item">
+                                <div class="loja-item<%= group.key === 'badge' ? ' loja-item-badge' : '' %>">
                                     <div
                                         class="loja-item-thumb<%= item.url ? ' is-zoomable' : '' %>"
                                         style="<%= item.url ? `background-image:url('${item.url}')` : '' %>"
