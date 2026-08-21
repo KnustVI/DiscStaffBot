@@ -664,7 +664,15 @@ function clearSpeciesDiet(species) {
  * /dev/Loja — cada linha já vem com a dieta ATUAL calculada (override
  * configurado ou fallback hardcoded) e a categoria (se configurada), pra
  * a UI mostrar o estado real sem duplicar a lógica de isDinosaurCarnivore.
- * @returns {{species: string, diet: 'carnivore'|'herbivore', category: string|null, isOverride: boolean}[]}
+ *
+ * isConfirmed distingue espécie REALMENTE vista em jogo (pot_dinosaur_picks
+ * tem o nome exato que o próprio jogo manda) de espécie SÓ cadastrada na
+ * mão — pedido do dono, 2026-08-21: "se eu escrever o nome errado e não
+ * bater com o que o jogo traz nas logs não vai dar problema?" — resposta
+ * é sim (a configuração fica órfã, nunca aplicada, e some silenciosamente
+ * já que isDinosaurCarnivore não vai encontrar aquele nome), então a UI
+ * precisa deixar isso visível pra desconfiar de digitação errada.
+ * @returns {{species: string, diet: 'carnivore'|'herbivore', category: string|null, isOverride: boolean, isConfirmed: boolean}[]}
  */
 function getAllKnownSpeciesWithDiet() {
     try {
@@ -674,7 +682,11 @@ function getAllKnownSpeciesWithDiet() {
         `).all();
         const configured = db.prepare('SELECT species FROM pot_species_diet').all();
         const names = new Map();
-        picked.forEach((r) => names.set(r.species.toLowerCase(), r.species));
+        const confirmedLower = new Set();
+        picked.forEach((r) => {
+            names.set(r.species.toLowerCase(), r.species);
+            confirmedLower.add(r.species.toLowerCase());
+        });
         configured.forEach((r) => {
             if (names.has(r.species)) return;
             // Espécie SÓ existe em pot_species_diet (cadastrada na mão,
@@ -695,6 +707,7 @@ function getAllKnownSpeciesWithDiet() {
                     diet: override?.diet || (CARNIVORE_SPECIES.has(lower) ? 'carnivore' : 'herbivore'),
                     category: override?.category || null,
                     isOverride: !!override?.diet,
+                    isConfirmed: confirmedLower.has(lower),
                 };
             })
             .sort((a, b) => a.species.localeCompare(b.species));

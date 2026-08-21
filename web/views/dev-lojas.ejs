@@ -396,6 +396,24 @@
             padding: 3px 8px;
             border-radius: 10px;
         }
+        /* "Não confirmada" (pedido do dono, 2026-08-21: risco de digitar o
+           nome errado ao cadastrar espécie na mão) — cor de alerta
+           (mesmo terracota de erro/aviso já usado no resto do site) pra
+           destacar visualmente de .lojas-species-override-badge (dourado,
+           neutro/informativo) — essa aqui é um ALERTA de verdade, não só
+           um estado. */
+        .lojas-species-unconfirmed-badge {
+            flex: none;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: #FF6B5B;
+            background: rgba(255, 107, 91, 0.12);
+            padding: 3px 8px;
+            border-radius: 10px;
+            cursor: help;
+        }
         .lojas-species-restore-btn {
             flex: none;
             background: transparent;
@@ -523,8 +541,28 @@
                 salvar dieta (setSpeciesDiet), só com o nome vindo de um
                 <input> em vez de já existir na lista.
             %>
+            <%#
+                Autocomplete (pedido do dono, 2026-08-21: "Não da para
+                colocar o campo para que eu escreva e ele busque o nome
+                mais proximo para já selecionar o que ja temos em banco?
+                ... isso tem que bater exatamente com o nome do
+                dinossauro em jogo") — <datalist> nativo, sem JS
+                nenhum: sugestões vêm só das espécies CONFIRMADAS
+                (isConfirmed — já vistas de verdade em pot_dinosaur_picks
+                via algum servidor), nunca das "Não confirmadas" (senão
+                estaria sugerindo de volta um nome que já pode estar
+                errado). O dono ainda PODE digitar um nome fora da lista
+                (não é um <select> travado — cobre espécie nova que
+                nenhum servidor viu ainda), só ganha sugestão quando o
+                nome já existe confirmado.
+            %>
+            <datalist id="lojas-confirmed-species">
+                <% speciesDiet.filter((sp) => sp.isConfirmed).forEach((sp) => { %>
+                    <option value="<%= sp.species %>"></option>
+                <% }); %>
+            </datalist>
             <form action="/dev/Loja/especie/nova" method="POST" class="lojas-species-form" style="flex-wrap: wrap;">
-                <input type="text" name="species" placeholder="Nome da espécie (ex: Tyrannosaurus)" required style="flex: 1 1 220px; min-width: 0; background: #1F1D20; border: 1px solid rgba(217, 163, 98, 0.3); border-radius: 6px; padding: 4px 8px; color: #F8DCC0; font-family: 'Poppins', sans-serif; font-size: 0.75rem;">
+                <input type="text" name="species" list="lojas-confirmed-species" placeholder="Nome da espécie (ex: Tyrannosaurus)" required style="flex: 1 1 220px; min-width: 0; background: #1F1D20; border: 1px solid rgba(217, 163, 98, 0.3); border-radius: 6px; padding: 4px 8px; color: #F8DCC0; font-family: 'Poppins', sans-serif; font-size: 0.75rem;">
                 <select name="diet">
                     <option value="carnivore">Carnívoro</option>
                     <option value="herbivore" selected>Herbívoro</option>
@@ -537,6 +575,20 @@
                 </select>
                 <button type="submit" class="pool-price-submit" style="width: auto; padding-left: 16px; padding-right: 16px;">Adicionar espécie</button>
             </form>
+            <%#
+                Aviso sobre digitação errada (pedido do dono, 2026-08-21:
+                "se eu escrever o nome errado e não bater com o oque o jogo
+                traz nas logs não vai dar problema?") — resposta é sim, a
+                configuração fica órfã e nunca é aplicada, sem erro nenhum
+                (isDinosaurCarnivore não encontra o nome errado e cai no
+                fallback como se nada tivesse sido configurado). Sem lista
+                mestra de espécies pra validar contra (o próprio catálogo
+                do jogo não é hardcoded em lugar nenhum deste bot), o
+                melhor que dá pra fazer é deixar claro isso aqui + marcar
+                visivelmente quem ainda não foi confirmado em jogo (ver
+                badge "Não confirmada" abaixo).
+            %>
+            <p class="text-[11px] opacity-50">⚠️ O nome precisa bater EXATAMENTE com o que o próprio jogo manda (maiúscula/minúscula não importa, mas o resto sim) — se estiver em dúvida, confira a lista de espécies já jogadas no painel de admin da Loja de Jogo de algum servidor. Nome errado não dá erro nenhum aqui — só fica sem efeito, silenciosamente.</p>
             <% if (speciesDiet.length === 0) { %>
                 <p class="text-sm opacity-40">Nenhuma espécie cadastrada ainda — adicione uma acima, ou espere algum jogador spawnar em algum servidor.</p>
             <% } else { %>
@@ -544,6 +596,9 @@
                     <% speciesDiet.forEach(sp => { %>
                         <div class="lojas-species-row">
                             <span class="lojas-species-name"><%= sp.species %></span>
+                            <% if (!sp.isConfirmed) { %>
+                                <span class="lojas-species-unconfirmed-badge" title="Ainda não foi vista sendo jogada em nenhum servidor — se o nome tiver algum erro de digitação, essa configuração nunca vai ser aplicada de verdade.">Não confirmada</span>
+                            <% } %>
                             <% if (sp.isOverride) { %>
                                 <span class="lojas-species-override-badge">Configurado</span>
                                 <form action="/dev/Loja/especie/dieta/<%= encodeURIComponent(sp.species) %>/restaurar" method="POST">
