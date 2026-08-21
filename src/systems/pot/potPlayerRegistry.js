@@ -340,6 +340,18 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
         if (!sessionSecondsToAdd && OFFLINE_EVENTS.has(eventType) && existing.session_started_at) {
             sessionSecondsToAdd = Math.floor((now - existing.session_started_at) / 1000);
         }
+        // Se creditOngoingSessions() já fez checkpoint(s) DENTRO desta
+        // mesma sessão (currency_credited_at posterior a session_started_at
+        // — guarda contra sobra de sessão anterior), a moeda só precisa do
+        // RESTANTE não creditado ainda (desde o último checkpoint até
+        // agora), não a sessão inteira de novo — sem isso, fechar a sessão
+        // creditaria o trecho já pago pelo checkpoint uma 2ª vez. Sem
+        // checkpoint (caso de sempre), currencySecondsToAdd = sessionSecondsToAdd,
+        // comportamento idêntico a antes desta mudança.
+        let currencySecondsToAdd = sessionSecondsToAdd;
+        if (sessionSecondsToAdd && existing.currency_credited_at && existing.session_started_at && existing.currency_credited_at >= existing.session_started_at) {
+            currencySecondsToAdd = Math.max(0, Math.floor((now - existing.currency_credited_at) / 1000));
+        }
         const newTotalPlaytime = sessionSecondsToAdd
             ? (existing.total_playtime || 0) + sessionSecondsToAdd
             : existing.total_playtime;
@@ -351,6 +363,14 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
         let newSessionStartedAt = existing.session_started_at;
         if (eventType === 'PlayerLogin') newSessionStartedAt = now;
         else if (OFFLINE_EVENTS.has(eventType)) newSessionStartedAt = null;
+
+        // currency_credited_at segue o MESMO ciclo de vida de
+        // session_started_at (zera em login novo e em fechamento de
+        // sessão) — nunca deve sobreviver entre sessões diferentes, ou um
+        // checkpoint velho de uma sessão anterior poderia suprimir crédito
+        // de uma sessão nova por engano.
+        let newCurrencyCreditedAt = existing.currency_credited_at;
+        if (eventType === 'PlayerLogin' || OFFLINE_EVENTS.has(eventType)) newCurrencyCreditedAt = null;
 
         const newIsOnline = isOnline === null ? existing.is_online : isOnline;
 
@@ -386,6 +406,7 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
                 total_playtime = ?,
                 is_online = ?,
                 session_started_at = ?,
+                currency_credited_at = ?,
                 linked_at = ?,
                 updated_at = ?,
                 current_map = ?
@@ -400,6 +421,7 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
             newTotalPlaytime,
             newIsOnline,
             newSessionStartedAt,
+            newCurrencyCreditedAt,
             newLinkedAt,
             Math.floor(now / 1000),
             newCurrentMap,
@@ -413,7 +435,10 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
         // de criar o vínculo (discord_id vindo do próprio jogo), a
         // sessão que fechou agora já entra creditando moeda, em vez de
         // precisar de um PRÓXIMO login/logout pra "descobrir" o vínculo.
-        if (sessionSecondsToAdd) _creditPlaytimeCurrency(guildId, alderonId, sessionSecondsToAdd);
+        // currencySecondsToAdd (não sessionSecondsToAdd) — ver comentário
+        // acima de onde é calculado, desconta o que creditOngoingSessions()
+        // já tiver pago em checkpoint(s) durante esta mesma sessão.
+        if (currencySecondsToAdd) _creditPlaytimeCurrency(guildId, alderonId, currencySecondsToAdd);
         return { created: false, alderonId };
     } catch (error) {
         console.error('❌ [PoT Registry] Erro ao cadastrar/atualizar jogador:', error);
@@ -804,13 +829,20 @@ function reconcileOnlineStatus(guildId, livePlayers) {
                 ? Math.max(0, Math.floor((now - player.session_started_at) / 1000))
                 : 0;
             const newTotalPlaytime = sessionSeconds ? (player.total_playtime || 0) + sessionSeconds : player.total_playtime;
+            // Mesma lógica de desconto de checkpoint de upsertPlayerFromEvent
+            // (ver comentário completo lá) — se creditOngoingSessions() já
+            // pagou parte desta sessão, credita só o restante aqui.
+            let currencySeconds = sessionSeconds;
+            if (sessionSeconds && player.currency_credited_at && player.session_started_at && player.currency_credited_at >= player.session_started_at) {
+                currencySeconds = Math.max(0, Math.floor((now - player.currency_credited_at) / 1000));
+            }
 
             db.prepare(`
-                UPDATE pot_players SET is_online = 0, session_started_at = NULL, total_playtime = ?, updated_at = ?
+                UPDATE pot_players SET is_online = 0, session_started_at = NULL, currency_credited_at = NULL, total_playtime = ?, updated_at = ?
                 WHERE guild_id = ? AND alderon_id = ?
             `).run(newTotalPlaytime, Math.floor(now / 1000), guildId, player.alderon_id);
 
-            if (sessionSeconds) _creditPlaytimeCurrency(guildId, player.alderon_id, sessionSeconds);
+            if (currencySeconds) _creditPlaytimeCurrency(guildId, player.alderon_id, currencySeconds);
             result.correctedOffline++;
         }
 
@@ -823,7 +855,7 @@ function reconcileOnlineStatus(guildId, livePlayers) {
             const sessionStartedAt = durationSeconds !== null ? now - (durationSeconds * 1000) : now;
 
             db.prepare(`
-                UPDATE pot_players SET is_online = 1, session_started_at = ?, updated_at = ? WHERE guild_id = ? AND alderon_id = ?
+                UPDATE pot_players SET is_online = 1, session_started_at = ?, currency_credited_at = NULL, updated_at = ? WHERE guild_id = ? AND alderon_id = ?
             `).run(sessionStartedAt, Math.floor(now / 1000), guildId, row.alderon_id);
             result.correctedOnline++;
         }
@@ -1523,6 +1555,67 @@ function _creditGuildBones(userId, guildId, sessionSeconds) {
 }
 
 /**
+ * Checkpoint periódico de Caçadas/Ossos/XP pra sessões AINDA EM ANDAMENTO
+ * (pedido do dono, 2026-08-20: "estou com 7 horas de jogo no atlas e 5
+ * caçadas no total... não seria interessante fazer uma contagem por hora
+ * de jogo completa que fica já resgistrado como hora de jogo nos
+ * servidores?") — _creditPlaytimeCurrency só rodava até aqui quando uma
+ * sessão FECHAVA (logout/leave, ou reconcileOnlineStatus detectando
+ * queda). Um jogador conectado por horas seguidas sem desconectar nunca
+ * fechava sessão nenhuma nesse meio tempo, então ficava com 0 de crédito
+ * até finalmente sair — mesmo com "Tempo de Jogo" no /perfil já
+ * mostrando as horas em TEMPO REAL (total_playtime + ao vivo, ver
+ * getGuildPlayerStats), causando exatamente esse tipo de divergência
+ * reportada (horas mostradas > moeda creditada).
+ *
+ * Não toca em session_started_at nem total_playtime de propósito — só
+ * currency_credited_at (novo checkpoint, ver ensureColumn em
+ * database/index.js), pra não interferir em nada que dependa da sessão
+ * "de verdade" (ex: "online há Xh" no roster de staff). Quando a sessão
+ * eventualmente fecha, upsertPlayerFromEvent/reconcileOnlineStatus
+ * descontam o que já foi pago aqui (ver currencySecondsToAdd/
+ * currencySeconds nos dois lugares) — sem checkpoint nenhum, o
+ * comportamento de fechamento continua idêntico a antes desta mudança.
+ *
+ * Chamada periodicamente por startOngoingSessionCreditWorker (ver
+ * events/ready.js) pra TODO jogador com is_online=1 no banco inteiro —
+ * não depende de Source Query (ao contrário de onlineStatusWorker.js),
+ * funciona igual pra qualquer servidor com só webhook mesmo.
+ *
+ * @returns {number} quantos jogadores tiveram checkpoint aplicado
+ */
+function creditOngoingSessions() {
+    let credited = 0;
+    try {
+        const rows = db.prepare(`
+            SELECT guild_id, alderon_id, session_started_at, currency_credited_at
+            FROM pot_players
+            WHERE is_online = 1 AND session_started_at IS NOT NULL
+        `).all();
+        const now = Date.now();
+
+        for (const row of rows) {
+            const checkpointFrom = (row.currency_credited_at && row.currency_credited_at >= row.session_started_at)
+                ? row.currency_credited_at
+                : row.session_started_at;
+            const elapsedSeconds = Math.floor((now - checkpointFrom) / 1000);
+            // Piso de 60s — evita escrever no banco pra ganhos irrisórios
+            // quando o intervalo do cron cai logo depois de um login novo.
+            if (elapsedSeconds < 60) continue;
+
+            db.prepare(`UPDATE pot_players SET currency_credited_at = ? WHERE guild_id = ? AND alderon_id = ?`)
+                .run(now, row.guild_id, row.alderon_id);
+            _creditPlaytimeCurrency(row.guild_id, row.alderon_id, elapsedSeconds);
+            credited++;
+        }
+    } catch (error) {
+        const ErrorLogger = require('../core/errorLogger');
+        ErrorLogger.error('potPlayerRegistry', 'creditOngoingSessions', error, {});
+    }
+    return credited;
+}
+
+/**
  * Monta o sufixo "|ID ALDERON:xxx-xxx-xxx" usado nas linhas de identificação
  * de usuário nos containers (strike, unstrike, repset, historico, reportchat).
  * Retorna string vazia se o jogador ainda não tiver vínculo — nesse caso a
@@ -1811,6 +1904,10 @@ module.exports = {
     // desvio que webhooks sozinhos não cobrem (queda abrupta sem logout,
     // login perdido). Ver docblock completo acima e onlineStatusWorker.js.
     reconcileOnlineStatus,
+    // Checkpoint periódico de Caçadas/Ossos/XP pra sessão em andamento
+    // (pedido do dono, 2026-08-20) — ver docblock completo acima. Chamada
+    // por um cron próprio, ver events/ready.js.
+    creditOngoingSessions,
     // Exportados para uso em testes ou composição futura do Gateway:
     normalizeEvent,
     sanitizeDinosaurType,

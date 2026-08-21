@@ -54,6 +54,19 @@ module.exports = {
         } catch (error) {
             console.error('❌ [OnlineStatusWorker] Erro ao iniciar:', error.message);
         }
+
+        // Checkpoint periódico de Caçadas/Ossos/XP pra sessões em andamento
+        // (pedido do dono, 2026-08-20: "estou com 7 horas de jogo no
+        // atlas e 5 caçadas no total... não seria interessante fazer uma
+        // contagem por hora de jogo completa") — ver docblock completo em
+        // ongoingSessionCreditWorker.js/PlayerRegistry.creditOngoingSessions.
+        // Independente do worker acima (não depende de Source Query).
+        try {
+            const { startOngoingSessionCreditWorker } = require('../systems/pot/ongoingSessionCreditWorker');
+            startOngoingSessionCreditWorker();
+        } catch (error) {
+            console.error('❌ [OngoingSessionCreditWorker] Erro ao iniciar:', error.message);
+        }
         // Análise diária de staff unificada com a Manutenção Diária (pedido
         // do dono, 2026-08-06) — não roda mais num cron próprio (00:05),
         // agora é parte do relatório único enviado pelo cron das 12:00 em

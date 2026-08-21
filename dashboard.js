@@ -1917,13 +1917,14 @@ function loadDashboard(client) {
         // perfil deve ter os cards de cada servidor que a pessoa jogou
         // abaixo dos cards de listas") — enriquece cada entrada de
         // playedGuilds com o que o card precisa mostrar:
-        // - kills: Caçadas DAQUELE servidor (não confundir com huntBalance,
-        //   que é a moeda GLOBAL ganha por hora jogada — aqui é
-        //   literalmente pot_players.kills, mesmo contador que o /perfil no
-        //   Discord já mostra por servidor, ver getGuildPlayerStats).
         // - bones: Ossos DAQUELE servidor (já por servidor desde a reforma
         //   2026-08-15). Calculado aqui (1x por guild) e reaproveitado
         //   embaixo pra bonesBalance somado, em vez de consultar 2x.
+        //   (kills/pot_players.kills chegou a aparecer aqui rotulado
+        //   "caçadas" numa 1ª versão — removido a pedido do dono,
+        //   2026-08-20: "Caçada é uma moeda global... não precisa
+        //   aparecer nos parametro dos card por servidor", confuso ao
+        //   lado do MESMO nome usado pela moeda global de verdade.)
         // - accentHex: cor de destaque configurada em /config personalizar
         //   (aba "Aparência Geral", só Caçador — ver
         //   ConfigSystem.getPanelPersonalization) — dono pediu "a cor que
@@ -1937,7 +1938,6 @@ function loadDashboard(client) {
         //   /moderacao/:guildId) — sem acesso, o card não mostra o botão
         //   "Painel" (link quebrado seria pior que não ter botão).
         playedGuilds = playedGuilds.map((pg) => {
-            const stats = PlayerRegistry.getGuildPlayerStats(pg.guildId, link.alderon_id);
             const bones = PlayerRegistry.getBonesBalance(userId, pg.guildId);
             const personalization = ConfigSystem.getPanelPersonalization(pg.guildId);
             const accentHex = personalization.accentColor != null
@@ -1946,7 +1946,6 @@ function loadDashboard(client) {
             const hasPanelAccess = otherGuilds.some((g) => g.id === pg.guildId);
             return {
                 ...pg,
-                kills: stats.kills,
                 bones,
                 accentHex,
                 panelHref: hasPanelAccess ? `/moderacao/${pg.guildId}` : null,
@@ -2726,7 +2725,6 @@ function loadDashboard(client) {
         // só nos cards onde o VISITANTE também tem acesso de staff.
         const targetStaffHistory = getStaffHistoryForProfile(userID, client);
         playedGuilds = playedGuilds.map((pg) => {
-            const stats = PlayerRegistry.getGuildPlayerStats(pg.guildId, link.alderon_id);
             const bones = PlayerRegistry.getBonesBalance(userID, pg.guildId);
             const personalization = ConfigSystem.getPanelPersonalization(pg.guildId);
             const accentHex = personalization.accentColor != null
@@ -2735,7 +2733,6 @@ function loadDashboard(client) {
             const hasPanelAccess = otherGuilds.some((g) => g.id === pg.guildId);
             return {
                 ...pg,
-                kills: stats.kills,
                 bones,
                 accentHex,
                 panelHref: hasPanelAccess ? `/moderacao/${pg.guildId}` : null,

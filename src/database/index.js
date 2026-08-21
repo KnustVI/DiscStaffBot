@@ -445,6 +445,23 @@ class DatabaseManager {
             // (ver docblock do método): seguro rodar em todo boot.
             this.migrateBonesToPerGuild();
 
+            // Checkpoint de crédito de Caçadas/Ossos/XP pra sessões AINDA EM
+            // ANDAMENTO (pedido do dono, 2026-08-20: "estou com 7 horas de
+            // jogo no atlas e 5 caçadas no total... não seria interessante
+            // fazer uma contagem por hora de jogo completa que fica já
+            // resgistrado") — antes, _creditPlaytimeCurrency só rodava
+            // quando uma sessão FECHAVA (logout/leave ou reconciliação
+            // detectando queda); um jogador conectado por horas seguidas
+            // sem desconectar nunca fechava sessão nenhuma nesse meio
+            // tempo, então ficava com 0 de crédito até finalmente sair,
+            // mesmo com "Tempo de Jogo" no /perfil já mostrando as horas em
+            // tempo real. NULL enquanto não há checkpoint aplicado ainda
+            // (equivale a "creditado até session_started_at") — nunca
+            // sobrescreve session_started_at nem total_playtime (ver
+            // creditOngoingSessions em potPlayerRegistry.js), só marca até
+            // onde a MOEDA já foi contabilizada dentro da sessão atual.
+            this.ensureColumn('pot_players', 'currency_credited_at', 'INTEGER');
+
             console.log('📋 Schema do banco de dados criado');
 
         } catch (error) {
