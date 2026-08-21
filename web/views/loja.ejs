@@ -228,6 +228,15 @@
             position: absolute;
             top: 8px;
             right: -26px;
+            /* z-index explícito (pedido do dono, 2026-08-21: "fita em
+               breve ficou atras da imagem") — a moldura da imagem da
+               Loja de Personalização ganhou um filter:drop-shadow
+               (.loja-item-perso .loja-item-thumb), e filter cria um novo
+               stacking context; sem z-index a fita (position:absolute
+               mas sem z-index, "auto") passava a empatar nesse nível com
+               a thumb e perder por vir antes dela no DOM. z-index:5
+               garante a fita sempre por cima, em qualquer card. */
+            z-index: 5;
             transform: rotate(35deg);
             background: #4B2427;
             color: #F8DCC0;
@@ -445,47 +454,109 @@
         .loja-perso-buy-form .btn-chip img { width: 12px; height: 12px; border-radius: 3px; object-fit: cover; }
 
         /* Card da LOJA DE PERSONALIZAÇÃO (compra e venda de imagens) —
-           mesmo processo dos botões acima (pedido do dono, 2026-08-21:
-           "aplique esse css nos cards de compra e venda na loja de
-           personalização"), componente Figma do card inteiro (fundo
-           gradiente + moldura da imagem com sombra "pressionada" +
-           título em Tilt Warp). Escopo só nesta seção via
+           componente Figma do card "Property 1=Variant4" (card de
+           compra) trazido pixel-a-pixel (pedido do dono, 2026-08-21:
+           "tem que estar exatamente assim" / "Mesmo tamanho do css
+           inclusive, esse sera o tamanho maximo dela") — DIFERENTE da
+           decisão de manter compacto que valeu pros BOTÕES (2026-08-18);
+           aqui o dono confirmou explicitamente 402×424 só que como
+           TAMANHO MÁXIMO, não fixo — por isso width/height do card e da
+           moldura da imagem usam 100%/aspect-ratio em vez de px fixos,
+           pra continuar encolhendo em telas estreitas (regra padrão do
+           site: UI sempre responsiva). Escopo só nesta seção via
            .loja-item-perso (classe extra nos cards de Fotos/Planos de
            Fundo, junto com .loja-item de sempre) — NÃO mexe na classe
            base .loja-item, que também serve Missões/Loja de Jogo/
-           recompensa de novo jogador. Tamanho do card continua o
-           compacto de sempre (170px, grid flex-wrap) em vez do 402px do
-           Figma — mesma decisão já tomada pros botões Comprar em
-           2026-08-18 ("isso desfaria pedidos anteriores de encolher"):
-           só cores/gradiente/sombras/tipografia vieram, não as
-           dimensões. Preço/status/badge "No inventário"/botão Comprar
-           NÃO mudam aqui — já ganharam o tratamento Figma correspondente
-           em passadas anteriores (.loja-perso-buy-form acima). Sem a
-           linha "Adquirido DATE - X caçadas"/usuário que subiu a imagem
-           do Figma — depende de dado que a query de catálogo (loja de
-           imagens) não traz hoje (submitted_by/purchased_at), e o
-           marketplace de venda de imagem de jogador ainda está "em
-           breve" (não é feature pedida aqui, só o CSS dos cards). */
+           recompensa de novo jogador.
+
+           .loja-item-perso-head/.loja-item-perso-status/.loja-item-perso-row
+           são os 3 blocos novos do Figma (Frame 33924 título+status
+           colados sem gap próprio, e Frame 33936 preço+botão em
+           space-between) — só usados de verdade no estado "disponível
+           pra comprar" (ver loja.ejs, isBuyState) por ora; os outros
+           estados (sem preço/já no inventário/em breve) continuam com o
+           texto/ordem de antes, só herdando o fundo/moldura/título
+           novos — "um por um", nas palavras do dono, cada estado vai
+           sendo ajustado à parte.
+
+           STATUS mostra o aviso de tier mínimo pra usar (quando existe)
+           ou "Disponível para compra" — não a linha "Adquirido DATE -
+           X caçadas"/usuário que subiu a imagem do Figma, que fica pra
+           quando o dono descrever o card do estado "já comprado"
+           (depende de dado que a query de catálogo não traz hoje:
+           submitted_by/purchased_at). Preço/botão Comprar (Frame 33936)
+           JÁ tinham a cor/gradiente/sombra certas desde 2026-08-18
+           (.loja-perso-buy-form acima) — só o TAMANHO (111×26, padding
+           5px 20px, fonte 14px) e o ícone maior de Caçadas (32×33)
+           precisavam voltar ao valor exato do Figma, feito abaixo. */
         .loja-grid .loja-item.loja-item-perso {
-            padding: 14px;
+            width: 100%;
+            max-width: 402px;
+            box-sizing: border-box;
+            padding: 20px;
             gap: 10px;
             background: radial-gradient(201.17% 83.37% at -5.41% 84.25%, #803E30 0%, #1F1D20 41.09%, #000000 91.53%);
             border: none;
             border-radius: 10px;
-            box-shadow: 0px 0px 2.3px #DCA15E, 6px 8px 10px rgba(0, 0, 0, 0.36), inset 0px 4px 4px rgba(0, 0, 0, 0.25);
+            box-shadow: 0px 0px 2.3px #DCA15E, 12px 15px 11.5px rgba(0, 0, 0, 0.36), inset 0px 4px 4px rgba(0, 0, 0, 0.25);
         }
         .loja-grid .loja-item.loja-item-perso .loja-item-thumb {
+            width: 100%;
+            aspect-ratio: 362 / 267;
+            max-height: 267px;
+            border-radius: 20px;
             box-shadow: inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
             filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5)) drop-shadow(-1px -1px 2px rgba(0, 0, 0, 0.5));
         }
         .loja-grid .loja-item.loja-item-perso .loja-item-label {
             font-family: 'Tilt Warp', cursive;
             font-weight: 400;
-            font-size: 13px;
-            line-height: 1.25;
+            font-size: 32px;
+            line-height: 40px;
             color: #F8DCC0;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5), -2px -2px 4px rgba(0, 0, 0, 0.7);
+            text-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
         }
+        .loja-item-perso-head {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            width: 100%;
+        }
+        .loja-item-perso-status {
+            display: block;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 400;
+            font-size: 16px;
+            line-height: 24px;
+            color: #F8DCC0;
+        }
+        .loja-item-perso-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            width: 100%;
+        }
+        .loja-item-perso-row .loja-item-price.is-hunt {
+            margin-top: 0;
+            gap: 10px;
+            font-size: 20px;
+            line-height: 30px;
+        }
+        .loja-item-perso-row .loja-item-price.is-hunt img {
+            width: 32px;
+            height: 33px;
+            border-radius: 4px;
+        }
+        .loja-item-perso-row .loja-perso-buy-form { margin: 0; flex: none; }
+        .loja-item-perso-row .loja-perso-buy-form .btn-chip {
+            width: 111px;
+            min-width: 111px;
+            padding: 5px 20px;
+            gap: 10px;
+            font-size: 14px;
+        }
+        .loja-item-perso-row .loja-perso-buy-form .btn-chip img { width: 16px; height: 16px; }
 
         /* Botão Usar (inventário da Loja de Jogo) — pedido do dono,
            2026-08-19: "No botão usar use o mesmo css dos botões da
@@ -934,10 +1005,31 @@
                                         style="<%= img.url ? `background-image:url('${img.url}')` : '' %>"
                                         <% if (img.url) { %>onclick="openImageLightbox('<%= img.url %>', '<%= (img.label || '').replace(/'/g, "\\'") %>')"<% } %>
                                     ></div>
-                                    <span class="loja-item-label"><%= img.label %></span>
+                                    <%
+                                        // Estado "disponível pra comprar" (Figma "Property
+                                        // 1=Variant4") — único restruturado pixel-a-pixel por
+                                        // ora (pedido do dono, 2026-08-21, "um por um"); os
+                                        // outros 3 estados abaixo mantêm o texto/ordem de
+                                        // antes, só herdando fundo/moldura/título novos.
+                                        const isBuyState = !!img.shop_price && !img.owned && !img.coming_soon;
+                                    %>
+                                    <div class="loja-item-perso-head">
+                                        <span class="loja-item-label"><%= img.label %></span>
+                                        <% if (isBuyState) { %>
+                                            <span class="loja-item-perso-status">
+                                                <% if (img.shop_min_tier && img.shop_min_tier !== 'free') { %>
+                                                    <span data-i18n-pt>Requer plano <%= lojaShopTierLabels[img.shop_min_tier] || img.shop_min_tier %>+ pra usar</span>
+                                                    <span data-i18n-en>Requires <%= lojaShopTierLabels[img.shop_min_tier] || img.shop_min_tier %>+ to use</span>
+                                                <% } else { %>
+                                                    <span data-i18n-pt>Disponível para compra</span>
+                                                    <span data-i18n-en>Available for purchase</span>
+                                                <% } %>
+                                            </span>
+                                        <% } %>
+                                    </div>
                                     <% if (!img.shop_price) { %>
                                         <span class="loja-item-price is-hunt"><img src="/images/icons/hunt.webp" alt=""> <span data-i18n-pt>Preço a definir</span><span data-i18n-en>Price TBD</span></span>
-                                    <% } else { %>
+                                    <% } else if (!isBuyState) { %>
                                         <span class="loja-item-price is-hunt"><img src="/images/icons/hunt.webp" alt=""> <%= img.shop_price %></span>
                                         <% if (img.shop_min_tier && img.shop_min_tier !== 'free') { %>
                                             <span class="loja-item-tier-note">
@@ -949,20 +1041,21 @@
                                             <span class="loja-item-owned-badge"><i data-lucide="check"></i> <span data-i18n-pt>No inventário</span><span data-i18n-en>In inventory</span></span>
                                         <% } else if (img.coming_soon) { %>
                                             <span class="loja-item-desc"><i data-lucide="clock" style="width:11px;height:11px;vertical-align:-1px;"></i> <span data-i18n-pt>Compra liberada em breve.</span><span data-i18n-en>Purchase opens soon.</span></span>
-                                        <% } else { %>
-                                            <%#
-                                                Aviso de saldo/compras pausadas ANTES do form/botão
-                                                (pedido do dono, 2026-08-18: "saldo insuficiente nos
-                                                itens de loja deve aparecer acime dos botões de
-                                                compra") — antes vinha DEPOIS do <form>, ficando
-                                                abaixo do botão "Comprar" no card (.loja-item é
-                                                flex-column, a ordem no HTML é a ordem visual).
-                                            %>
-                                            <% if (shopPurchasesLocked) { %>
-                                                <span class="loja-item-insufficient"><span data-i18n-pt>Compras pausadas</span><span data-i18n-en>Purchases paused</span></span>
-                                            <% } else if (huntBalance < img.shop_price) { %>
-                                                <span class="loja-item-insufficient"><span data-i18n-pt>Saldo insuficiente</span><span data-i18n-en>Insufficient balance</span></span>
-                                            <% } %>
+                                        <% } %>
+                                    <% } else { %>
+                                        <%#
+                                            Aviso de saldo/compras pausadas ANTES do row preço+botão
+                                            (pedido do dono, 2026-08-18: "saldo insuficiente nos
+                                            itens de loja deve aparecer acime dos botões de
+                                            compra").
+                                        %>
+                                        <% if (shopPurchasesLocked) { %>
+                                            <span class="loja-item-insufficient"><span data-i18n-pt>Compras pausadas</span><span data-i18n-en>Purchases paused</span></span>
+                                        <% } else if (huntBalance < img.shop_price) { %>
+                                            <span class="loja-item-insufficient"><span data-i18n-pt>Saldo insuficiente</span><span data-i18n-en>Insufficient balance</span></span>
+                                        <% } %>
+                                        <div class="loja-item-perso-row">
+                                            <span class="loja-item-price is-hunt"><img src="/images/icons/hunt.webp" alt=""> <%= img.shop_price %></span>
                                             <form method="POST" action="/loja/comprar" class="loja-item-buy-form loja-perso-buy-form">
                                                 <input type="hidden" name="poolType" value="<%= img.type %>">
                                                 <input type="hidden" name="poolId" value="<%= img.id %>">
@@ -970,7 +1063,7 @@
                                                     <img src="/images/icons/hunt.webp" alt=""> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
                                                 </button>
                                             </form>
-                                        <% } %>
+                                        </div>
                                     <% } %>
                                 </div>
                             <% }); %>
