@@ -514,6 +514,12 @@ const CARNIVORE_SPECIES = new Set([
     'troodon', 'cryolophosaurus', 'herrerasaurus', 'compsognathus', 'deinosuchus',
     'austroraptor', 'giganotosaurus', 'suchomimus', 'baryonyx', 'concavenator',
     'megalania', 'quetzalcoatlus', 'rhamphorhynchus', 'anhanguera',
+    // Adicionadas 2026-08-20 (bug reportado pelo dono: "meu... esta com
+    // yutirannus mas ele é um dinossauro carnivoro e estou com icone o
+    // HerbSkull") — mesmo gap de lista "best-effort" já documentado no
+    // comentário de isDinosaurCarnivore abaixo, essas 4 são terópodes
+    // carnívoros claros que faltavam.
+    'yutyrannus', 'acrocanthosaurus', 'alioramus', 'australovenator',
 ].map((s) => s.toLowerCase()));
 
 /**
