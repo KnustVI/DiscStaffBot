@@ -44,6 +44,7 @@
                 <option value="cacadas" <%= mrfType === 'cacadas' ? 'selected' : '' %>>Caçadas</option>
                 <option value="badge" <%= mrfType === 'badge' ? 'selected' : '' %>>Emblema</option>
                 <option value="titulo" <%= mrfType === 'titulo' ? 'selected' : '' %>>Título</option>
+                <option value="premium" <%= mrfType === 'premium' ? 'selected' : '' %>>Player Premium</option>
             </select>
         </div>
 
@@ -89,6 +90,26 @@
                     <option value="<%= t.id %>" <%= (mrfType === 'titulo' && mrfReward.poolId === t.id) ? 'selected' : '' %>><%= t.label %></option>
                 <% }); %>
             </select>
+        </div>
+
+        <%#
+            Player Premium (pedido do dono, 2026-08-20: "Adicione tempo de
+            premium nas recompensas de missão") — tier + dias, concedido
+            de forma ADITIVA no claim (nunca rebaixa um tier melhor já
+            ativo, soma dias em cima do mesmo tier — ver
+            PremiumSystem.extendPlayerPremium).
+        %>
+        <div id="<%= mrfId %>-premium-row" class="pool-req-value-row" style="<%= mrfType === 'premium' ? '' : 'display:none;' %>">
+            <label for="<%= mrfId %>-premium-tier">Tier:</label>
+            <select id="<%= mrfId %>-premium-tier" name="reward_premium_tier">
+                <option value="">Selecione...</option>
+                <option value="compy" <%= mrfReward.tier === 'compy' ? 'selected' : '' %>>Compy</option>
+                <option value="raptor" <%= mrfReward.tier === 'raptor' ? 'selected' : '' %>>Raptor</option>
+            </select>
+        </div>
+        <div id="<%= mrfId %>-premium-days-row" class="pool-req-value-row" style="<%= mrfType === 'premium' ? '' : 'display:none;' %>">
+            <label for="<%= mrfId %>-premium-days">Dias:</label>
+            <input type="number" id="<%= mrfId %>-premium-days" name="reward_premium_days" min="1" step="1" placeholder="Ex: 7" value="<%= mrfReward.days || '' %>">
         </div>
 
         <div class="pool-req-dialog-actions">

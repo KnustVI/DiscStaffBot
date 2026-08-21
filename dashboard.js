@@ -1444,9 +1444,13 @@ function loadDashboard(client) {
 
     // Configura a recompensa de uma missão — Ossos (exige quantidade E um
     // servidor, já que Ossos é moeda por servidor, ver pot_player_bones),
-    // Caçadas (só quantidade, moeda global), ou um Emblema/Título JÁ
+    // Caçadas (só quantidade, moeda global), um Emblema/Título JÁ
     // cadastrado no pool (o dono escolhe entre os que já existem nas
-    // seções de Emblema/Título da mesma página, não cria um novo aqui).
+    // seções de Emblema/Título da mesma página, não cria um novo aqui), ou
+    // Player Premium (tier + dias, pedido do dono, 2026-08-20: "Adicione
+    // tempo de premium nas recompensas de missão" — concedido de forma
+    // ADITIVA no claim, ver MissionSystem.claimMission/
+    // PremiumSystem.extendPlayerPremium).
     app.post('/dev/Loja/missao/:id/recompensa', checkAuth, async (req, res) => {
         if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
         const id = Number(req.params.id);
@@ -1466,6 +1470,11 @@ function loadDashboard(client) {
             const poolId = Number(rewardType === 'badge' ? req.body.reward_pool_id_badge : req.body.reward_pool_id_titulo);
             if (!Number.isInteger(poolId) || !ProfileImagePool.getByTypeAndId(rewardType, poolId)) return res.redirect('/dev/Loja?saved=error');
             reward = { poolId };
+        } else if (rewardType === 'premium') {
+            const tier = req.body.reward_premium_tier;
+            const days = parseInt(req.body.reward_premium_days, 10);
+            if ((tier !== 'compy' && tier !== 'raptor') || !Number.isInteger(days) || days <= 0) return res.redirect('/dev/Loja?saved=error');
+            reward = { tier, days };
         } else {
             return res.redirect('/dev/Loja?saved=error');
         }

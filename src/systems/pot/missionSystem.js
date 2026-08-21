@@ -29,12 +29,19 @@
  *   - 'badge'/'titulo': { poolId } — aponta pra uma linha JÁ EXISTENTE em
  *                profile_image_pool (o dono escolhe entre os que já
  *                cadastrou nas seções de Emblema/Título da mesma página).
+ *   - 'premium': { tier, days } — Player Premium (Compy/Raptor) por N
+ *                dias (pedido do dono, 2026-08-20: "Adicione tempo de
+ *                premium nas recompensas de missão"). Concedido de forma
+ *                ADITIVA via PremiumSystem.extendPlayerPremium — nunca
+ *                rebaixa um tier melhor já ativo, soma dias em cima do
+ *                que o jogador já tiver do MESMO tier em vez de
+ *                sobrescrever (ver docblock completo lá).
  */
 'use strict';
 
 const db = require('../../database/index');
 
-const VALID_REWARD_TYPES = ['ossos', 'cacadas', 'badge', 'titulo'];
+const VALID_REWARD_TYPES = ['ossos', 'cacadas', 'badge', 'titulo', 'premium'];
 
 function getMissionById(id) {
     return db.prepare(`SELECT * FROM pot_missions WHERE id = ?`).get(id) || null;
@@ -156,6 +163,10 @@ function describeReward(row) {
             if (!poolRow) return null;
             return reward.type === 'badge' ? `Emblema: ${poolRow.label}` : `Título: "${poolRow.label}"`;
         }
+        case 'premium': {
+            const tierLabel = reward.tier === 'raptor' ? 'Raptor' : 'Compy';
+            return `${reward.days} dia${reward.days === 1 ? '' : 's'} de Player Premium ${tierLabel}`;
+        }
         default:
             return null;
     }
@@ -236,6 +247,11 @@ function claimMission(userId, missionId) {
                 VALUES (?, ?, ?, ?, 'mission')
             `).run(userId, reward.type, reward.poolId, Date.now());
             break;
+        case 'premium': {
+            const PremiumSystem = require('../premium/premiumSystem');
+            PremiumSystem.extendPlayerPremium(userId, reward.tier, reward.days, 'mission-reward', `Missão: ${row.title}`);
+            break;
+        }
     }
 
     return { ok: true, label: row.title };

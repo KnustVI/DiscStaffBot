@@ -164,6 +164,61 @@ function grantPlayerPremium(userId, tier, days, grantedBy, notes = null) {
     `).run(userId, tier, grantedBy, now, expiresAt, notes, Math.floor(now / 1000));
 }
 
+/**
+ * Concede Player Premium de forma ADITIVA (pedido do dono, 2026-08-20:
+ * "Adicione tempo de premium nas recompensas de missão") — nunca REBAIXA
+ * um tier ativo melhor, e ESTENDE (soma dias) em vez de sobrescrever
+ * quando o jogador já tem o MESMO tier ativo. Pensado pra concessões
+ * automáticas/repetíveis (recompensa de missão hoje; serve também pra uma
+ * futura compra via Ko-fi/Mercado Pago, mesmo raciocínio). Diferente de
+ * grantPlayerPremium (usado por /premium-admin), que sempre SOBRESCREVE
+ * de propósito — o dono ali define um estado exato manualmente, não soma.
+ *
+ * @param {string} userId
+ * @param {'compy'|'raptor'} tier
+ * @param {number} days - sempre > 0 (sem "vitalício" aditivo aqui)
+ * @param {string} grantedBy
+ * @param {string|null} [notes]
+ */
+function extendPlayerPremium(userId, tier, days, grantedBy, notes = null) {
+    if (!userId || !(tier in PLAYER_TIERS) || !Number.isInteger(days) || days <= 0) return;
+    const now = Date.now();
+    const row = db.prepare(`SELECT tier, expires_at FROM player_premium WHERE user_id = ?`).get(userId);
+    const currentlyActive = !!row && !_isExpired(row.expires_at);
+    const currentTier = currentlyActive ? row.tier : 'free';
+    const currentRank = PLAYER_TIERS[currentTier] ?? 0;
+    const rewardRank = PLAYER_TIERS[tier] ?? 0;
+
+    let finalTier;
+    let baseExpiresAt;
+    if (currentlyActive && currentRank >= rewardRank) {
+        // Já tem esse tier OU um melhor, ativo — nunca rebaixa, só soma
+        // dias em cima do que já tem (mantém o tier maior).
+        finalTier = currentTier;
+        baseExpiresAt = row.expires_at; // pode ser null (vitalício)
+    } else {
+        // Sem premium ativo, ou tier atual é PIOR que a recompensa —
+        // concede o tier da recompensa, contando a partir de agora.
+        finalTier = tier;
+        baseExpiresAt = now;
+    }
+
+    // Vitalício (null) continua vitalício — somar dias não muda nada.
+    const newExpiresAt = baseExpiresAt === null ? null : Math.max(baseExpiresAt, now) + days * 86400000;
+
+    db.prepare(`
+        INSERT INTO player_premium (user_id, tier, granted_by, granted_at, expires_at, notes, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET
+            tier = excluded.tier,
+            granted_by = excluded.granted_by,
+            granted_at = excluded.granted_at,
+            expires_at = excluded.expires_at,
+            notes = excluded.notes,
+            updated_at = excluded.updated_at
+    `).run(userId, finalTier, grantedBy, now, newExpiresAt, notes, Math.floor(now / 1000));
+}
+
 function grantGuildPremium(guildId, tier, days, grantedBy, notes = null) {
     const now = Date.now();
     const expiresAt = days ? now + days * 86400000 : null;
@@ -232,6 +287,7 @@ module.exports = {
     getRoleLimit,
     getGuildDenialMessage,
     grantPlayerPremium,
+    extendPlayerPremium,
     grantGuildPremium,
     revokePlayerPremium,
     revokeGuildPremium,
