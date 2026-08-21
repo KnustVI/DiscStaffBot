@@ -952,7 +952,7 @@
             // aqui. Prioridade arbitrária mas nunca ambígua na prática — só
             // UM resultado vem preenchido por vez (cada rota POST de /loja
             // redireciona com um único parâmetro de resultado por vez).
-            let lojaSaved, lojaTitlePt, lojaTitleEn, lojaTextPt, lojaTextEn;
+            let lojaSaved, lojaTitlePt, lojaTitleEn, lojaTextPt, lojaTextEn, lojaActionHref, lojaActionLabelPt, lojaActionLabelEn;
             if (convertError) {
                 lojaSaved = 'error';
                 lojaTextPt = convertError;
@@ -961,6 +961,15 @@
                 lojaTitlePt = 'Item comprado'; lojaTitleEn = 'Item purchased';
                 lojaTextPt = `${purchaseResult} adicionado ao seu inventário.`;
                 lojaTextEn = `${purchaseResult} added to your inventory.`;
+                // Botão extra "Ir ao inventário" (pedido do dono, 2026-08-21:
+                // "com botão para fechar e um para ir ao inventario") — o
+                // "inventário" de imagem de personalização É a aba
+                // Personalizar de /perfil (onde a imagem comprada vira
+                // opção pra usar como foto/plano de fundo), não uma página
+                // separada — mesmo link já usado pelo item da sidebar (ver
+                // partials/sidebar-v2.ejs NAV_ITEMS).
+                lojaActionHref = '/perfil?tab=personalizacao';
+                lojaActionLabelPt = 'Ir ao inventário'; lojaActionLabelEn = 'Go to inventory';
             } else if (gameShopPurchaseResult) {
                 lojaSaved = 'success';
                 lojaTitlePt = 'Adicionado ao inventário'; lojaTitleEn = 'Added to inventory';
@@ -992,7 +1001,7 @@
                 }
             }
         %>
-        <%- include('partials/save-result-overlay', { saved: lojaSaved, titlePt: lojaTitlePt, titleEn: lojaTitleEn, textPt: lojaTextPt, textEn: lojaTextEn }) %>
+        <%- include('partials/save-result-overlay', { saved: lojaSaved, titlePt: lojaTitlePt, titleEn: lojaTitleEn, textPt: lojaTextPt, textEn: lojaTextEn, actionHref: lojaActionHref, actionLabelPt: lojaActionLabelPt, actionLabelEn: lojaActionLabelEn }) %>
 
         <%# Trava geral de compras (pedido do dono, 2026-08-15: "loja em
             teste não deve haber compra, nenhuma loja nem de servidor") —

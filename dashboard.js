@@ -2135,8 +2135,17 @@ function loadDashboard(client) {
         // ficar no card da loja de personalização") — moraram pro card
         // próprio "Missões e Recompensas" mais abaixo, já que não são
         // comprados com Caçadas, são resgatados de graça por requisito.
+        // .filter: item comprado some da vitrine da Loja de Personalização
+        // (pedido do dono, 2026-08-21: "O item some da lista da loja para
+        // aquele jogador") — já mostrava um badge "No inventário" antes,
+        // agora nem aparece mais; quem quer trocar de foto/plano de fundo
+        // já comprado faz isso pela aba Personalizar (/perfil?tab=
+        // personalizacao), não mais por aqui. Só personalizacao — badges/
+        // titulos continuam aparecendo sempre (são conquistas, faz sentido
+        // ver os que já tem, mostrados via requirementLabel/redeemable, não
+        // via "owned" nesse sentido de posse comprável).
         const [personalizacao, badges, titulos] = await Promise.all([
-            resolvePublicGroup('personalizacao'),
+            resolvePublicGroup('personalizacao').then((items) => items.filter((item) => !item.owned)),
             resolvePublicGroup('badge'),
             resolvePublicGroup('titulo'),
         ]);

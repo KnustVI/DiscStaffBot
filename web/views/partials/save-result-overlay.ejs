@@ -35,6 +35,21 @@
   texto genérico de sempre — 100% compatível com quem já usa este
   parcial sem passar os 4 parâmetros novos.
 
+  actionHref/actionLabelPt/actionLabelEn (OPCIONAIS, pedido do dono,
+  2026-08-21: overlay de compra na Loja de Personalização precisa de
+  "um botão para fechar e um para ir ao inventario") — quando
+  actionHref vem preenchido, um segundo botão (link de verdade, não
+  submit) aparece ao lado de Fechar, e os dois passam a usar o visual
+  "botões da sidebar" (.dev-overlay-btn, style.css — mesma receita de
+  .tp-sidebar-btn, copiada por não depender de qual outro parcial foi
+  incluído na página) em vez do .btn-primary genérico de sempre. O
+  fechamento automático (setTimeout 3.5s) FICA DESLIGADO nesse caso —
+  mesmo raciocínio já usado pro caso de erro ("é mais importante ele
+  ler/agir"): uma escolha real (ir ou não ao inventário) não deveria
+  desaparecer sozinha da tela antes do usuário decidir.
+  actionLabelEn cai pro actionLabelPt quando faltar, mesmo padrão dos
+  outros pares *Pt/*En deste parcial.
+
   PRESERVAÇÃO DE SCROLL (pedido do dono, 2026-08-07: "ao salvar e
   aparecer a overlay ele sobe o rolamento da página inteira, é possível
   manter fixa onde estava? para todas as páginas") — todo POST daqui
@@ -107,7 +122,21 @@
                     <span data-i18n-pt>Alguma coisa deu errado e as alterações não foram salvas. Tente novamente — se persistir, avise o suporte.</span><span data-i18n-en>Something went wrong and the changes weren't saved. Try again — if it keeps happening, contact support.</span>
                 <% } %>
             </p>
-            <button type="button" class="btn-primary" id="saveResultClose" style="min-width:0; padding:10px 32px;"><span data-i18n-pt>FECHAR</span><span data-i18n-en>CLOSE</span></button>
+            <% const srHasAction = srIsOk && typeof actionHref !== 'undefined' && actionHref; %>
+            <% if (srHasAction) { %>
+                <div class="dev-overlay-actions">
+                    <a href="<%= actionHref %>" class="dev-overlay-btn">
+                        <% if (typeof actionLabelPt !== 'undefined' && actionLabelPt) { %>
+                            <span data-i18n-pt><%= actionLabelPt %></span><span data-i18n-en><%= (typeof actionLabelEn !== 'undefined' && actionLabelEn) ? actionLabelEn : actionLabelPt %></span>
+                        <% } else { %>
+                            <span data-i18n-pt>Ver</span><span data-i18n-en>View</span>
+                        <% } %>
+                    </a>
+                    <button type="button" class="dev-overlay-btn" id="saveResultClose"><span data-i18n-pt>FECHAR</span><span data-i18n-en>CLOSE</span></button>
+                </div>
+            <% } else { %>
+                <button type="button" class="btn-primary" id="saveResultClose" style="min-width:0; padding:10px 32px;"><span data-i18n-pt>FECHAR</span><span data-i18n-en>CLOSE</span></button>
+            <% } %>
         </div>
     </div>
     <script>
@@ -132,7 +161,7 @@
             document.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape') close();
             });
-            <% if (srIsOk) { %>
+            <% if (srIsOk && !srHasAction) { %>
             setTimeout(close, 3500);
             <% } %>
         })();

@@ -966,6 +966,48 @@ summary.btn-chip::marker { content: ''; }
     opacity: 0.85;
 }
 
+/* Par de botões (Fechar + ação, ex: "Ir ao inventário") — pedido do
+   dono, 2026-08-21: overlay de compra concluída na Loja de
+   Personalização precisa de um botão extra além de Fechar, e "padrão
+   dos botões = botões da sidebar". Receita idêntica a .tp-sidebar-btn
+   (partials/sidebar-v2.ejs) copiada aqui em vez de reaproveitada
+   direto — mesmo motivo de sempre nesta base (.loja-usar-form
+   .btn-chip.btn-chip-success etc.): aquela classe só existe dentro do
+   <style> da própria sidebar, e este parcial roda em várias páginas
+   sem depender de qual outro parcial foi incluído junto. Só aparece
+   quando o chamador passa actionHref (função opcional, todo o resto
+   que já usa este parcial continua só com o botão Fechar de sempre,
+   sem quebrar nada). */
+.dev-overlay-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; width: 100%; }
+.dev-overlay-btn {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    flex: 1 1 auto;
+    min-width: 140px;
+    height: 40px;
+    padding: 5px 20px;
+    background: #2A2A2A;
+    border: 1px solid #803E30;
+    box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+    border-radius: 14px;
+    color: #F8DCC0;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    text-decoration: none;
+    cursor: pointer;
+}
+.dev-overlay-btn:hover { background: #803E30; border-color: #F8DCC0; }
+.dev-overlay-btn:active {
+    background: #4B2427;
+    border-color: #803E30;
+    box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5), inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
+}
+.dev-overlay-btn i, .dev-overlay-btn svg { width: 16px; height: 16px; flex: none; }
+
 .outline-chip.is-lg .outline-chip-subtitle { font-size: clamp(12px, 1.4vw, 15px); opacity: 1; }
 
 /* Modo visualização (pedido do dono, 2026-08-06: cargo de equipe sem
