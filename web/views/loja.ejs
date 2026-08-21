@@ -532,6 +532,12 @@
             flex-direction: column;
             justify-content: center;
             width: 100%;
+            /* Pequena margem entre o título e os textos abaixo (status/
+               "Foto por:") — pedido do dono, 2026-08-21. Título e status
+               nasceram colados de propósito (Figma original), mas com a
+               linha nova de "Foto por:" empilhada também precisa de um
+               respiro mínimo pra não virar um bloco só ilegível. */
+            gap: 4px;
         }
         .loja-item-perso-status {
             display: block;
@@ -1333,6 +1339,21 @@
                                                     <span data-i18n-pt>Compra liberada em breve</span>
                                                     <span data-i18n-en>Purchase opens soon</span>
                                                 <% } %>
+                                            </span>
+                                        <% } %>
+                                        <%#
+                                            "Foto por: X" (pedido do dono, 2026-08-21: "adicione
+                                            nome do jogador que subiu a imagem, como texto abaixo
+                                            do status do card, visual igual status") — mesmo dado
+                                            já resolvido em dashboard.js pro dialog de detalhe
+                                            (submittedByName), reaproveitado aqui; só existe pra
+                                            imagens de marketplace de verdade (submitted_by
+                                            preenchido), igual lá.
+                                        %>
+                                        <% if (img.submittedByName) { %>
+                                            <span class="loja-item-perso-status">
+                                                <span data-i18n-pt>Foto por: <%= img.submittedByName %>.</span>
+                                                <span data-i18n-en>Photo by: <%= img.submittedByName %>.</span>
                                             </span>
                                         <% } %>
                                     </div>
