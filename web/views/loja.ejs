@@ -558,6 +558,167 @@
         }
         .loja-item-perso-row .loja-perso-buy-form .btn-chip img { width: 16px; height: 16px; }
 
+        /* Hover "cresce" no card (pedido do dono, 2026-08-21: "quando a
+           pessoa colocar o mouse por cima o card deve aumentar de
+           tamanho na mesma animação da foto de perfil avatar da
+           sidebar") — mesma transição (transform, 0.2s ease) de
+           .tp-sidebar-avatar-btn (partials/sidebar-v2.ejs), só que scale
+           em vez de translateY (lá o avatar "sobe", aqui o card
+           "cresce" — o pedido foi por tamanho, não posição). z-index no
+           hover garante que o card cresce por CIMA dos vizinhos no grid
+           (flex-wrap não corta filho que passa do próprio espaço, mas
+           sem isso o vizinho seguinte no DOM ficaria por cima da borda
+           que cresceu). */
+        .loja-grid .loja-item.loja-item-perso {
+            transition: transform 0.2s ease;
+        }
+        .loja-grid .loja-item.loja-item-perso:hover {
+            transform: scale(1.04);
+            z-index: 3;
+        }
+        /* Só os cards com detalhe pra abrir (estado "disponível pra
+           comprar", único com o dialog Variant2 construído até agora —
+           ver isBuyState/loja-item-perso-buyable abaixo) ganham o cursor
+           de link; os outros continuam só com o hover de tamanho, sem
+           prometer uma ação que ainda não existe pros outros estados. */
+        .loja-grid .loja-item.loja-item-perso.loja-item-perso-buyable { cursor: pointer; }
+
+        /* Card de detalhe (Figma "Property 1=Variant2") — abre ao
+           clicar no card pequeno da Loja de Personalização (pedido do
+           dono, 2026-08-21). Mesmo padrão de <dialog> nativo já usado
+           em .loja-progress-dialog (um dialog por item, showModal() no
+           clique, clique fora fecha via listener no fim do arquivo) —
+           só o conteúdo/visual são novos. Tamanho também tratado como
+           MÁXIMO/fluido (mesma decisão do card pequeno, 2026-08-21):
+           900px vira max-width, altura no auto (não trava 650px fixo)
+           com um teto de viewport pra nunca estourar a tela. */
+        dialog.loja-perso-detail-dialog {
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 20px 20px 10px;
+            gap: 20px;
+            width: 100%;
+            max-width: 900px;
+            max-height: calc(100vh - 64px);
+            overflow-y: auto;
+            background: radial-gradient(201.17% 83.37% at -5.41% 84.25%, #803E30 0%, #1F1D20 41.09%, #000000 91.53%);
+            box-shadow: 0px 0px 2.3px #DCA15E, 12px 15px 11.5px rgba(0, 0, 0, 0.36), inset 0px 4px 4px rgba(0, 0, 0, 0.25);
+            border: none;
+            border-radius: 10px;
+            color: #F8DCC0;
+        }
+        dialog.loja-perso-detail-dialog::backdrop { background: rgba(0, 0, 0, 0.65); }
+        .loja-perso-detail-close {
+            align-self: flex-end;
+            flex: none;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid rgba(217, 163, 98, 0.3);
+            border-radius: 6px;
+            color: #F8DCC0;
+            opacity: 0.7;
+            cursor: pointer;
+            font-size: 1.1rem;
+            line-height: 1;
+            margin: -8px -8px 0 0;
+        }
+        .loja-perso-detail-close:hover { opacity: 1; background: rgba(217, 163, 98, 0.12); }
+        .loja-perso-detail-frame {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 860 / 491;
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-start;
+            background-size: cover;
+            background-position: center;
+            box-shadow: inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
+            filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5)) drop-shadow(-1px -1px 2px rgba(0, 0, 0, 0.5));
+            border-radius: 20px;
+        }
+        .loja-perso-detail-pricetag {
+            box-sizing: border-box;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 5px 15px;
+            gap: 15px;
+            background: linear-gradient(90deg, #1F1D20 36.06%, #803E30 100%);
+            border: 1px solid #803E30;
+            border-radius: 0px 0px 0px 20px;
+        }
+        .loja-perso-detail-pricetag span {
+            font-family: 'Tilt Warp', cursive;
+            font-weight: 400;
+            font-size: 36px;
+            line-height: 45px;
+            color: #FF4E3B;
+            text-transform: uppercase;
+        }
+        .loja-perso-detail-pricetag img { width: 45px; height: 45px; flex: none; }
+        .loja-perso-detail-foot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            flex-wrap: wrap;
+        }
+        .loja-perso-detail-title {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 4px;
+        }
+        .loja-perso-detail-title strong {
+            font-family: 'Tilt Warp', cursive;
+            font-weight: 400;
+            font-size: 32px;
+            line-height: 40px;
+            color: #F8DCC0;
+            text-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+        }
+        .loja-perso-detail-title span {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 400;
+            font-size: 16px;
+            line-height: 24px;
+            color: #F8DCC0;
+        }
+        .loja-perso-detail-buy {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        .loja-perso-detail-buy .loja-item-buy-form { margin: 0; }
+        .loja-perso-detail-buy .loja-perso-buy-form .btn-chip {
+            width: 142px;
+            min-width: 142px;
+            padding: 5px 20px;
+            gap: 10px;
+            font-size: 20px;
+        }
+        .loja-perso-detail-buy .loja-perso-buy-form .btn-chip img { width: 20px; height: 20px; }
+        .loja-perso-detail-balance {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 20px;
+            line-height: 30px;
+            color: #FF4E3B;
+        }
+        .loja-perso-detail-balance img { width: 32px; height: 33px; flex: none; }
+
         /* Botão Usar (inventário da Loja de Jogo) — pedido do dono,
            2026-08-19: "No botão usar use o mesmo css dos botões da
            sidebar e topbar", em vez do .btn-chip-success verde/cream
@@ -996,30 +1157,40 @@
                                 </div>
                             <% } %>
                             <% group.items.forEach(img => { %>
-                                <div class="loja-item loja-item-perso">
+                                <%
+                                    // Estado "disponível pra comprar" (Figma "Property
+                                    // 1=Variant4") — único restruturado pixel-a-pixel por
+                                    // ora (pedido do dono, 2026-08-21, "um por um"); os
+                                    // outros 3 estados abaixo mantêm o texto/ordem de
+                                    // antes, só herdando fundo/moldura/título novos.
+                                    const isBuyState = !!img.shop_price && !img.owned && !img.coming_soon;
+                                    // STATUS (tier mínimo ou "Disponível") reaproveitado
+                                    // tanto no card pequeno quanto no dialog de detalhe
+                                    // (Figma "Property 1=Variant2", aberto ao clicar no
+                                    // card — pedido do dono, 2026-08-21).
+                                    const hasTierNote = isBuyState && img.shop_min_tier && img.shop_min_tier !== 'free';
+                                    const tierLabel = hasTierNote ? (lojaShopTierLabels[img.shop_min_tier] || img.shop_min_tier) : null;
+                                    const buyDisabled = shopPurchasesLocked || huntBalance < (img.shop_price || 0);
+                                %>
+                                <div
+                                    class="loja-item loja-item-perso<%= isBuyState ? ' loja-item-perso-buyable' : '' %>"
+                                    <% if (isBuyState) { %>onclick="document.getElementById('loja-perso-detail-<%= img.id %>').showModal()"<% } %>
+                                >
                                     <% if (img.coming_soon || !img.shop_price) { %>
                                         <span class="loja-soon-ribbon"><span data-i18n-pt>Em breve</span><span data-i18n-en>Soon</span></span>
                                     <% } %>
                                     <div
                                         class="loja-item-thumb<%= img.url ? ' is-zoomable' : '' %>"
                                         style="<%= img.url ? `background-image:url('${img.url}')` : '' %>"
-                                        <% if (img.url) { %>onclick="openImageLightbox('<%= img.url %>', '<%= (img.label || '').replace(/'/g, "\\'") %>')"<% } %>
+                                        <% if (img.url && !isBuyState) { %>onclick="openImageLightbox('<%= img.url %>', '<%= (img.label || '').replace(/'/g, "\\'") %>')"<% } %>
                                     ></div>
-                                    <%
-                                        // Estado "disponível pra comprar" (Figma "Property
-                                        // 1=Variant4") — único restruturado pixel-a-pixel por
-                                        // ora (pedido do dono, 2026-08-21, "um por um"); os
-                                        // outros 3 estados abaixo mantêm o texto/ordem de
-                                        // antes, só herdando fundo/moldura/título novos.
-                                        const isBuyState = !!img.shop_price && !img.owned && !img.coming_soon;
-                                    %>
                                     <div class="loja-item-perso-head">
                                         <span class="loja-item-label"><%= img.label %></span>
                                         <% if (isBuyState) { %>
                                             <span class="loja-item-perso-status">
-                                                <% if (img.shop_min_tier && img.shop_min_tier !== 'free') { %>
-                                                    <span data-i18n-pt>Requer plano <%= lojaShopTierLabels[img.shop_min_tier] || img.shop_min_tier %>+ pra usar</span>
-                                                    <span data-i18n-en>Requires <%= lojaShopTierLabels[img.shop_min_tier] || img.shop_min_tier %>+ to use</span>
+                                                <% if (hasTierNote) { %>
+                                                    <span data-i18n-pt>Requer plano <%= tierLabel %>+ pra usar</span>
+                                                    <span data-i18n-en>Requires <%= tierLabel %>+ to use</span>
                                                 <% } else { %>
                                                     <span data-i18n-pt>Disponível para compra</span>
                                                     <span data-i18n-en>Available for purchase</span>
@@ -1056,16 +1227,65 @@
                                         <% } %>
                                         <div class="loja-item-perso-row">
                                             <span class="loja-item-price is-hunt"><img src="/images/icons/hunt.webp" alt=""> <%= img.shop_price %></span>
-                                            <form method="POST" action="/loja/comprar" class="loja-item-buy-form loja-perso-buy-form">
+                                            <form method="POST" action="/loja/comprar" class="loja-item-buy-form loja-perso-buy-form" onclick="event.stopPropagation()">
                                                 <input type="hidden" name="poolType" value="<%= img.type %>">
                                                 <input type="hidden" name="poolId" value="<%= img.id %>">
-                                                <button type="submit" class="btn-chip btn-chip-success"<%= (shopPurchasesLocked || huntBalance < img.shop_price) ? ' disabled' : '' %>>
+                                                <button type="submit" class="btn-chip btn-chip-success"<%= buyDisabled ? ' disabled' : '' %>>
                                                     <img src="/images/icons/hunt.webp" alt=""> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
                                                 </button>
                                             </form>
                                         </div>
                                     <% } %>
                                 </div>
+                                <%#
+                                    Card de detalhe (Figma "Property 1=Variant2") — abre ao
+                                    clicar no card pequeno acima (pedido do dono, 2026-08-21:
+                                    "ao clicar ele deve abrir este card"). Só existe pro
+                                    estado "disponível pra comprar" por ora (mesmo motivo do
+                                    onclick lá em cima — "um por um"). Formulário de compra
+                                    PRÓPRIO (não dá pra reaproveitar o <form> do card pequeno,
+                                    são dois elementos DOM diferentes) — mesma action/inputs/
+                                    disabled do de cima.
+                                %>
+                                <% if (isBuyState) { %>
+                                    <dialog id="loja-perso-detail-<%= img.id %>" class="loja-perso-detail-dialog">
+                                        <button type="button" class="loja-perso-detail-close" onclick="this.closest('dialog').close()" aria-label="Fechar" title="Fechar">&times;</button>
+                                        <div class="loja-perso-detail-frame" style="<%= img.url ? `background-image:url('${img.url}')` : '' %>">
+                                            <div class="loja-perso-detail-pricetag">
+                                                <span><%= img.shop_price %></span>
+                                                <img src="/images/icons/hunt.webp" alt="">
+                                            </div>
+                                        </div>
+                                        <div class="loja-perso-detail-foot">
+                                            <div class="loja-perso-detail-title">
+                                                <strong><%= img.label %></strong>
+                                                <span>
+                                                    <% if (hasTierNote) { %>
+                                                        <span data-i18n-pt>Requer plano <%= tierLabel %>+ pra usar</span>
+                                                        <span data-i18n-en>Requires <%= tierLabel %>+ to use</span>
+                                                    <% } else { %>
+                                                        <span data-i18n-pt>Disponível para compra</span>
+                                                        <span data-i18n-en>Available for purchase</span>
+                                                    <% } %>
+                                                </span>
+                                            </div>
+                                            <div class="loja-perso-detail-buy">
+                                                <form method="POST" action="/loja/comprar" class="loja-item-buy-form loja-perso-buy-form">
+                                                    <input type="hidden" name="poolType" value="<%= img.type %>">
+                                                    <input type="hidden" name="poolId" value="<%= img.id %>">
+                                                    <button type="submit" class="btn-chip btn-chip-success"<%= buyDisabled ? ' disabled' : '' %>>
+                                                        <img src="/images/icons/hunt.webp" alt=""> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
+                                                    </button>
+                                                </form>
+                                                <span class="loja-perso-detail-balance">
+                                                    <img src="/images/icons/hunt.webp" alt="">
+                                                    <span data-i18n-pt>SEU SALDO: <%= huntBalance %></span>
+                                                    <span data-i18n-en>YOUR BALANCE: <%= huntBalance %></span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </dialog>
+                                <% } %>
                             <% }); %>
                         </div>
                     <% } %>
@@ -1589,7 +1809,7 @@
             existir vários na página, um por item com requisito), Esc já
             fecha sozinho (comportamento nativo de <dialog>).
         %>
-        document.querySelectorAll('.loja-progress-dialog').forEach((dialog) => {
+        document.querySelectorAll('.loja-progress-dialog, .loja-perso-detail-dialog').forEach((dialog) => {
             dialog.addEventListener('click', (e) => {
                 const rect = dialog.getBoundingClientRect();
                 const insideContent = e.clientY >= rect.top && e.clientY <= rect.bottom && e.clientX >= rect.left && e.clientX <= rect.right;
