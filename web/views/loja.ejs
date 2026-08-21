@@ -694,6 +694,18 @@
             background-position: center;
             filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5)) drop-shadow(-1px -1px 2px rgba(0, 0, 0, 0.5));
             border-radius: 20px;
+            /* Sem isso, o canto superior-direito RETO da etiqueta de preço
+               (border-radius: 0 0 0 20px — só o canto inferior-esquerdo é
+               arredondado, de propósito, pro Figma) furava pra fora do
+               canto ARREDONDADO da imagem (20px), um bico quadrado
+               sobrando por cima da curva — achado pelo dono, 2026-08-21:
+               "vi uma divergencia de interação de sombra sobre a tag de
+               preço". overflow:hidden recorta a etiqueta (e a sombra do
+               ::after abaixo) exatamente no contorno arredondado da
+               moldura, então o canto bate certinho e o filter:drop-shadow
+               (que desenha em cima do resultado JÁ recortado) também para
+               de trazer aquele silhueta errada. */
+            overflow: hidden;
         }
         /* Sombra "pressionada" (inset) por CIMA da etiqueta de preço, não
            por baixo (pedido do dono, 2026-08-21: "o valor... tem que
