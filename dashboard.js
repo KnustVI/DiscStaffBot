@@ -2646,28 +2646,31 @@ function loadDashboard(client) {
         });
     });
 
-    // Perfil de staff, SÓ LEITURA (pedido do dono, 2026-08-07: "adicione um
-    // link em cada um para visitar o perfil deles, com um botão de volta
-    // depois", ver o link "Ver perfil" em partials/staff-row.ejs) — versão
-    // enxuta do /perfil normal (que só existe pro próprio usuário logado,
-    // com forms de edição amarrados a req.user.id): aqui é sempre outro
-    // staff, sem NENHUM formulário, só identidade Discord + vínculo PoT +
-    // status em jogo NESTE servidor. Acesso: qualquer staff do servidor
-    // (mesmo gate isStaff das outras páginas de guild), não só quem
-    // configurou os cargos. Botão "Voltar" usa history.back() no template
-    // (não uma URL fixa) — funciona voltando pra Moderação, Eventos, ou
-    // qualquer lugar que tenha linkado pra cá, sem precisar de ?returnTo=.
+    // Perfil de OUTRO jogador, SÓ LEITURA (pedido do dono, 2026-08-07:
+    // "adicione um link em cada um para visitar o perfil deles", ver o link
+    // "Ver perfil" em partials/staff-row.ejs; reaberto pra QUALQUER
+    // jogador logado em 2026-08-20: "Permita que outros jogadores vejam o
+    // perfil dos outros como visitante" — antes só staff/admin de
+    // guildID conseguia abrir esta rota). Mesma apresentação do /perfil
+    // normal (identidade + grupo de 4 + cards de servidor jogado, ver
+    // staff-perfil.ejs), sem NENHUM formulário (sempre outra pessoa, nunca
+    // req.user.id). `viewerIsStaff` (staff/admin em guildID) não bloqueia
+    // mais o acesso — só decide se os cards de servidor onde o VISITANTE
+    // também é staff mostram o histórico de staff do ALVO ali (pedido do
+    // dono, mesmo dia: "podem adicione o histórico de staff nos cards de
+    // servidor") — visitante comum (sem acesso de staff em guildID nenhum)
+    // só vê a mesma coisa que veria no /perfil de qualquer um. Botão
+    // "Voltar" usa history.back() no template (não uma URL fixa).
     app.get('/staff-perfil/:guildID/:userID', checkAuth, async (req, res) => {
         if (isDashboardLocked(req)) return res.redirect('/dashboard');
         const { guildID, userID } = req.params;
         const guild = client.guilds.cache.get(guildID);
         if (!guild) return res.redirect('/dashboard');
-        const { isStaff, apiError } = await resolveAdminMember(guild, req.user.id);
+        const { isStaff: viewerIsStaff, apiError } = await resolveAdminMember(guild, req.user.id);
         if (apiError) {
             console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
             return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
         }
-        if (!isStaff) return res.redirect('/dashboard');
 
         const targetMember = await guild.members.fetch(userID).catch(() => null);
         if (!targetMember) return res.status(404).send('Membro não encontrado neste servidor.');
@@ -2675,57 +2678,99 @@ function loadDashboard(client) {
         const link = PlayerRegistry.getPlayerByDiscordId(userID);
         const playerTier = PremiumSystem.getPlayerTier(userID);
         const premiumInfo = PremiumSystem.getPlayerPremiumInfo(userID);
+        const isCompyPlus = playerTier === 'compy' || playerTier === 'raptor';
+        const isRaptor = playerTier === 'raptor';
+        const huntBalance = PlayerRegistry.getHuntBalance(userID);
+        const levelProgress = PlayerRegistry.getLevelProgress(userID);
+        const staffRoles = getStaffRoles(userID, client);
 
         let honorStars = null;
         let mostPlayedDinosaur = null;
-        let kdStats = null;
-        let gameStatus = null;
+        let mostPlayedDinosaurIsCarnivore = false;
+        let playedGuilds = [];
+        let ownedItems = [];
+        let avatarPreviewUrl = null;
+        let backgroundPreviewUrl = null;
 
         // Mesma regra do /perfil normal: só calcula/mostra o que depende de
-        // vínculo quando ele existe, e respeita hide_kda (privacidade que o
-        // PRÓPRIO jogador escolheu, vale pra qualquer um vendo, staff ou não).
+        // vínculo quando ele existe, e respeita hide_kda/personalização
+        // como o PRÓPRIO jogador configurou (vale pra qualquer um vendo).
         if (link) {
             honorStars = PunishmentSystem.getGlobalHonorStars(PunishmentSystem._resolveHistoryUserIds(userID, link.alderon_id));
             mostPlayedDinosaur = PlayerRegistry.getMostPlayedDinosaur(link.alderon_id);
-            if (!link.hide_kda) {
-                const stats = PlayerRegistry.getGlobalPlayerStats(link.alderon_id);
-                kdStats = { kills: stats.kills, deaths: stats.deaths, kd: formatKD(stats.kills, stats.deaths) };
-            }
+            mostPlayedDinosaurIsCarnivore = PlayerRegistry.isDinosaurCarnivore(mostPlayedDinosaur);
 
-            // Status em jogo NESTE servidor — mesma regra/mesma função de
-            // getServerPulse (computeGameStatus), só que buscada avulsa (1
-            // membro, não o roster inteiro) já que aqui é sempre 1 pessoa só.
-            // Fonte da query: PlayerRegistry.getPlayerGameStatus (ver
-            // docblock completo em potPlayerRegistry.js).
-            const gameStatusRow = PlayerRegistry.getPlayerGameStatus(guildID, link.alderon_id);
-            const online = !!gameStatusRow?.isOnline;
-            const spectating = online && !!db.prepare(
-                'SELECT 1 FROM pot_spectator_sessions WHERE guild_id = ? AND alderon_id = ?'
-            ).get(guildID, link.alderon_id);
-            gameStatus = computeGameStatus({
-                online,
-                spectating,
-                dinosaurType: gameStatusRow?.dinosaurType,
-                sessionStartedAt: gameStatusRow?.sessionStartedAt,
-            });
+            const isFree = !isCompyPlus;
+            avatarPreviewUrl = await resolvePlayerImageUrl('personalizacao', link.selected_photo_key, isRaptor ? link.banner_message_id : null);
+            backgroundPreviewUrl = isFree ? null : await resolvePlayerImageUrl('personalizacao', link.selected_background_key, isRaptor ? link.background_message_id : null);
+
+            const inventoryRows = ImageShopSystem.getInventory(userID);
+            ownedItems = await Promise.all(inventoryRows.map(async (row) => {
+                const poolItem = ProfileImagePool.getByTypeAndId(row.pool_type, row.pool_id);
+                return {
+                    type: row.pool_type,
+                    id: row.pool_id,
+                    label: poolItem?.label || 'Item',
+                    url: poolItem ? await ProfileImagePool.resolveImageUrl(client, row.pool_type, row.pool_id) : null,
+                };
+            }));
+
+            playedGuilds = getPlayedGuilds(link.alderon_id, client);
         }
+
+        const otherGuilds = await getAdminGuildsWithBot(req);
+        // Histórico de staff do ALVO (não do visitante) — mesma função já
+        // usada no /perfil normal (getStaffHistoryForProfile), varre só os
+        // guilds onde o ALVO tem/teve cargo de mod/evento (ver
+        // ConfigSystem.memberHasModOrEventRole lá dentro). Mesclado abaixo
+        // só nos cards onde o VISITANTE também tem acesso de staff.
+        const targetStaffHistory = getStaffHistoryForProfile(userID, client);
+        playedGuilds = playedGuilds.map((pg) => {
+            const stats = PlayerRegistry.getGuildPlayerStats(pg.guildId, link.alderon_id);
+            const bones = PlayerRegistry.getBonesBalance(userID, pg.guildId);
+            const personalization = ConfigSystem.getPanelPersonalization(pg.guildId);
+            const accentHex = personalization.accentColor != null
+                ? personalization.accentColor.toString(16).padStart(6, '0').toUpperCase()
+                : null;
+            const hasPanelAccess = otherGuilds.some((g) => g.id === pg.guildId);
+            return {
+                ...pg,
+                kills: stats.kills,
+                bones,
+                accentHex,
+                panelHref: hasPanelAccess ? `/moderacao/${pg.guildId}` : null,
+                staffHistory: hasPanelAccess ? (targetStaffHistory.find((h) => h.guildId === pg.guildId) || null) : null,
+            };
+        });
+
+        const totalPlaytimeSeconds = playedGuilds.reduce((sum, pg) => sum + (pg.totalPlaytime || 0), 0);
+        const totalPlaytimeLabel = totalPlaytimeSeconds > 0 ? StaffPresenceSystem.formatDuration(totalPlaytimeSeconds * 1000) : null;
 
         res.render('staff-perfil', {
             nickname: req.user.global_name || req.user.username,
             role: await getSidebarRoleLabel(req),
             isOwner: isOwnerSession(req),
+            otherGuilds,
             guild,
             discordUser: targetMember.user,
             displayName: targetMember.nickname || targetMember.user.username,
-            cargo: highestStaffRoleName(guildID, targetMember) || '—',
-            roleLabel: staffRoleCategoryLabel(guildID, targetMember),
+            viewerIsStaff,
             link,
             playerTier,
             premiumInfo,
+            isCompyPlus,
+            isRaptor,
             honorStars,
             mostPlayedDinosaur,
-            kdStats,
-            gameStatus,
+            mostPlayedDinosaurIsCarnivore,
+            huntBalance,
+            levelProgress,
+            staffRoles,
+            ownedItems,
+            avatarPreviewUrl,
+            backgroundPreviewUrl,
+            playedGuilds,
+            totalPlaytimeLabel,
         });
     });
 

@@ -1,17 +1,28 @@
 <%#
   web/views/staff-perfil.ejs
-  Perfil de OUTRO staff, só leitura — pedido do dono, 2026-08-07:
+  Perfil de OUTRO jogador, só leitura — pedido do dono, 2026-08-07:
   "Adicione um link em cada um para visitar o perfil deles, com um botão
   de volta depois" (ver o link "Ver perfil" na lista de staff de
-  partials/staff-row.ejs, dentro de Moderação/Eventos). Diferente de
-  web/views/perfil.ejs (que é SEMPRE o próprio usuário logado, com forms
-  de edição/personalização amarrados a req.user.id): esta página nunca
-  tem formulário nenhum, só mostra identidade Discord + vínculo Path of
-  Titans + status em jogo NESTE servidor de quem foi clicado. Reaproveita
-  as MESMAS classes .perfil-hero*/.perfil-tier-pill/.perfil-stat-line/
-  .perfil-stars de perfil.ejs (copiadas aqui, são estilos só-da-página lá
-  também — sem isso duplicava a MESMA cópia de CSS 2x no compartilhado
-  style.css por engano).
+  partials/staff-row.ejs, dentro de Moderação/Eventos). Reaberto pra
+  QUALQUER jogador logado em 2026-08-20 ("Permita que outros jogadores
+  vejam o perfil dos outros como visitante") — antes só staff/admin de
+  :guildID conseguia abrir; dashboard.js GET /staff-perfil/:guildID/:userID
+  não bloqueia mais o acesso por isso, só usa `viewerIsStaff`/otherGuilds
+  pra decidir se os cards de servidor abaixo mostram o histórico de staff
+  do ALVO.
+
+  Mesma apresentação do /perfil normal (pedido do dono, 2026-08-20: "Deve
+  ter a mesma apresentação que um perfil normal") — card de identidade +
+  grupo de 4 cards + cards de servidor jogado, TODOS copiados de
+  perfil.ejs (mesmo padrão já documentado ali: CSS só-desta-página, sem
+  entrar no style.css compartilhado, então duplicado aqui de propósito).
+  Diferente de perfil.ejs (sempre o próprio req.user.id, com forms de
+  edição/personalização): esta página nunca tem formulário nenhum, é
+  sempre OUTRA pessoa — sem aba de Personalização, sem botão "Salvar".
+  Adição exclusiva daqui: histórico de staff (punições/reports) nos cards
+  de servidor onde o VISITANTE também tem acesso de staff (pg.staffHistory,
+  ver dashboard.js) — pedido do dono, mesmo dia: "podem adicione o
+  histórico de staff nos card de servidor".
 
   Botão "Voltar" usa history.back() via JS (não uma URL fixa) — volta pra
   Moderação, Eventos, ou qualquer página que tenha linkado pra cá.
@@ -45,39 +56,279 @@
         }
     </script>
     <style>
-        /* Copiado de perfil.ejs (mesmas classes, mesmo motivo: estilo só
-           desta página, não entra no style.css compartilhado). */
-        .perfil-hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
-        .perfil-hero-avatar {
-            box-sizing: border-box;
-            flex: none;
-            width: 96px;
-            height: 96px;
-            border-radius: 50%;
-            background: #4B2427;
-            border: 4px solid #803E30;
-            box-shadow: 0px 12px 18px 11px rgba(1, 2, 10, 0.45);
-            overflow: hidden;
+        /* Estilos só desta página, copiados de perfil.ejs de propósito
+           (mesmo motivo documentado lá: componente usado em mais de uma
+           página não entra no style.css compartilhado só por isso — ver
+           docblock completo em perfil.ejs). Card de identidade (.pf-id-*)
+           e cards de servidor (.pf-srv-*) idênticos aos de lá; qualquer
+           ajuste visual feito num dos dois precisa ser replicado no outro
+           manualmente, não há fonte única de verdade pra este CSS. */
+        :root {
+            --pf-text: #F8DCC0;
+            --pf-accent: #DCA15E;
+            --font-head: 'Tilt Warp', cursive;
+            --font-body: 'Poppins', sans-serif;
         }
-        .perfil-hero-avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .perfil-hero-name { font-family: 'Tilt Warp', cursive; font-size: clamp(20px, 3vw, 28px); line-height: 1.2; color: #F8DCC0; }
-        .perfil-hero-id { font-family: 'Poppins', sans-serif; font-size: 13px; line-height: 1.2; opacity: 0.5; }
-        .perfil-tier-pill {
-            display: inline-flex;
+        body.perfil-has-bg {
+            background-image: url('<%= backgroundPreviewUrl %>') !important;
+            background-size: cover !important;
+            background-position: center !important;
+            background-repeat: no-repeat !important;
+            background-attachment: fixed !important;
+        }
+        .perfil-soon-card {
+            display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 6px;
-            padding: 5px 16px;
-            border-radius: 147.5px;
+            justify-content: center;
+            gap: 8px;
+            text-align: center;
+            padding: 10px 24px;
+        }
+        .perfil-soon-card i { width: 32px; height: 32px; color: #803E30; }
+        .perfil-soon-title { font-family: 'Tilt Warp', cursive; font-size: 16px; color: #F8DCC0; }
+        .perfil-soon-text { font-family: 'Poppins', sans-serif; font-size: 12px; opacity: 0.5; max-width: 320px; }
+        .perfil-soon-text.perfil-playtime-total { font-size: 20px; font-weight: 600; opacity: 1; color: #DCA15E; }
+
+        /* ==================== CARD DE IDENTIDADE ==================== */
+        .pf-id-card {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            padding: 20px;
+            background: transparent;
+        }
+        .pf-id-inner { display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; max-width: 1041px; gap: 20px; }
+        .pf-id-top { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+        .pf-id-photo-col { flex: 1 1 380px; min-width: 260px; display: flex; flex-direction: column; gap: 0; }
+        .pf-id-photo-frame { position: relative; }
+        .pf-id-photo-shadow-wrap {
+            position: relative;
+            width: 100%;
+            filter: drop-shadow(0px 0px 1px #FFFDF5) drop-shadow(0px 0px 3px var(--pf-tier-accent)) drop-shadow(12px 15px 11.5px rgba(0, 0, 0, 0.36));
+        }
+        .pf-id-photo-rim {
+            position: absolute;
+            inset: 0;
+            transform: scale(1.012);
+            background: linear-gradient(135deg, var(--pf-rim-light) 0%, var(--pf-rim-mid) 20%, var(--pf-rim-dark) 38%, var(--pf-rim-light) 52%, var(--pf-rim-dark) 68%, var(--pf-rim-mid) 85%, var(--pf-rim-light) 100%);
+            clip-path: url(#pf-id-photo-clip);
+        }
+        .pf-id-photo {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 350 / 238;
+            background-color: #1F1D20;
+            background-size: cover;
+            background-position: center;
+            box-shadow: inset 0px 4px 4px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+            clip-path: url(#pf-id-photo-clip);
+        }
+        .pf-id-stars {
+            position: absolute;
+            left: 0; bottom: 0;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 20px 0 18px 16px;
+        }
+        .pf-id-star-wrap {
+            position: relative;
+            width: clamp(18px, 2.6vw, 24px);
+            height: clamp(18px, 2.6vw, 24px);
+            filter: drop-shadow(0px -2px 10px rgba(255, 226, 129, 0.65)) drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.49));
+        }
+        .pf-id-star-outline, .pf-id-star-fill { position: absolute; inset: 0; clip-path: url(#pf-id-star-shape); }
+        .pf-id-star-outline { background: #1F1D20; transform: scale(1.08); }
+        .pf-id-star-fill {
+            background: linear-gradient(0deg, rgba(255, 145, 60, 0.22), rgba(255, 145, 60, 0.22)), conic-gradient(from 180deg at 50% 50%, #FFE9B8 0deg, #FFFDF5 360deg);
+            background-blend-mode: plus-lighter, normal;
+        }
+        .pf-id-photo-badges {
+            position: absolute;
+            right: 12px; bottom: 0px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            padding: 0px;
+            gap: 10px;
+            filter: drop-shadow(3px 2px 6px rgba(0, 0, 0, 0.9)) drop-shadow(-3px -2px 6px rgba(0, 0, 0, 0.9));
+        }
+        .pf-id-photo-badges .badge-circle { width: 33px; height: 33px; display: flex; align-items: center; justify-content: center; flex: none; }
+        .pf-id-photo-badges .badge-circle img { width: 100%; height: 100%; object-fit: contain; }
+        .pf-id-species {
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 18px;
+            padding: 12px 18px;
+            border-radius: 10px;
+            border: 1px solid var(--pf-tier-accent);
+            background: linear-gradient(179.54deg, var(--pf-tier-a) 47.59%, var(--pf-tier-b) 99.6%);
+            box-shadow: 0px 0px 2.3px #DCA15E, 8px 11px 6px rgba(0, 0, 0, 0.43);
+            color: var(--pf-tier-text);
+            font-family: var(--font-head);
+            font-size: 18px;
+            text-transform: uppercase;
+        }
+        .pf-id-species img { width: 35px; height: 35px; flex: none; object-fit: contain; }
+        .pf-id-info { flex: 1 1 420px; min-width: 260px; display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
+        .pf-id-nickname {
+            font-family: var(--font-head);
+            font-size: clamp(28px, 4vw, 48px);
+            line-height: 1.15;
+            color: var(--pf-text);
+            text-shadow: 3px 2px 6px rgba(0,0,0,0.9), -3px -2px 6px rgba(0,0,0,0.9);
+            text-wrap: balance;
+        }
+        .pf-id-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: var(--font-body);
+            font-weight: 600;
+            font-size: 18px;
+            color: var(--pf-text);
+            filter: drop-shadow(3px 2px 6px rgba(0,0,0,0.9)) drop-shadow(-3px -2px 6px rgba(0,0,0,0.9));
+        }
+        .pf-id-row img { width: 35px; height: 35px; flex: none; object-fit: contain; }
+        .pf-id-bottom-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: auto; }
+        .pf-id-level {
+            box-sizing: border-box;
+            flex: 1 1 500px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 20px;
+            background: linear-gradient(179.54deg, var(--pf-tier-a) 47.59%, var(--pf-tier-b) 99.6%);
+            border: 1px solid var(--pf-tier-accent);
+            box-shadow: 0px 0px 2.3px #DCA15E, 8px 11px 6px rgba(0, 0, 0, 0.43);
+            border-radius: 10px;
+            color: var(--pf-tier-text);
+        }
+        .pf-id-level img { width: 35px; height: 35px; flex: none; object-fit: contain; }
+        .pf-id-level-label { font-family: var(--font-head); font-size: 16px; flex: none; white-space: nowrap; }
+        .pf-id-level-track-wrap { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+        .pf-id-level-count { font-family: var(--font-head); font-size: 13px; }
+        .pf-id-level-track { width: 100%; height: 8px; border-radius: 10px; background: #3E3D38; border: 1px solid #2A2A2A; overflow: hidden; }
+        .pf-id-level-fill { height: 100%; background: var(--pf-accent); border-radius: 10px 0 0 10px; }
+        .pf-id-level-caption { font-family: var(--font-head); font-size: 12px; text-align: center; opacity: 0.85; }
+        .pf-id-hunt {
+            box-sizing: border-box;
+            flex: 0 0 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 10px 20px;
+            background: linear-gradient(90deg, #1F1D20 36.06%, #803E30 100%);
+            border: 1px solid #803E30;
+            box-shadow: 0px 0px 2.3px #DCA15E, 8px 11px 6px rgba(0, 0, 0, 0.43);
+            border-radius: 10px;
+        }
+        .pf-id-hunt img { width: 35px; height: 35px; flex: none; object-fit: contain; }
+        .pf-id-hunt-label { font-family: var(--font-body); font-weight: 900; font-size: 16px; color: var(--pf-tier-hunt-color, var(--pf-text)); }
+        @media (max-width: 640px) { .pf-id-hunt { flex: 1 1 100%; } }
+        .pf-id-card.has-bg {
+            padding: 24px;
+            border-radius: 24px;
+            background-size: cover;
+            background-position: center;
+            aspect-ratio: 4 / 3;
+            max-height: 850px;
+            min-height: 420px;
+        }
+        .pf-id-card.has-bg .pf-id-level {
+            box-shadow: 0.5px -0.5px 0.5px #F8DCC0, -25px 47px 68.1px rgba(0, 0, 0, 0.74);
+        }
+
+        /* ==================== CARDS DE SERVIDOR JOGADO ==================== */
+        .pf-srv-card {
+            --srv-border: #000000;
+            --srv-bg-a: #1F1D20;
+            --srv-bg-b: #111111;
+            --srv-divider: #F8DCC0;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            gap: 12px;
+            border: 3px solid var(--srv-border);
+            border-radius: 10px;
+            background: radial-gradient(225.25% 94.36% at 0% 86.37%, var(--srv-bg-a) 0%, var(--srv-bg-b) 100%);
+            box-shadow: 0.5px -0.5px 0.5px #F8DCC0, -25px 47px 68.1px rgba(0, 0, 0, 0.74);
+        }
+        .pf-srv-card--accent {
+            --srv-border: color-mix(in srgb, var(--srv-accent) 80%, #000000);
+            --srv-bg-a: color-mix(in srgb, var(--srv-accent) 55%, #1F1D20);
+            --srv-bg-b: color-mix(in srgb, var(--srv-accent) 20%, #111111);
+            --srv-divider: var(--srv-accent);
+            --srv-glow: var(--srv-accent);
+            box-shadow: 0.5px -0.5px 0.5px #F8DCC0, -25px 47px 68.1px rgba(0, 0, 0, 0.74), 0 0 30px -8px var(--srv-glow);
+        }
+        .pf-srv-head { display: flex; align-items: center; gap: 10px; width: 100%; }
+        .pf-srv-logo { width: 56px; height: 56px; flex: none; object-fit: contain; opacity: 0.8; border-radius: 12px; }
+        .pf-srv-name {
+            font-family: 'Tilt Warp', cursive;
+            font-size: clamp(18px, 2vw, 24px);
+            color: #F8DCC0;
+            text-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+            min-width: 0;
+            overflow-wrap: break-word;
+        }
+        .pf-srv-divider { width: 100%; height: 0; border: none; border-top: 1px solid var(--srv-divider); margin: 0; }
+        .pf-srv-stats { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+        .pf-srv-stat {
+            display: flex;
+            align-items: center;
+            gap: 10px;
             font-family: 'Poppins', sans-serif;
             font-weight: 600;
-            font-size: 13px;
-            line-height: 1.2;
-            border: 1px solid var(--pt-color, #F8DCC0);
-            color: var(--pt-color, #F8DCC0);
+            font-size: 16px;
+            color: #F8DCC0;
+            filter: drop-shadow(5px 5px 10px rgba(0, 0, 0, 0.5)) drop-shadow(-5px -5px 10px rgba(0, 0, 0, 0.7));
         }
-        .perfil-stars { font-size: 20px; letter-spacing: 3px; color: #3E3D38; }
-        .perfil-stars .is-filled { color: #DCA15E; }
-        .perfil-stat-line { font-family: 'Poppins', sans-serif; font-size: 13px; opacity: 0.7; }
+        .pf-srv-stat i { width: 26px; height: 26px; flex: none; color: #F8DCC0; }
+        .pf-srv-panel-btn {
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px 20px;
+            background: radial-gradient(225.25% 94.36% at 0% 86.37%, #111111 0%, #1F1D20 57.07%, #29272A 91.53%);
+            border: 1px solid #F8DCC0;
+            box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 14px;
+            color: #F8DCC0;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease, background 0.15s ease;
+        }
+        .pf-srv-panel-btn:hover, .pf-srv-panel-btn:focus-visible {
+            border-color: #DCA15E;
+            color: #DCA15E;
+            box-shadow: -5px -5px 10px rgba(0, 0, 0, 0.5), 5px 5px 10px rgba(0, 0, 0, 0.5), 10px 10px 20px rgba(0, 0, 0, 0.5), -10px -10px 20px rgba(0, 0, 0, 0.5);
+        }
+        .pf-srv-panel-btn:active {
+            background: #4B2427;
+            border-color: #DCA15E;
+            color: #DCA15E;
+            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5), inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
+        }
+        /* Histórico de staff do ALVO — só aparece nos cards de servidor
+           onde o VISITANTE tem acesso de staff (pg.staffHistory vem null
+           dos outros, ver dashboard.js). Reaproveita .pf-srv-stats/-stat,
+           só com um 2º divisor mais discreto (opacity) separando "dados de
+           jogador" de "dados de staff" no mesmo card. */
+        .pf-srv-divider--staff { opacity: 0.45; }
+
         /* Botão Voltar (history.back(), ver script no fim da página). */
         .sp-back-btn {
             display: inline-flex;
@@ -93,13 +344,12 @@
             color: #DCA15E;
             cursor: pointer;
             transition: background 0.15s ease;
+            align-self: flex-start;
         }
         .sp-back-btn:hover { background: rgba(220, 161, 94, 0.12); }
     </style>
 </head>
-<body class="flex min-h-screen">
-    <%# Barra de navegação de topo — acompanha a sidebar em toda página
-        (pedido do dono, 2026-08-13, ver partials/top-nav.ejs). %>
+<body class="flex min-h-screen<%= backgroundPreviewUrl ? ' perfil-has-bg' : '' %>">
     <%- include('partials/top-nav', { hideOnScroll: true, reserveSpace: true }) %>
 
     <aside class="shrink-0 h-screen sticky top-0 py-[15px] pl-[15px] lg:py-[30px] lg:pl-[30px]">
@@ -108,95 +358,223 @@
 
     <main class="flex-1 w-full flex flex-col p-[15px] gap-[20px] lg:p-[30px] lg:gap-[30px]">
 
-        <%- include('partials/page-header', { guild, pageLabel: 'PERFIL DO STAFF', pageLabelEn: 'STAFF PROFILE' }) %>
+        <%- include('partials/testing-phase-banner') %>
 
-        <button type="button" class="sp-back-btn" id="spBackBtn" style="align-self: flex-start;">
+        <button type="button" class="sp-back-btn" id="spBackBtn">
             <i data-lucide="arrow-left" class="w-4 h-4"></i>
             <span data-i18n-pt>Voltar</span><span data-i18n-en>Back</span>
         </button>
 
+        <h1 class="section-title text-2xl" style="text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.6), -2px -2px 6px rgba(0, 0, 0, 0.5);"><span data-i18n-pt>Perfil de</span><span data-i18n-en>Profile of</span> <%= displayName %></h1>
+
         <%
-            const spAvatarUrl = discordUser.avatar
-                ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
-                : `https://cdn.discordapp.com/embed/avatars/${discordUser.id % 5}.png`;
-            const spTierColors = { free: '#F8DCC0', compy: '#DCA15E', raptor: '#FF4E3B' };
-            const spTierLabels = { free: 'Free', compy: 'Compy', raptor: 'Raptor' };
+            const pfTierLabels = { free: 'Free', compy: 'Compy', raptor: 'Raptor' };
+            const pfIdCardGradients = {
+                free: { a: '#A6917D', b: '#F8DCC0', text: '#1F1D20', accent: '#F8DCC0', rimDark: '#A6917D', rimMid: '#F8DCC0', rimLight: '#FFF8EF', huntColor: null },
+                compy: { a: '#A25E2D', b: '#DCA15E', text: '#F8DCC0', accent: '#FFAB4C', rimDark: '#8C5E2A', rimMid: '#FFAB4C', rimLight: '#FFD9AE', huntColor: '#DCA15E' },
+                raptor: { a: '#4B2427', b: '#803E30', text: '#DCA15E', accent: '#DE6045', rimDark: '#7A3526', rimMid: '#E89078', rimLight: '#F0B7AB', huntColor: '#DCA15E' },
+            };
+            const pfIdCardGrad = pfIdCardGradients[playerTier] || pfIdCardGradients.free;
+            const pfIdCardDefaultPhotos = { free: '/images/perfil-foto-free.webp', compy: '/images/perfil-foto-compy.webp', raptor: '/images/perfil-foto-raptor.webp' };
+            const pfIdCardPhoto = link ? (avatarPreviewUrl || pfIdCardDefaultPhotos[playerTier] || pfIdCardDefaultPhotos.free) : null;
+            const pfIdBadges = link ? ownedItems.filter((i) => i.type === 'badge').slice(0, 4) : [];
+            const pfIdSpeciesIcon = mostPlayedDinosaurIsCarnivore ? '/images/icons/CarniSkull.webp' : '/images/icons/HerbSkull.webp';
+            const pfIdStaffLabel = staffRoles.length > 0
+                ? staffRoles[0].category + (staffRoles.length > 1 ? ` +${staffRoles.length - 1}` : '')
+                : null;
+            const pfIdCardStyle = [
+                `--pf-tier-a: ${pfIdCardGrad.a}`, `--pf-tier-b: ${pfIdCardGrad.b}`, `--pf-tier-text: ${pfIdCardGrad.text}`,
+                `--pf-tier-accent: ${pfIdCardGrad.accent}`, `--pf-rim-dark: ${pfIdCardGrad.rimDark}`, `--pf-rim-mid: ${pfIdCardGrad.rimMid}`, `--pf-rim-light: ${pfIdCardGrad.rimLight}`,
+            ];
+            if (pfIdCardGrad.huntColor) pfIdCardStyle.push(`--pf-tier-hunt-color: ${pfIdCardGrad.huntColor}`);
+            if (backgroundPreviewUrl) pfIdCardStyle.push(`background-image: url('${backgroundPreviewUrl}')`);
         %>
-        <section class="titan-card-premium flex-col gap-5">
-            <div class="perfil-hero">
-                <div class="flex items-center gap-5">
-                    <div class="perfil-hero-avatar"><img src="<%= spAvatarUrl %>" alt=""></div>
-                    <div class="flex flex-col gap-3 items-start">
-                        <span class="perfil-hero-name"><%= displayName %></span>
-                        <span class="perfil-hero-id">Discord ID: <%= discordUser.id %></span>
-                        <span class="perfil-tier-pill" style="--pt-color: <%= spTierColors[playerTier] %>">
-                            <i data-lucide="badge" class="w-4 h-4"></i> <span data-i18n-pt>Player Premium:</span><span data-i18n-en>Player Premium:</span> <%= spTierLabels[playerTier] %>
-                            <% if (playerTier !== 'free' && premiumInfo.expires_at) { %> — <span data-i18n-pt>expira em</span><span data-i18n-en>expires on</span> <%= new Date(premiumInfo.expires_at).toLocaleDateString('pt-BR') %><% } %>
-                            <% if (playerTier !== 'free' && !premiumInfo.expires_at) { %> — <span data-i18n-pt>vitalício</span><span data-i18n-en>lifetime</span><% } %>
+        <% if (link) { %>
+            <svg width="0" height="0" style="position:absolute">
+                <defs>
+                    <clipPath id="pf-id-photo-clip" clipPathUnits="objectBoundingBox">
+                        <path d="M0.1372,0.0463 C0.1570,0.0154 0.1653,0.0000 0.2033,0.0000 H0.9355 C0.9818,0.0000 1.0000,0.0334 1.0000,0.0900 V0.7635 C1.0000,0.8101 0.9851,0.8380 0.9391,0.8380 H0.6642 C0.6278,0.8380 0.6169,0.8380 0.6007,0.8740 C0.5907,0.8964 0.5802,0.9152 0.5603,0.9537 C0.5405,0.9923 0.5256,1.0000 0.5008,1.0000 H0.0547 C0.0081,1.0000 0.0000,0.9589 0.0000,0.9203 V0.3753 C0.0000,0.2931 0.0066,0.2751 0.0231,0.2442 C0.0397,0.2134 0.1174,0.0771 0.1372,0.0463 Z" />
+                    </clipPath>
+                    <clipPath id="pf-id-star-shape" clipPathUnits="objectBoundingBox">
+                        <path d="M0.5000,0.0000 L0.6180,0.3820 L1.0000,0.3820 L0.6910,0.6180 L0.8090,1.0000 L0.5000,0.7639 L0.1910,1.0000 L0.3090,0.6180 L0.0000,0.3820 L0.3820,0.3820 L0.5000,0.0000 Z" />
+                    </clipPath>
+                </defs>
+            </svg>
+            <section class="titan-card-premium pf-id-card<%= backgroundPreviewUrl ? ' has-bg' : '' %>" style="<%= pfIdCardStyle.join('; ') %>">
+                <div class="pf-id-inner">
+                <div class="pf-id-top">
+                    <div class="pf-id-photo-col">
+                        <div class="pf-id-photo-frame">
+                            <div class="pf-id-photo-shadow-wrap">
+                                <div class="pf-id-photo-rim"></div>
+                                <div class="pf-id-photo" style="background-image:url('<%= pfIdCardPhoto %>')">
+                                    <div class="pf-id-stars">
+                                        <% for (let i = 1; i <= 5; i++) { %>
+                                            <span class="pf-id-star-wrap <%= i <= honorStars ? 'is-filled' : '' %>">
+                                                <span class="pf-id-star-outline"></span>
+                                                <span class="pf-id-star-fill"></span>
+                                            </span>
+                                        <% } %>
+                                    </div>
+                                </div>
+                            </div>
+                            <% if (pfIdBadges.length > 0) { %>
+                                <div class="pf-id-photo-badges">
+                                    <% pfIdBadges.forEach((b) => { %>
+                                        <span class="badge-circle"><img src="<%= b.url %>" alt="" title="<%= b.label %>"></span>
+                                    <% }); %>
+                                </div>
+                            <% } %>
+                        </div>
+                        <div class="pf-id-species">
+                            <img src="<%= pfIdSpeciesIcon %>" alt="">
+                            <span><% if (mostPlayedDinosaur) { %><%= mostPlayedDinosaur %><% } else { %><span data-i18n-pt>Ainda sem registro</span><span data-i18n-en>No record yet</span><% } %></span>
+                        </div>
+                    </div>
+
+                    <div class="pf-id-info">
+                        <span class="pf-id-nickname"><%= link.player_name || discordUser.username %></span>
+                        <span class="pf-id-row">
+                            <img src="/images/icons/medal.webp" alt="">
+                            <span><% if (link.profile_title) { %><%= link.profile_title %><% } else { %><span data-i18n-pt>Em breve (missões)</span><span data-i18n-en>Coming soon (quests)</span><% } %></span>
                         </span>
+                        <span class="pf-id-row">
+                            <img src="/images/pot-logo.webp" alt="">
+                            <span><%= link.player_name || discordUser.username %> | <%= link.alderon_id %></span>
+                        </span>
+                        <span class="pf-id-row">
+                            <img src="/images/icons/gem.webp" alt="">
+                            <span><%= pfTierLabels[playerTier] %></span>
+                        </span>
+                        <% if (pfIdStaffLabel) { %>
+                            <span class="pf-id-row">
+                                <img src="/images/icons/DiscordLOGO.webp" alt="">
+                                <span><%= pfIdStaffLabel %></span>
+                            </span>
+                        <% } %>
                     </div>
                 </div>
-            </div>
 
-            <div class="flex flex-col gap-2">
-                <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Cargo no Discord:</span><span data-i18n-en>Discord role:</span></strong> <%= cargo %></span>
-                <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Função:</span><span data-i18n-en>Staff category:</span></strong> <%= roleLabel %></span>
-            </div>
-        </section>
-
-        <% if (!link) { %>
+                <div class="pf-id-bottom-row">
+                    <div class="pf-id-level">
+                        <img src="/images/icons/DinoFootprint.webp" alt="">
+                        <span class="pf-id-level-label"><span data-i18n-pt>Nível</span><span data-i18n-en>Level</span> <%= levelProgress.level %></span>
+                        <div class="pf-id-level-track-wrap">
+                            <span class="pf-id-level-count"><%= levelProgress.xpTotal %> XP</span>
+                            <div class="pf-id-level-track"><div class="pf-id-level-fill" style="width: <%= levelProgress.percent.toFixed(1) %>%;"></div></div>
+                            <span class="pf-id-level-caption"><span data-i18n-pt>XP para o próximo nível</span><span data-i18n-en>XP to next level</span></span>
+                        </div>
+                    </div>
+                    <div class="pf-id-hunt">
+                        <img src="/images/icons/hunt.webp" alt="">
+                        <span class="pf-id-hunt-label"><%= huntBalance %></span>
+                    </div>
+                </div>
+                </div>
+            </section>
+        <% } else { %>
             <section class="titan-card-premium flex-col gap-3">
                 <h2 class="section-title text-lg flex items-center gap-3">
                     <img src="/images/pot-logo.webp" alt="" class="w-8 h-8 rounded-full">
                     Path of Titans
                 </h2>
-                <p class="text-sm opacity-60"><span data-i18n-pt>Este staff ainda não vinculou a conta do Discord a um jogador de Path of Titans.</span><span data-i18n-en>This staff hasn't linked their Discord account to a Path of Titans player yet.</span></p>
-                <p class="text-[13px] opacity-40">AGID: <span data-i18n-pt>Não vinculado</span><span data-i18n-en>Not linked</span></p>
-            </section>
-        <% } else { %>
-            <section class="titan-card-premium flex-col gap-5">
-                <h2 class="section-title text-lg flex items-center gap-3">
-                    <img src="/images/pot-logo.webp" alt="" class="w-8 h-8 rounded-full">
-                    Path of Titans
-                </h2>
-                <div class="flex flex-col gap-2">
-                    <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Nome no jogo:</span><span data-i18n-en>In-game name:</span></strong> <%= link.player_name || '—' %></span>
-                    <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Alderon ID:</strong> <%= link.alderon_id %></span>
-                    <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Espécie mais jogada:</span><span data-i18n-en>Most played species:</span></strong> <% if (mostPlayedDinosaur) { %><%= mostPlayedDinosaur %><% } else { %><span data-i18n-pt>Ainda sem registro</span><span data-i18n-en>No record yet</span><% } %></span>
-                    <% if (kdStats) { %>
-                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Kills:</strong> <%= kdStats.kills %> <strong class="text-titan-cream opacity-100 ml-2">Deaths:</strong> <%= kdStats.deaths %> <strong class="text-titan-cream opacity-100 ml-2">K/D:</strong> <%= kdStats.kd %> <span class="opacity-50">(<span data-i18n-pt>soma de todos os servidores</span><span data-i18n-en>sum of all servers</span>)</span></span>
-                    <% } %>
-                    <div class="flex items-center gap-2 mt-1">
-                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Honra:</span><span data-i18n-en>Honor:</span></strong></span>
-                        <span class="perfil-stars">
-                            <% for (let i = 1; i <= 5; i++) { %><span class="<%= i <= honorStars ? 'is-filled' : '' %>">★</span><% } %>
-                        </span>
-                    </div>
-                </div>
-
-                <%#
-                    Status em jogo NESTE servidor (pedido do dono: "se online
-                    mostre a quanto tempo esta online. se esta no modo
-                    espectador ou não. se não estiver no modo espectador
-                    fale o dinossauro que esta jogando") — mesmos dados
-                    (gameStatus) e mesma regra da lista de staff (ver
-                    dashboard.js computeGameStatus/partials/staff-row.ejs).
-                %>
-                <div class="pt-2" style="border-top: 1px solid rgba(217, 163, 98, 0.15);">
-                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Status em</span><span data-i18n-en>Status on</span> <%= guild.name %></h3>
-                    <div class="flex flex-col gap-2">
-                        <span class="perfil-stat-line">
-                            <strong class="text-titan-cream opacity-100"><span data-i18n-pt>Situação:</span><span data-i18n-en>Status:</span></strong>
-                            <% if (gameStatus.moderating) { %><span data-i18n-pt>Espectador</span><span data-i18n-en>Spectator</span><% } else if (gameStatus.online) { %>Online<% } else { %>Offline<% } %>
-                            <% if (gameStatus.onlineSince) { %> — <span data-i18n-pt>há</span><span data-i18n-en>for</span> <%= gameStatus.onlineSince %><% } %>
-                        </span>
-                        <% if (gameStatus.dinosaurType) { %>
-                            <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Jogando:</span><span data-i18n-en>Playing:</span></strong> <%= gameStatus.dinosaurType %></span>
-                        <% } %>
-                    </div>
-                </div>
+                <p class="text-sm opacity-60"><span data-i18n-pt><%= displayName %> ainda não vinculou a conta do Discord a um jogador de Path of Titans.</span><span data-i18n-en><%= displayName %> hasn't linked their Discord account to a Path of Titans player yet.</span></p>
             </section>
         <% } %>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-[20px] lg:gap-[30px]">
+            <section class="titan-card-premium perfil-soon-card">
+                <i data-lucide="users"></i>
+                <span class="perfil-soon-title"><span data-i18n-pt>Lista de Amigos</span><span data-i18n-en>Friends List</span></span>
+                <span class="perfil-soon-text"><span data-i18n-pt>Em breve.</span><span data-i18n-en>Coming soon.</span></span>
+            </section>
+            <section class="titan-card-premium perfil-soon-card">
+                <i data-lucide="scroll-text"></i>
+                <span class="perfil-soon-title"><span data-i18n-pt>Lista de Títulos</span><span data-i18n-en>Titles List</span></span>
+                <span class="perfil-soon-text"><span data-i18n-pt>Catálogo de títulos pra desbloquear (sistema de missões) — em breve.</span><span data-i18n-en>Catalog of unlockable titles (quest system) — coming soon.</span></span>
+            </section>
+            <section class="titan-card-premium perfil-soon-card">
+                <i data-lucide="badge"></i>
+                <span class="perfil-soon-title"><span data-i18n-pt>Lista de Badges</span><span data-i18n-en>Badges List</span></span>
+                <span class="perfil-soon-text"><span data-i18n-pt>Vitrine dos emblemas disponíveis pra coletar — em breve.</span><span data-i18n-en>Showcase of collectible badges — coming soon.</span></span>
+            </section>
+            <section class="titan-card-premium perfil-soon-card">
+                <i data-lucide="clock"></i>
+                <span class="perfil-soon-title"><span data-i18n-pt>Tempo de Jogo</span><span data-i18n-en>Playtime</span></span>
+                <% if (totalPlaytimeLabel) { %>
+                    <span class="perfil-soon-text perfil-playtime-total"><%= totalPlaytimeLabel %></span>
+                    <span class="perfil-soon-text"><span data-i18n-pt>Somado entre todos os servidores.</span><span data-i18n-en>Summed across every server.</span></span>
+                <% } else { %>
+                    <span class="perfil-soon-text"><span data-i18n-pt>Ainda sem tempo registrado.</span><span data-i18n-en>No playtime recorded yet.</span></span>
+                <% } %>
+            </section>
+        </div>
+
+        <% if (playedGuilds && playedGuilds.length > 0) { %>
+            <h2 class="section-title text-lg opacity-70"><span data-i18n-pt>Servidores que</span><span data-i18n-en>Servers</span> <%= displayName %> <span data-i18n-pt>jogou</span><span data-i18n-en>played</span></h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[20px] lg:gap-[30px]">
+                <% playedGuilds.forEach(pg => { %>
+                    <div class="pf-srv-card<%= pg.accentHex ? ' pf-srv-card--accent' : '' %>"<% if (pg.accentHex) { %> style="--srv-accent: #<%= pg.accentHex %>;"<% } %>>
+                        <div class="pf-srv-head">
+                            <% if (pg.iconUrl) { %>
+                                <img class="pf-srv-logo" src="<%= pg.iconUrl %>" alt="">
+                            <% } else { %>
+                                <img class="pf-srv-logo" src="/images/pot-logo.webp" alt="">
+                            <% } %>
+                            <span class="pf-srv-name"><%= pg.name %></span>
+                        </div>
+                        <hr class="pf-srv-divider">
+                        <div class="pf-srv-stats">
+                            <span class="pf-srv-stat">
+                                <i data-lucide="clock"></i>
+                                <span data-i18n-pt><%= pg.playtimeLabel || '0h' %> jogadas</span><span data-i18n-en><%= pg.playtimeLabel || '0h' %> played</span>
+                            </span>
+                            <span class="pf-srv-stat">
+                                <img src="/images/icons/hunt.webp" alt="" style="width: 26px; height: 26px; flex: none;">
+                                <span data-i18n-pt><%= pg.kills %> caçadas</span><span data-i18n-en><%= pg.kills %> hunts</span>
+                            </span>
+                            <span class="pf-srv-stat">
+                                <img src="/images/icons/bone.webp" alt="" style="width: 26px; height: 26px; flex: none;">
+                                <span><%= pg.bones %></span>
+                            </span>
+                        </div>
+                        <%#
+                            Histórico de staff do ALVO (pedido do dono,
+                            2026-08-20: "podem adicione o histórico de
+                            staff nos card de servidor") — só quando o
+                            VISITANTE tem acesso de staff neste servidor
+                            (pg.staffHistory vem null dos outros, ver
+                            dashboard.js) E o alvo de fato tem histórico
+                            registrado ali (getStaffHistoryForProfile só
+                            inclui guilds onde o alvo tem/teve cargo de
+                            mod/evento).
+                        %>
+                        <% if (pg.staffHistory) { %>
+                            <hr class="pf-srv-divider pf-srv-divider--staff">
+                            <div class="pf-srv-stats">
+                                <span class="pf-srv-stat">
+                                    <i data-lucide="shield"></i>
+                                    <span><%= pg.staffHistory.category %></span>
+                                </span>
+                                <span class="pf-srv-stat">
+                                    <i data-lucide="gavel"></i>
+                                    <span data-i18n-pt><%= pg.staffHistory.totals?.punishmentsApplied || 0 %> punições · <%= pg.staffHistory.totals?.reportsClosed || 0 %> reports fechados</span><span data-i18n-en><%= pg.staffHistory.totals?.punishmentsApplied || 0 %> punishments · <%= pg.staffHistory.totals?.reportsClosed || 0 %> reports closed</span>
+                                </span>
+                            </div>
+                        <% } %>
+                        <% if (pg.panelHref) { %>
+                            <a class="pf-srv-panel-btn" href="<%= pg.panelHref %>"><span data-i18n-pt>Painel</span><span data-i18n-en>Panel</span></a>
+                        <% } %>
+                    </div>
+                <% }); %>
+            </div>
+        <% } %>
+
+        <footer class="flex justify-end pb-2">
+            <span class="bebas text-[12px] uppercase tracking-[6px] text-titan-cream opacity-10 hover:opacity-30 transition-opacity">
+                BY: KNUST SEIER VI
+            </span>
+        </footer>
     </main>
 
     <%# Lucide (unpkg) + o toggle de idioma (bandeiras/data-lang/localStorage)
