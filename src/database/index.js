@@ -72,6 +72,7 @@ class DatabaseManager {
                 'pot_players',
                 'pot_dinosaur_picks',
                 'pot_species_kills',
+                'pot_species_diet',
                 'pot_chat_filters',
                 'pot_logs',
                 'pot_tokens',
