@@ -444,6 +444,49 @@
         }
         .loja-perso-buy-form .btn-chip img { width: 12px; height: 12px; border-radius: 3px; object-fit: cover; }
 
+        /* Card da LOJA DE PERSONALIZAÇÃO (compra e venda de imagens) —
+           mesmo processo dos botões acima (pedido do dono, 2026-08-21:
+           "aplique esse css nos cards de compra e venda na loja de
+           personalização"), componente Figma do card inteiro (fundo
+           gradiente + moldura da imagem com sombra "pressionada" +
+           título em Tilt Warp). Escopo só nesta seção via
+           .loja-item-perso (classe extra nos cards de Fotos/Planos de
+           Fundo, junto com .loja-item de sempre) — NÃO mexe na classe
+           base .loja-item, que também serve Missões/Loja de Jogo/
+           recompensa de novo jogador. Tamanho do card continua o
+           compacto de sempre (170px, grid flex-wrap) em vez do 402px do
+           Figma — mesma decisão já tomada pros botões Comprar em
+           2026-08-18 ("isso desfaria pedidos anteriores de encolher"):
+           só cores/gradiente/sombras/tipografia vieram, não as
+           dimensões. Preço/status/badge "No inventário"/botão Comprar
+           NÃO mudam aqui — já ganharam o tratamento Figma correspondente
+           em passadas anteriores (.loja-perso-buy-form acima). Sem a
+           linha "Adquirido DATE - X caçadas"/usuário que subiu a imagem
+           do Figma — depende de dado que a query de catálogo (loja de
+           imagens) não traz hoje (submitted_by/purchased_at), e o
+           marketplace de venda de imagem de jogador ainda está "em
+           breve" (não é feature pedida aqui, só o CSS dos cards). */
+        .loja-grid .loja-item.loja-item-perso {
+            padding: 14px;
+            gap: 10px;
+            background: radial-gradient(201.17% 83.37% at -5.41% 84.25%, #803E30 0%, #1F1D20 41.09%, #000000 91.53%);
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0px 0px 2.3px #DCA15E, 6px 8px 10px rgba(0, 0, 0, 0.36), inset 0px 4px 4px rgba(0, 0, 0, 0.25);
+        }
+        .loja-grid .loja-item.loja-item-perso .loja-item-thumb {
+            box-shadow: inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
+            filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5)) drop-shadow(-1px -1px 2px rgba(0, 0, 0, 0.5));
+        }
+        .loja-grid .loja-item.loja-item-perso .loja-item-label {
+            font-family: 'Tilt Warp', cursive;
+            font-weight: 400;
+            font-size: 13px;
+            line-height: 1.25;
+            color: #F8DCC0;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5), -2px -2px 4px rgba(0, 0, 0, 0.7);
+        }
+
         /* Botão Usar (inventário da Loja de Jogo) — pedido do dono,
            2026-08-19: "No botão usar use o mesmo css dos botões da
            sidebar e topbar", em vez do .btn-chip-success verde/cream
@@ -873,7 +916,7 @@
                                 grade de Fotos/Planos de Fundo.
                             %>
                             <% if (group.key === 'personalizacao') { %>
-                                <div class="loja-item">
+                                <div class="loja-item loja-item-perso">
                                     <span class="loja-soon-ribbon"><span data-i18n-pt>Em breve</span><span data-i18n-en>Soon</span></span>
                                     <div class="loja-item-thumb"><i data-lucide="image-plus"></i></div>
                                     <span class="loja-item-label"><span data-i18n-pt>Enviar imagem para venda</span><span data-i18n-en>Submit image for sale</span></span>
@@ -882,7 +925,7 @@
                                 </div>
                             <% } %>
                             <% group.items.forEach(img => { %>
-                                <div class="loja-item">
+                                <div class="loja-item loja-item-perso">
                                     <% if (img.coming_soon || !img.shop_price) { %>
                                         <span class="loja-soon-ribbon"><span data-i18n-pt>Em breve</span><span data-i18n-en>Soon</span></span>
                                     <% } %>
