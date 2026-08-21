@@ -1512,12 +1512,19 @@
                                             // 2026-08-21: "Adicione uma barra de progresso
                                             // simples sem letras entre o botão e o titulo")
                                             // — só no card de Emblema (group.key==='badge'),
-                                            // mesmo escopo do resto do card novo. Com mais
-                                            // de um requisito, usa o MENOR percentual (o
-                                            // progresso geral nunca passa do requisito mais
-                                            // atrasado, já que todos precisam ser cumpridos).
+                                            // mesmo escopo do resto do card novo. Com mais de
+                                            // um requisito, mostra QUANTOS já foram cumpridos
+                                            // (metCount/total) — pedido do dono, 2026-08-21:
+                                            // "eu completei um requisito mas a barra não
+                                            // mostra a porcentagem". Era Math.min do percentual
+                                            // NUMÉRICO de cada requisito (ex: XP até o próximo
+                                            // nível), o que podia deixar a barra quase cheia
+                                            // mesmo com um requisito claramente não cumprido
+                                            // (percentual bruto alto mas met:false) — contagem
+                                            // de requisitos cumpridos é o que bate com a
+                                            // expectativa real (1 de 2 = 50%).
                                             const badgeProgressPercent = group.key === 'badge'
-                                                ? Math.min(...item.progress.map((p) => p.percent))
+                                                ? (item.progress.filter((p) => p.met).length / item.progress.length) * 100
                                                 : null;
                                         %>
                                         <% if (badgeProgressPercent !== null) { %>
@@ -1594,7 +1601,13 @@
                                                     <i data-lucide="list-checks"></i>
                                                     <span data-i18n-pt>REQUISITOS</span><span data-i18n-en>REQUIREMENTS</span>
                                                 </div>
-                                                <% const detailPercent = Math.min(...item.progress.map((p) => p.percent)); %>
+                                                <%
+                                                    // Mesmo cálculo do card pequeno acima
+                                                    // (requisitos cumpridos/total, não o menor
+                                                    // percentual numérico) — mesmo pedido do
+                                                    // dono, consistência entre os dois lugares.
+                                                    const detailPercent = (item.progress.filter((p) => p.met).length / item.progress.length) * 100;
+                                                %>
                                                 <div class="loja-item-badge-progress" role="progressbar" aria-valuenow="<%= detailPercent.toFixed(0) %>" aria-valuemin="0" aria-valuemax="100">
                                                     <div class="loja-item-badge-progress-fill" style="width: <%= detailPercent.toFixed(1) %>%;"></div>
                                                     <div class="loja-item-badge-progress-track"></div>
