@@ -591,8 +591,19 @@
            só o conteúdo/visual são novos. Tamanho também tratado como
            MÁXIMO/fluido (mesma decisão do card pequeno, 2026-08-21):
            900px vira max-width, altura no auto (não trava 650px fixo)
-           com um teto de viewport pra nunca estourar a tela. */
-        dialog.loja-perso-detail-dialog {
+           com um teto de viewport pra nunca estourar a tela.
+
+           display:flex só com [open] no seletor — SEM isso, essa regra
+           empata em especificidade com a regra nativa do navegador
+           "dialog:not([open]) { display:none }" e, como CSS de autor
+           sempre vence empate contra o stylesheet nativo, o dialog
+           ficava visível O TEMPO TODO (bug real encontrado ao testar:
+           todos os dialogs "disponível pra comprar" apareciam abertos
+           na página sem clicar em nada). Com [open] no seletor, a regra
+           só existe quando o navegador já adicionou o atributo (via
+           showModal()), então o display:none nativo continua valendo
+           enquanto fechado. */
+        dialog.loja-perso-detail-dialog[open] {
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
@@ -638,9 +649,28 @@
             align-items: flex-start;
             background-size: cover;
             background-position: center;
-            box-shadow: inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
             filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5)) drop-shadow(-1px -1px 2px rgba(0, 0, 0, 0.5));
             border-radius: 20px;
+        }
+        /* Sombra "pressionada" (inset) por CIMA da etiqueta de preço, não
+           por baixo (pedido do dono, 2026-08-21: "o valor... tem que
+           ficar por cima da imagem mas com a sombra ela por cima do
+           valor, é como se ele estivesse dentro da caixa da imagem") —
+           um box-shadow inset comum pinta só o PRÓPRIO fundo do elemento,
+           que fica embaixo de qualquer filho (a etiqueta de preço é
+           filha de .loja-perso-detail-frame); um ::after sem conteúdo,
+           absoluto por cima de tudo, pinta DEPOIS dos filhos reais (é
+           como se fosse o último filho), então a sombra passa a cobrir a
+           etiqueta também, dando a sensação de que ela está encaixada
+           dentro da caixa da imagem em vez de flutuando acima dela.
+           pointer-events:none pra não bloquear nenhum clique. */
+        .loja-perso-detail-frame::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 20px;
+            box-shadow: inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
+            pointer-events: none;
         }
         .loja-perso-detail-pricetag {
             box-sizing: border-box;
@@ -1159,15 +1189,20 @@
                             <% group.items.forEach(img => { %>
                                 <%
                                     // Estado "disponível pra comprar" (Figma "Property
-                                    // 1=Variant4") — único restruturado pixel-a-pixel por
-                                    // ora (pedido do dono, 2026-08-21, "um por um"); os
-                                    // outros 3 estados abaixo mantêm o texto/ordem de
-                                    // antes, só herdando fundo/moldura/título novos.
+                                    // 1=Variant4") — único com o row de preço+botão
+                                    // restruturado pixel-a-pixel por ora (pedido do dono,
+                                    // 2026-08-21, "um por um"); o estado "em breve" (com
+                                    // ou sem preço definido) já ganhou o MESMO padrão de
+                                    // texto no head (título+status), mesmo pedido,
+                                    // "Os item com status em breve devem seguir o mesmo
+                                    // padrão de texto do item aberto para compra" — só
+                                    // "já no inventário" continua com o badge de antes.
                                     const isBuyState = !!img.shop_price && !img.owned && !img.coming_soon;
-                                    // STATUS (tier mínimo ou "Disponível") reaproveitado
-                                    // tanto no card pequeno quanto no dialog de detalhe
-                                    // (Figma "Property 1=Variant2", aberto ao clicar no
-                                    // card — pedido do dono, 2026-08-21).
+                                    const isComingSoonState = !img.owned && (img.coming_soon || !img.shop_price);
+                                    // STATUS (tier mínimo/"Disponível"/"Em breve") — mesmo
+                                    // slot reaproveitado no card pequeno E no dialog de
+                                    // detalhe (Figma "Property 1=Variant2", aberto ao
+                                    // clicar no card — pedido do dono, 2026-08-21).
                                     const hasTierNote = isBuyState && img.shop_min_tier && img.shop_min_tier !== 'free';
                                     const tierLabel = hasTierNote ? (lojaShopTierLabels[img.shop_min_tier] || img.shop_min_tier) : null;
                                     const buyDisabled = shopPurchasesLocked || huntBalance < (img.shop_price || 0);
@@ -1196,10 +1231,25 @@
                                                     <span data-i18n-en>Available for purchase</span>
                                                 <% } %>
                                             </span>
+                                        <% } else if (isComingSoonState) { %>
+                                            <span class="loja-item-perso-status">
+                                                <% if (!img.shop_price) { %>
+                                                    <span data-i18n-pt>Preço a definir</span>
+                                                    <span data-i18n-en>Price TBD</span>
+                                                <% } else { %>
+                                                    <span data-i18n-pt>Compra liberada em breve</span>
+                                                    <span data-i18n-en>Purchase opens soon</span>
+                                                <% } %>
+                                            </span>
                                         <% } %>
                                     </div>
+                                    <%#
+                                        Sem preço definido: nada aqui — o status "Preço a
+                                        definir" já foi pro head acima (mesmo padrão de
+                                        texto do item aberto pra compra, pedido do dono,
+                                        2026-08-21).
+                                    %>
                                     <% if (!img.shop_price) { %>
-                                        <span class="loja-item-price is-hunt"><img src="/images/icons/hunt.webp" alt=""> <span data-i18n-pt>Preço a definir</span><span data-i18n-en>Price TBD</span></span>
                                     <% } else if (!isBuyState) { %>
                                         <span class="loja-item-price is-hunt"><img src="/images/icons/hunt.webp" alt=""> <%= img.shop_price %></span>
                                         <% if (img.shop_min_tier && img.shop_min_tier !== 'free') { %>
@@ -1210,8 +1260,6 @@
                                         <% } %>
                                         <% if (img.owned) { %>
                                             <span class="loja-item-owned-badge"><i data-lucide="check"></i> <span data-i18n-pt>No inventário</span><span data-i18n-en>In inventory</span></span>
-                                        <% } else if (img.coming_soon) { %>
-                                            <span class="loja-item-desc"><i data-lucide="clock" style="width:11px;height:11px;vertical-align:-1px;"></i> <span data-i18n-pt>Compra liberada em breve.</span><span data-i18n-en>Purchase opens soon.</span></span>
                                         <% } %>
                                     <% } else { %>
                                         <%#
@@ -1809,11 +1857,32 @@
             existir vários na página, um por item com requisito), Esc já
             fecha sozinho (comportamento nativo de <dialog>).
         %>
-        document.querySelectorAll('.loja-progress-dialog, .loja-perso-detail-dialog').forEach((dialog) => {
+        document.querySelectorAll('.loja-progress-dialog').forEach((dialog) => {
             dialog.addEventListener('click', (e) => {
                 const rect = dialog.getBoundingClientRect();
                 const insideContent = e.clientY >= rect.top && e.clientY <= rect.bottom && e.clientX >= rect.left && e.clientX <= rect.right;
                 if (!insideContent) dialog.close();
+            });
+        });
+        <%#
+            Clique fora fecha o dialog de detalhe da Loja de Personalização
+            — mousedown em vez de click (pedido do dono, 2026-08-21: "ao
+            clicar fora ele não fecha no primeiro clique"). O padrão
+            "click + compara posição" acima (.loja-progress-dialog) depende
+            do navegador dar um evento 'click' de verdade pro clique no
+            ::backdrop, mas isso não é garantido se mousedown/mouseup saem
+            de lugares diferentes (ex: começa dentro do dialog, solta fora
+            — comum em cliques reais, que quase nunca são 100% parados) —
+            nesse caso o 'click' sintético pode nem disparar. mousedown
+            sozinho não tem essa dependência: dispara imediatamente no
+            elemento onde o botão foi pressionado, sem esperar o par
+            completo, então fecha de forma confiável logo no primeiro
+            toque fora, sempre que o alvo pressionado for o próprio
+            <dialog> (backdrop) e não um filho de verdade dele.
+        %>
+        document.querySelectorAll('.loja-perso-detail-dialog').forEach((dialog) => {
+            dialog.addEventListener('mousedown', (e) => {
+                if (e.target === dialog) dialog.close();
             });
         });
     </script>
