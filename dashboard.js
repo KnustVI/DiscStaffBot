@@ -1920,11 +1920,18 @@ function loadDashboard(client) {
         // - bones: Ossos DAQUELE servidor (já por servidor desde a reforma
         //   2026-08-15). Calculado aqui (1x por guild) e reaproveitado
         //   embaixo pra bonesBalance somado, em vez de consultar 2x.
-        //   (kills/pot_players.kills chegou a aparecer aqui rotulado
-        //   "caçadas" numa 1ª versão — removido a pedido do dono,
-        //   2026-08-20: "Caçada é uma moeda global... não precisa
-        //   aparecer nos parametro dos card por servidor", confuso ao
-        //   lado do MESMO nome usado pela moeda global de verdade.)
+        //   (pot_players.kills chegou a aparecer aqui rotulado "caçadas"
+        //   numa 1ª versão — removido a pedido do dono, 2026-08-20:
+        //   "Caçada é uma moeda global... não precisa aparecer nos
+        //   parametro dos card por servidor", confuso ao lado do MESMO
+        //   nome usado pela moeda global de verdade.)
+        // - kdStats: Kills/Deaths/K-D DAQUELE servidor (pedido do dono,
+        //   2026-08-20: "Adicione KDA nos cards de servidor em perfil") —
+        //   mesma fonte (getGuildPlayerStats) e mesma fórmula (formatKD)
+        //   do kdStats GLOBAL calculado mais abaixo, respeitando
+        //   link.hide_kda igual lá (preferência do próprio jogador, vale
+        //   pra qualquer card, não só o total). null quando hide_kda
+        //   está ativo — o card não mostra a linha.
         // - accentHex: cor de destaque configurada em /config personalizar
         //   (aba "Aparência Geral", só Caçador — ver
         //   ConfigSystem.getPanelPersonalization) — dono pediu "a cor que
@@ -1939,6 +1946,11 @@ function loadDashboard(client) {
         //   "Painel" (link quebrado seria pior que não ter botão).
         playedGuilds = playedGuilds.map((pg) => {
             const bones = PlayerRegistry.getBonesBalance(userId, pg.guildId);
+            let kdStats = null;
+            if (!link.hide_kda) {
+                const guildStats = PlayerRegistry.getGuildPlayerStats(pg.guildId, link.alderon_id);
+                kdStats = { kills: guildStats.kills, deaths: guildStats.deaths, kd: formatKD(guildStats.kills, guildStats.deaths) };
+            }
             const personalization = ConfigSystem.getPanelPersonalization(pg.guildId);
             const accentHex = personalization.accentColor != null
                 ? personalization.accentColor.toString(16).padStart(6, '0').toUpperCase()
@@ -1947,6 +1959,7 @@ function loadDashboard(client) {
             return {
                 ...pg,
                 bones,
+                kdStats,
                 accentHex,
                 panelHref: hasPanelAccess ? `/moderacao/${pg.guildId}` : null,
             };

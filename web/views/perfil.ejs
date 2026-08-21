@@ -1018,6 +1018,19 @@
                                 <img src="/images/icons/bone.webp" alt="" style="width: 26px; height: 26px; flex: none;">
                                 <span><%= pg.bones %></span>
                             </span>
+                            <%#
+                                KDA daquele servidor (pedido do dono,
+                                2026-08-20: "Adicione KDA nos cards de
+                                servidor em perfil") — null quando
+                                link.hide_kda está ativo (ver dashboard.js),
+                                a linha inteira some nesse caso.
+                            %>
+                            <% if (pg.kdStats) { %>
+                                <span class="pf-srv-stat">
+                                    <i data-lucide="swords"></i>
+                                    <span>K/D <%= pg.kdStats.kd %> (<%= pg.kdStats.kills %>/<%= pg.kdStats.deaths %>)</span>
+                                </span>
+                            <% } %>
                         </div>
                         <% if (pg.panelHref) { %>
                             <a class="pf-srv-panel-btn" href="<%= pg.panelHref %>"><span data-i18n-pt>Painel</span><span data-i18n-en>Panel</span></a>
