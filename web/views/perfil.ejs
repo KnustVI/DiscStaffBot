@@ -428,10 +428,19 @@
             /* "CardShadow" — mesma receita de .pf-id-card.has-bg .pf-id-level acima. */
             box-shadow: 0.5px -0.5px 0.5px #F8DCC0, -25px 47px 68.1px rgba(0, 0, 0, 0.74);
         }
+        /* Cor mais evidente (pedido do dono, 2026-08-20: "Pode deixar a cor
+           do card do servidor escolhido mais evidente no card?") — pesos
+           bem mais altos que a 1ª versão (border 45%→80%, bg-a 22%→55%,
+           + bg-b ganhou tint próprio, que antes ficava sempre #111111
+           fixo mesmo em cards coloridos) e um glow real na sombra do card
+           (--srv-glow, cor pura, 0% mix) por cima do CardShadow padrão. */
         .pf-srv-card--accent {
-            --srv-border: color-mix(in srgb, var(--srv-accent) 45%, #000000);
-            --srv-bg-a: color-mix(in srgb, var(--srv-accent) 22%, #1F1D20);
+            --srv-border: color-mix(in srgb, var(--srv-accent) 80%, #000000);
+            --srv-bg-a: color-mix(in srgb, var(--srv-accent) 55%, #1F1D20);
+            --srv-bg-b: color-mix(in srgb, var(--srv-accent) 20%, #111111);
             --srv-divider: var(--srv-accent);
+            --srv-glow: var(--srv-accent);
+            box-shadow: 0.5px -0.5px 0.5px #F8DCC0, -25px 47px 68.1px rgba(0, 0, 0, 0.74), 0 0 30px -8px var(--srv-glow);
         }
         .pf-srv-head { display: flex; align-items: center; gap: 10px; width: 100%; }
         .pf-srv-logo { width: 56px; height: 56px; flex: none; object-fit: contain; opacity: 0.8; border-radius: 12px; }
@@ -456,12 +465,18 @@
             filter: drop-shadow(5px 5px 10px rgba(0, 0, 0, 0.5)) drop-shadow(-5px -5px 10px rgba(0, 0, 0, 0.7));
         }
         .pf-srv-stat i { width: 26px; height: 26px; flex: none; color: #F8DCC0; }
+        /* 3 estados reais do Figma (Mode=Primary/Hover/Pressed — "Mode=
+           Disabled" não é usado, o botão some inteiro em vez de aparecer
+           desabilitado quando o jogador não tem acesso, ver panelHref em
+           dashboard.js) — frame pontilhado roxo (256x184) e os layers
+           "Placeholder"/"Ellipse 67" do Figma eram só agrupamento do
+           componente no editor, não fazem parte do botão de verdade. */
         .pf-srv-panel-btn {
             box-sizing: border-box;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 6px 22px;
+            padding: 5px 20px;
             background: radial-gradient(225.25% 94.36% at 0% 86.37%, #111111 0%, #1F1D20 57.07%, #29272A 91.53%);
             border: 1px solid #F8DCC0;
             box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
@@ -472,6 +487,18 @@
             color: #F8DCC0;
             text-decoration: none;
             white-space: nowrap;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease, background 0.15s ease;
+        }
+        .pf-srv-panel-btn:hover, .pf-srv-panel-btn:focus-visible {
+            border-color: #DCA15E;
+            color: #DCA15E;
+            box-shadow: -5px -5px 10px rgba(0, 0, 0, 0.5), 5px 5px 10px rgba(0, 0, 0, 0.5), 10px 10px 20px rgba(0, 0, 0, 0.5), -10px -10px 20px rgba(0, 0, 0, 0.5);
+        }
+        .pf-srv-panel-btn:active {
+            background: #4B2427;
+            border-color: #DCA15E;
+            color: #DCA15E;
+            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5), inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
         }
 
         .pf-tab-panel.is-hidden { display: none; }
