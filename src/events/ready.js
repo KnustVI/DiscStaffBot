@@ -67,6 +67,24 @@ module.exports = {
         } catch (error) {
             console.error('❌ [OngoingSessionCreditWorker] Erro ao iniciar:', error.message);
         }
+
+        // Correção retroativa do déficit de Caçadas/XP já acumulado ANTES
+        // do checkpoint acima existir (pedido do dono, 2026-08-20: "Esses
+        // numeros de horas de tempo de jogo globais... tem que bater com
+        // o valor de caçadas que um player tem") — ver docblock completo
+        // em PlayerRegistry.reconcileMissingHuntCredit. Idempotente e
+        // barata, roda em TODO boot (não só uma vez) — se o mesmo tipo de
+        // falha acontecer de novo por qualquer motivo, se auto-corrige no
+        // próximo restart sem precisar de outro relato.
+        try {
+            const PlayerRegistry = require('../systems/pot/potPlayerRegistry');
+            const reconciled = PlayerRegistry.reconcileMissingHuntCredit();
+            if (reconciled > 0) {
+                console.log(`💰 [PoT Registry] Correção retroativa aplicada a ${reconciled} jogador(es) no boot.`);
+            }
+        } catch (error) {
+            console.error('❌ [PoT Registry] Erro na correção retroativa de Caçadas:', error.message);
+        }
         // Análise diária de staff unificada com a Manutenção Diária (pedido
         // do dono, 2026-08-06) — não roda mais num cron próprio (00:05),
         // agora é parte do relatório único enviado pelo cron das 12:00 em

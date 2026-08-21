@@ -1616,6 +1616,67 @@ function creditOngoingSessions() {
 }
 
 /**
+ * Corrige RETROATIVAMENTE o déficit de Caçadas/XP já acumulado ANTES do
+ * checkpoint de creditOngoingSessions existir (pedido do dono, 2026-08-20:
+ * "Ainda temos uma inconcistencias nas moedas de caçadas... Esses numeros
+ * de horas de tempo de jogo globais... tem que bater com o valor de
+ * caçadas que um player tem") — creditOngoingSessions só evita o gap
+ * CRESCER dali pra frente, não corrige sessões que já fecharam no
+ * passado sem creditar direito (a causa raiz exata de 2026-08-19 nunca
+ * foi confirmada, mas o efeito é sempre o mesmo: total_playtime real >
+ * horas realmente creditadas).
+ *
+ * Cálculo EXATO, sem precisar adivinhar quanto cada jogador já gastou:
+ * `player_links.xp` só tem UMA fonte hoje — hoursEarned de
+ * _creditPlaytimeCurrency (addXp existe pra missões futuras, mas nunca é
+ * chamada em lugar nenhum ainda) — e nunca é decrementado em lugar
+ * nenhum do código (XP não é gasto, só sobe). Ou seja: xp ATUAL = total
+ * de horas já creditadas de verdade, garantido, mesmo que o jogador já
+ * tenha GASTO Caçadas na loja (o que tornaria hunt_balance sozinho
+ * inútil pra essa conta). `esperado = floor(total_playtime somado de
+ * TODOS os pot_players do jogador / 3600)` menos `xp` = exatamente
+ * quantas horas ficaram sem crédito nenhum — nunca subtrai (Math.max 0),
+ * então nunca "pune" ninguém, só top-up.
+ *
+ * Idempotente e barata (1 JOIN + loop) — chamada em TODO boot (ver
+ * events/ready.js), não só uma vez: se este mesmo tipo de falha
+ * acontecer de novo por qualquer motivo (a causa raiz de 2026-08-19
+ * nunca foi 100% confirmada), o próximo boot já corrige sozinho, sem
+ * precisar de outro relato do dono pra notar.
+ *
+ * @returns {number} quantos jogadores receberam correção
+ */
+function reconcileMissingHuntCredit() {
+    let reconciled = 0;
+    try {
+        const rows = db.prepare(`
+            SELECT pl.user_id, pl.xp, COALESCE(SUM(pp.total_playtime), 0) AS total_seconds
+            FROM player_links pl
+            LEFT JOIN pot_players pp ON pp.alderon_id = pl.alderon_id
+            GROUP BY pl.user_id
+        `).all();
+        const now = Math.floor(Date.now() / 1000);
+
+        for (const row of rows) {
+            const expectedHours = Math.floor(row.total_seconds / 3600);
+            const missingHours = Math.max(0, expectedHours - row.xp);
+            if (missingHours <= 0) continue;
+
+            db.prepare(`
+                UPDATE player_links SET hunt_balance = hunt_balance + ?, xp = xp + ?, updated_at = ?
+                WHERE user_id = ?
+            `).run(missingHours * HUNT_PER_HOUR, missingHours, now, row.user_id);
+            console.log(`💰 [PoT Registry] Correção retroativa: +${missingHours}h de Caçadas/XP pra ${row.user_id} (déficit encontrado).`);
+            reconciled++;
+        }
+    } catch (error) {
+        const ErrorLogger = require('../core/errorLogger');
+        ErrorLogger.error('potPlayerRegistry', 'reconcileMissingHuntCredit', error, {});
+    }
+    return reconciled;
+}
+
+/**
  * Monta o sufixo "|ID ALDERON:xxx-xxx-xxx" usado nas linhas de identificação
  * de usuário nos containers (strike, unstrike, repset, historico, reportchat).
  * Retorna string vazia se o jogador ainda não tiver vínculo — nesse caso a
@@ -1908,6 +1969,10 @@ module.exports = {
     // (pedido do dono, 2026-08-20) — ver docblock completo acima. Chamada
     // por um cron próprio, ver events/ready.js.
     creditOngoingSessions,
+    // Correção retroativa do déficit de Caçadas/XP já acumulado antes do
+    // checkpoint acima existir (pedido do dono, 2026-08-20) — ver
+    // docblock completo acima. Chamada em todo boot, ver events/ready.js.
+    reconcileMissingHuntCredit,
     // Exportados para uso em testes ou composição futura do Gateway:
     normalizeEvent,
     sanitizeDinosaurType,
