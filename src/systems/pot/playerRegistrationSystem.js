@@ -43,7 +43,7 @@ const sessionManager = require('../../utils/sessionManager');
 const imageManager = require('../../utils/imageManager');
 const ProfileImagePool = require('./profileImagePool');
 const { buildIdentityBlock } = require('../../utils/userIdentity');
-const { renderProfileCard } = require('../../utils/profileCardRenderer');
+const { renderProfileCard, renderXpHuntBar } = require('../../utils/profileCardRenderer');
 const PunishmentSystem = require('../moderation/punishmentSystem');
 
 const DEFAULT_CARD_PHOTOS = {
@@ -697,12 +697,30 @@ class PlayerRegistrationSystem {
         // Linha de texto "Player Premium: X" removida (pedido do dono,
         // 2026-08-11: "Não precisamos dessa informação de premium nos
         // perfis considerando que já temos a imagem e cor ilustrativa do
-        // mesmo") — o tier já aparece pela imagem de rodapé por tier logo
-        // abaixo (footer_free/compy/raptor).
-        // ── Imagem de rodapé, também por tier (assets footer_free/compy/raptor) —
-        // substitui o footer de texto ("Produzido por..."), não usado aqui. ──────
-        addSeparatorIfNeeded();
-        extraFiles.push(...this._appendFooterImage(builder, playerTier));
+        // mesmo") — antes a imagem de rodapé estática por tier
+        // (footer_free/compy/raptor) ficava aqui só com o nome do tier em
+        // texto, sem dado nenhum do jogador.
+        // ── Barra de Nível/XP + Caçadas, também colorida por tier (pedido
+        // do dono, 2026-08-20: "gostaria que essa barra substituísse a
+        // barra de tier premium que temos nos perfis do discord, seguindo
+        // as cores ainda de acordo com premium do jogador") — substitui a
+        // imagem estática acima por uma renderizada na hora com o Nível/
+        // XP/Caçadas REAIS do jogador (mesmo layout de .pf-id-bottom-row
+        // no site, ver renderXpHuntBar em profileCardRenderer.js). Caçadas
+        // e XP são GLOBAIS (ver bloco de saldos acima) — funciona mesmo
+        // sem vínculo de PoT (getHuntBalance/getLevelProgress voltam 0/
+        // Nível 0 com segurança), mesma condição incondicional que a
+        // imagem antiga já tinha (fora dos blocos cardRendered/player).
+        try {
+            const huntBalanceForBar = PlayerRegistry.getHuntBalance(targetUser.id);
+            const levelProgressForBar = PlayerRegistry.getLevelProgress(targetUser.id);
+            const xpHuntBarBuffer = await renderXpHuntBar({ tier: playerTier, levelProgress: levelProgressForBar, huntBalance: huntBalanceForBar });
+            extraFiles.push(new AttachmentBuilder(xpHuntBarBuffer, { name: 'perfil-xp-hunt.png' }));
+            addSeparatorIfNeeded();
+            builder.gallery(['attachment://perfil-xp-hunt.png']);
+        } catch (error) {
+            console.error('❌ [PlayerRegistration] Erro ao gerar barra de XP/Caçadas, seguindo sem ela:', error);
+        }
 
         // Botão "Emblema & Título" — baseado no TARGET (o perfil sendo
         // exibido), diferente dos botões de atalho abaixo. Navega pra uma

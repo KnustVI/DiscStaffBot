@@ -8,8 +8,14 @@
  * do site (web/views/perfil.ejs, .pf-id-card) — mesmo path de moldura, mesma
  * técnica de "cópia maior/menor da mesma forma" pro filete/estrelas.
  *
- * Sem barra de XP/Caçadas e sem Premium Tier no card (pedido do dono) — só
- * nickname, título, Alderon ID e cargo de staff (condicional).
+ * Sem barra de XP/Caçadas e sem Premium Tier DENTRO do card em si (pedido do
+ * dono) — só nickname, título, Alderon ID e cargo de staff (condicional).
+ * A barra de XP/Caçadas existe como imagem SEPARADA (renderXpHuntBar, mais
+ * abaixo) — substitui o antigo rodapé estático por tier (FOOTER FREE/COMPY/
+ * RAPTOR.webp, só o nome do tier em texto) no /perfil (pedido do dono,
+ * 2026-08-20: "gostaria que essa barra substituísse a barra de tier premium
+ * que temos nos perfis do discord"), mesmo layout de .pf-id-bottom-row no
+ * site, com Nível/XP/Caçadas REAIS do jogador.
  */
 const fs = require('fs');
 const path = require('path');
@@ -34,11 +40,13 @@ const TIER_FILES = {
 const SCALE = 2; // upscala o card (rasterizado em escala nativa) pra sair nítido
 
 // Paleta por tier (mesmos valores do rascunho/card do site — filete
-// metálico + cores da pílula de espécie).
+// metálico + cores da pílula de espécie). huntColor só usado pela barra de
+// XP/Caçadas abaixo (renderXpHuntBar) — mesmo valor de pfIdCardGradients em
+// perfil.ejs, mantido em sincronia manual igual o resto desta paleta.
 const TIER_PALETTE = {
-    free: { a: '#A6917D', b: '#F8DCC0', text: '#1F1D20', accent: '#F8DCC0', rimDark: '#A6917D', rimMid: '#F8DCC0', rimLight: '#FFF8EF' },
-    compy: { a: '#A25E2D', b: '#DCA15E', text: '#F8DCC0', accent: '#FFAB4C', rimDark: '#8C5E2A', rimMid: '#FFAB4C', rimLight: '#FFD9AE' },
-    raptor: { a: '#4B2427', b: '#803E30', text: '#DCA15E', accent: '#DE6045', rimDark: '#7A3526', rimMid: '#E89078', rimLight: '#F0B7AB' },
+    free: { a: '#A6917D', b: '#F8DCC0', text: '#1F1D20', accent: '#F8DCC0', rimDark: '#A6917D', rimMid: '#F8DCC0', rimLight: '#FFF8EF', huntColor: '#F8DCC0' },
+    compy: { a: '#A25E2D', b: '#DCA15E', text: '#F8DCC0', accent: '#FFAB4C', rimDark: '#8C5E2A', rimMid: '#FFAB4C', rimLight: '#FFD9AE', huntColor: '#DCA15E' },
+    raptor: { a: '#4B2427', b: '#803E30', text: '#DCA15E', accent: '#DE6045', rimDark: '#7A3526', rimMid: '#E89078', rimLight: '#F0B7AB', huntColor: '#DCA15E' },
 };
 
 // Foto encolhe 20% (pedido do dono: mais espaço de fundo visível), ancorada
@@ -409,4 +417,155 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     return finalCanvas.toBuffer('image/png');
 }
 
-module.exports = { renderProfileCard };
+// ==================== barra de XP/Caçadas (substitui o footer estático) ====================
+
+/**
+ * Barra larga de Nível/XP + Caçadas (pedido do dono, 2026-08-20: "gostaria
+ * que essa barra substituísse a barra de tier premium que temos nos perfis
+ * do discord, seguindo as cores ainda de acordo com premium do jogador") —
+ * ocupa o lugar da imagem estática FOOTER FREE/COMPY/RAPTOR.webp (só
+ * "RAPTOR"/"COMPY"/"FREE" em texto, sem dado nenhum do jogador) no rodapé
+ * do /perfil. Mesmo layout/proporção de .pf-id-bottom-row em perfil.ejs
+ * (caixa de Nível flex maior + caixa de Caçadas menor, mesma "SIMPLE
+ * SHADOW"), portado pra canvas com os MESMOS ícones (DinoFootprint.webp/
+ * hunt.webp) e cores por tier (TIER_PALETTE acima) — cor de destaque da
+ * barra de progresso e o gradiente/borda da caixa de Caçadas são FIXOS
+ * (mesmo comportamento do site: só o texto da caixa de Caçadas muda de cor
+ * por tier via huntColor, o resto da caixa não).
+ *
+ * @param {object} opts
+ * @param {'free'|'compy'|'raptor'} opts.tier
+ * @param {{level:number, xpIntoLevel:number, xpNeededForNextLevel:number, percent:number}} opts.levelProgress
+ *   — ver LevelSystem.getLevelProgress, mesmos campos.
+ * @param {number} opts.huntBalance
+ * @returns {Promise<Buffer>} PNG pronto
+ */
+async function renderXpHuntBar({ tier, levelProgress, huntBalance }) {
+    const palette = TIER_PALETTE[tier] || TIER_PALETTE.free;
+
+    const W = 1300;
+    const H = 120;
+    const PAD = 10;
+    const GAP = 16;
+    const BOX_H = H - PAD * 2;
+    const LEVEL_BOX_W = 920;
+    const HUNT_BOX_W = W - PAD * 2 - GAP - LEVEL_BOX_W;
+    const LEVEL_BOX_X = PAD;
+    const HUNT_BOX_X = LEVEL_BOX_X + LEVEL_BOX_W + GAP;
+    const BOX_Y = PAD;
+    const RADIUS = 10;
+
+    const canvas = createCanvas(W * SCALE, H * SCALE);
+    const ctx = canvas.getContext('2d');
+
+    // "SIMPLE SHADOW" — mesma receita das duas caixas em perfil.ejs
+    // (box-shadow: 0px 0px 2.3px #DCA15E, 8px 11px 6px rgba(0,0,0,.43)).
+    function fillSimpleShadow(path) {
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.43)';
+        ctx.shadowBlur = 6 * SCALE;
+        ctx.shadowOffsetX = 8 * SCALE;
+        ctx.shadowOffsetY = 11 * SCALE;
+        ctx.fill(path);
+        ctx.restore();
+        ctx.save();
+        ctx.shadowColor = '#DCA15E';
+        ctx.shadowBlur = 2.3 * SCALE;
+        ctx.fill(path);
+        ctx.restore();
+    }
+
+    // ── Caixa de Nível/XP ────────────────────────────────────────────────
+    const levelPath = new Path2D();
+    levelPath.roundRect(LEVEL_BOX_X * SCALE, BOX_Y * SCALE, LEVEL_BOX_W * SCALE, BOX_H * SCALE, RADIUS * SCALE);
+    const levelGrad = ctx.createLinearGradient(0, BOX_Y * SCALE, 0, (BOX_Y + BOX_H) * SCALE);
+    levelGrad.addColorStop(0.4759, palette.a);
+    levelGrad.addColorStop(0.996, palette.b);
+    ctx.fillStyle = levelGrad;
+    fillSimpleShadow(levelPath);
+    ctx.strokeStyle = palette.accent;
+    ctx.lineWidth = 1 * SCALE;
+    ctx.stroke(levelPath);
+
+    const levelIcon = await loadImage(path.join(ICONS_DIR, 'DinoFootprint.webp'));
+    const iconSize = 40 * SCALE;
+    const innerPad = 20 * SCALE;
+    const iconX = LEVEL_BOX_X * SCALE + innerPad;
+    const iconY = BOX_Y * SCALE + (BOX_H * SCALE - iconSize) / 2;
+    drawIconShadow(ctx, () => ctx.drawImage(levelIcon, iconX, iconY, iconSize, iconSize));
+
+    ctx.font = `${20 * SCALE}px "Tilt Warp"`;
+    ctx.fillStyle = palette.text;
+    ctx.textBaseline = 'middle';
+    const levelLabel = `NÍVEL ${levelProgress.level}`;
+    ctx.fillText(levelLabel, iconX + iconSize + 14 * SCALE, BOX_Y * SCALE + BOX_H * SCALE / 2 + 1 * SCALE);
+    const levelLabelWidth = ctx.measureText(levelLabel).width;
+
+    // Track-wrap: conta acima, barra no meio, legenda abaixo — mesma
+    // composição vertical de .pf-id-level-track-wrap.
+    const trackWrapX = iconX + iconSize + 14 * SCALE + levelLabelWidth + 20 * SCALE;
+    const trackWrapRight = (LEVEL_BOX_X + LEVEL_BOX_W) * SCALE - innerPad;
+    const trackWrapW = trackWrapRight - trackWrapX;
+    const trackWrapCenterX = trackWrapX + trackWrapW / 2;
+
+    ctx.font = `${13 * SCALE}px "Tilt Warp"`;
+    ctx.fillStyle = palette.text;
+    ctx.textAlign = 'center';
+    ctx.fillText(`${levelProgress.xpIntoLevel}/${levelProgress.xpNeededForNextLevel}`, trackWrapCenterX, BOX_Y * SCALE + 24 * SCALE);
+
+    const trackH = 8 * SCALE;
+    const trackY = BOX_Y * SCALE + 36 * SCALE;
+    const trackPath = new Path2D();
+    trackPath.roundRect(trackWrapX, trackY, trackWrapW, trackH, 10 * SCALE);
+    ctx.fillStyle = '#3E3D38';
+    ctx.fill(trackPath);
+    ctx.strokeStyle = '#2A2A2A';
+    ctx.lineWidth = 1 * SCALE;
+    ctx.stroke(trackPath);
+    const fillW = Math.max(0, Math.min(1, levelProgress.percent / 100)) * trackWrapW;
+    if (fillW > 0) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(trackWrapX, trackY, fillW, trackH, 10 * SCALE);
+        ctx.clip();
+        ctx.fillStyle = '#DCA15E';
+        ctx.fillRect(trackWrapX, trackY, fillW, trackH);
+        ctx.restore();
+    }
+
+    ctx.font = `${11 * SCALE}px "Tilt Warp"`;
+    ctx.fillStyle = palette.text;
+    ctx.globalAlpha = 0.85;
+    ctx.fillText('XP PARA O PRÓXIMO NÍVEL', trackWrapCenterX, trackY + trackH + 16 * SCALE);
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'left';
+
+    // ── Caixa de Caçadas — gradiente/borda FIXOS (não seguem tier, mesmo
+    // comportamento do site — só o texto muda de cor via huntColor). ─────
+    const huntPath = new Path2D();
+    huntPath.roundRect(HUNT_BOX_X * SCALE, BOX_Y * SCALE, HUNT_BOX_W * SCALE, BOX_H * SCALE, RADIUS * SCALE);
+    const huntGrad = ctx.createLinearGradient(HUNT_BOX_X * SCALE, 0, (HUNT_BOX_X + HUNT_BOX_W) * SCALE, 0);
+    huntGrad.addColorStop(0, '#1F1D20');
+    huntGrad.addColorStop(0.3606, '#1F1D20');
+    huntGrad.addColorStop(1, '#803E30');
+    ctx.fillStyle = huntGrad;
+    fillSimpleShadow(huntPath);
+    ctx.strokeStyle = '#803E30';
+    ctx.lineWidth = 1 * SCALE;
+    ctx.stroke(huntPath);
+
+    const huntIcon = await loadImage(path.join(ICONS_DIR, 'hunt.webp'));
+    ctx.font = `${20 * SCALE}px "Poppins SemiBold"`;
+    const huntText = String(huntBalance);
+    const huntTextWidth = ctx.measureText(huntText).width;
+    const huntGroupW = iconSize + 12 * SCALE + huntTextWidth;
+    const huntGroupX = HUNT_BOX_X * SCALE + (HUNT_BOX_W * SCALE - huntGroupW) / 2;
+    drawIconShadow(ctx, () => ctx.drawImage(huntIcon, huntGroupX, iconY, iconSize, iconSize));
+    ctx.fillStyle = palette.huntColor;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(huntText, huntGroupX + iconSize + 12 * SCALE, BOX_Y * SCALE + BOX_H * SCALE / 2 + 1 * SCALE);
+
+    return canvas.toBuffer('image/png');
+}
+
+module.exports = { renderProfileCard, renderXpHuntBar };
