@@ -584,23 +584,54 @@ function isDinosaurCarnivore(dinosaurType) {
     return CARNIVORE_SPECIES.has(species);
 }
 
+// Categorias de habitat/locomoção (pedido do dono, 2026-08-21: "Adicione
+// tambem mais categorias para que eu possa juntar especies em grupos e
+// facilitar a seleção delas futuramente para a criação de itens de jogo")
+// — chave interna em inglês (mesma convenção de 'carnivore'/'herbivore'),
+// rótulo em PT-BR pro painel de /dev/Loja. Puramente informativo por ora
+// (não afeta nenhuma lógica de jogo ainda, só fica disponível pra um
+// seletor por categoria futuro na criação de itens da Loja de Jogo).
+const SPECIES_CATEGORIES = {
+    aquatic: 'Aquático',
+    semi_aquatic: 'Semi-Aquático',
+    flying: 'Voador',
+    terrestrial: 'Terrestre',
+};
+
 /**
- * Grava/atualiza a dieta configurada manualmente pro dono via /dev/Loja —
- * sempre vence a lista hardcoded (ver isDinosaurCarnivore acima). Upsert
- * simples (species é PRIMARY KEY).
+ * Grava/atualiza a dieta (e, opcionalmente, a categoria de habitat)
+ * configurada manualmente pro dono via /dev/Loja — dieta sempre vence a
+ * lista hardcoded (ver isDinosaurCarnivore acima). Upsert simples (species
+ * é PRIMARY KEY) — funciona tanto pra uma espécie já vista em
+ * pot_dinosaur_picks quanto pra cadastrar uma espécie nova na mão (pedido
+ * do dono, 2026-08-21: lista vazia até algum jogador jogar aquela espécie
+ * de verdade — cadastro manual não depende disso).
  * @param {string} species
  * @param {'carnivore'|'herbivore'} diet
  * @param {string} [updatedBy] - Discord ID de quem configurou, só pra auditoria.
+ * @param {string|null} [category] - Uma chave de SPECIES_CATEGORIES, ou null/undefined pra não mexer na categoria já salva.
  * @returns {boolean} true se salvou
  */
-function setSpeciesDiet(species, diet, updatedBy = null) {
+function setSpeciesDiet(species, diet, updatedBy = null, category = undefined) {
     if (!species || (diet !== 'carnivore' && diet !== 'herbivore')) return false;
+    if (category && !SPECIES_CATEGORIES[category]) return false;
     try {
-        db.prepare(`
-            INSERT INTO pot_species_diet (species, diet, updated_at, updated_by)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(species) DO UPDATE SET diet = excluded.diet, updated_at = excluded.updated_at, updated_by = excluded.updated_by
-        `).run(String(species).trim().toLowerCase(), diet, Math.floor(Date.now() / 1000), updatedBy);
+        const key = String(species).trim().toLowerCase();
+        if (category === undefined) {
+            // Sem tocar na categoria (mantém a já salva, se houver) — a
+            // maioria das chamadas existentes (só dieta) passa por aqui.
+            db.prepare(`
+                INSERT INTO pot_species_diet (species, diet, updated_at, updated_by)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(species) DO UPDATE SET diet = excluded.diet, updated_at = excluded.updated_at, updated_by = excluded.updated_by
+            `).run(key, diet, Math.floor(Date.now() / 1000), updatedBy);
+        } else {
+            db.prepare(`
+                INSERT INTO pot_species_diet (species, diet, category, updated_at, updated_by)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(species) DO UPDATE SET diet = excluded.diet, category = excluded.category, updated_at = excluded.updated_at, updated_by = excluded.updated_by
+            `).run(key, diet, category || null, Math.floor(Date.now() / 1000), updatedBy);
+        }
         return true;
     } catch (error) {
         console.error('❌ [PoT Registry] Erro ao salvar dieta da espécie:', error);
@@ -628,11 +659,12 @@ function clearSpeciesDiet(species) {
  * sem filtro de guild_id — diferente de getKnownSpecies abaixo, que é por
  * servidor) UNIDO com qualquer espécie já configurada manualmente em
  * pot_species_diet (cobre o caso de o dono querer pré-configurar uma
- * espécie que ainda ninguém jogou neste elenco). Usado pelo painel de
- * dieta em /dev/Loja — cada linha já vem com a dieta ATUAL calculada
- * (override configurado ou fallback hardcoded), pra a UI mostrar o estado
- * real sem duplicar a lógica de isDinosaurCarnivore.
- * @returns {{species: string, diet: 'carnivore'|'herbivore', isOverride: boolean}[]}
+ * espécie que ainda ninguém jogou neste elenco, incluindo cadastro
+ * totalmente manual via addSpeciesManually). Usado pelo painel de dieta em
+ * /dev/Loja — cada linha já vem com a dieta ATUAL calculada (override
+ * configurado ou fallback hardcoded) e a categoria (se configurada), pra
+ * a UI mostrar o estado real sem duplicar a lógica de isDinosaurCarnivore.
+ * @returns {{species: string, diet: 'carnivore'|'herbivore', category: string|null, isOverride: boolean}[]}
  */
 function getAllKnownSpeciesWithDiet() {
     try {
@@ -643,17 +675,26 @@ function getAllKnownSpeciesWithDiet() {
         const configured = db.prepare('SELECT species FROM pot_species_diet').all();
         const names = new Map();
         picked.forEach((r) => names.set(r.species.toLowerCase(), r.species));
-        configured.forEach((r) => { if (!names.has(r.species)) names.set(r.species, r.species); });
+        configured.forEach((r) => {
+            if (names.has(r.species)) return;
+            // Espécie SÓ existe em pot_species_diet (cadastrada na mão,
+            // nunca vista em pot_dinosaur_picks ainda) — o valor salvo é
+            // sempre lowercase (mesma convenção de CARNIVORE_SPECIES),
+            // então capitaliza a primeira letra só pra exibição ficar
+            // igual ao resto da lista (ex: "yutyrannus" -> "Yutyrannus").
+            names.set(r.species, r.species.charAt(0).toUpperCase() + r.species.slice(1));
+        });
         const overrides = new Map(
-            db.prepare('SELECT species, diet FROM pot_species_diet').all().map((r) => [r.species, r.diet])
+            db.prepare('SELECT species, diet, category FROM pot_species_diet').all().map((r) => [r.species, r])
         );
         return Array.from(names.entries())
             .map(([lower, displayName]) => {
                 const override = overrides.get(lower);
                 return {
                     species: displayName,
-                    diet: override || (CARNIVORE_SPECIES.has(lower) ? 'carnivore' : 'herbivore'),
-                    isOverride: !!override,
+                    diet: override?.diet || (CARNIVORE_SPECIES.has(lower) ? 'carnivore' : 'herbivore'),
+                    category: override?.category || null,
+                    isOverride: !!override?.diet,
                 };
             })
             .sort((a, b) => a.species.localeCompare(b.species));
@@ -2025,6 +2066,7 @@ module.exports = {
     setSpeciesDiet,
     clearSpeciesDiet,
     getAllKnownSpeciesWithDiet,
+    SPECIES_CATEGORIES,
     recordKillEvent,
     // Grupo (matilha/pack) atual do jogador — ver PlayerJoinedGroup/
     // PlayerLeftGroup em gatewayServer.js e docblock de setGroupMembership.

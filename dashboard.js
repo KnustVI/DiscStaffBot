@@ -1230,6 +1230,9 @@ function loadDashboard(client) {
             // flag isOverride pra UI distinguir "configurado manualmente" de
             // "usando o padrão" (ver PlayerRegistry.getAllKnownSpeciesWithDiet).
             speciesDiet: PlayerRegistry.getAllKnownSpeciesWithDiet(),
+            // Categorias de habitat/locomoção (pedido do dono, 2026-08-21) —
+            // {chave: rótulo em PT-BR}, ver PlayerRegistry.SPECIES_CATEGORIES.
+            speciesCategories: PlayerRegistry.SPECIES_CATEGORIES,
             saved: req.query.saved,
             // Calculadora de preço nos campos de Caçadas (item da Loja de
             // Personalização, taxa de envio) e na recompensa de Missão em
@@ -1529,8 +1532,13 @@ function loadDashboard(client) {
     // deploy pra corrigir uma classificação errada.
     app.post('/dev/Loja/especie/dieta', checkAuth, async (req, res) => {
         if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
-        const { species, diet } = req.body;
-        const ok = PlayerRegistry.setSpeciesDiet(species, diet, req.user.id);
+        // category vem '' quando o dono escolhe "Sem categoria" no select —
+        // normaliza pra null (limpa a categoria) em vez de salvar string
+        // vazia; category === undefined nunca acontece aqui (o <select>
+        // sempre manda algum value, mesmo que vazio), então setSpeciesDiet
+        // sempre grava (ou limpa) a categoria nesta rota.
+        const { species, diet, category } = req.body;
+        const ok = PlayerRegistry.setSpeciesDiet(species, diet, req.user.id, category || null);
         res.redirect(`/dev/Loja?saved=${ok ? 'success' : 'error'}#especie-dieta`);
     });
 
@@ -1541,6 +1549,21 @@ function loadDashboard(client) {
         if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
         PlayerRegistry.clearSpeciesDiet(req.params.species);
         res.redirect('/dev/Loja?saved=success#especie-dieta');
+    });
+
+    // Cadastro manual de espécie (pedido do dono, 2026-08-21: "Lista de
+    // especies... não possui ainda nenhuma especie" — a lista só deriva de
+    // pot_dinosaur_picks, que fica vazia até algum jogador realmente
+    // spawnar como aquela espécie em algum servidor; isso deixa o dono sem
+    // como pré-categorizar o elenco inteiro de propósito). Mesma
+    // setSpeciesDiet de cima — cadastrar na mão é só chamar o mesmo upsert
+    // com um nome que ainda não existe em nenhuma das duas tabelas.
+    app.post('/dev/Loja/especie/nova', checkAuth, async (req, res) => {
+        if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
+        const { species, diet, category } = req.body;
+        if (!species || !String(species).trim()) return res.redirect('/dev/Loja?saved=error#especie-dieta');
+        const ok = PlayerRegistry.setSpeciesDiet(species, diet, req.user.id, category || null);
+        res.redirect(`/dev/Loja?saved=${ok ? 'success' : 'error'}#especie-dieta`);
     });
 
     // ==================== PERFIL (do usuário logado) ====================

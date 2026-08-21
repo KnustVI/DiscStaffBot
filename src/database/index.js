@@ -462,6 +462,16 @@ class DatabaseManager {
             // onde a MOEDA já foi contabilizada dentro da sessão atual.
             this.ensureColumn('pot_players', 'currency_credited_at', 'INTEGER');
 
+            // Categoria de habitat/locomoção por espécie (pedido do dono,
+            // 2026-08-21: "Adicione tambem mais categorias para que eu
+            // possa juntar especies em grupos... para a criação de itens
+            // de jogo") — aquatic/semi_aquatic/flying/terrestrial (rótulos
+            // em src/systems/pot/potPlayerRegistry.js). Nullable: uma
+            // espécie pode ter dieta configurada sem categoria (ou
+            // vice-versa) — os dois são independentes, mesma linha só por
+            // conveniência (species já é PRIMARY KEY).
+            this.ensureColumn('pot_species_diet', 'category', 'TEXT');
+
             console.log('📋 Schema do banco de dados criado');
 
         } catch (error) {

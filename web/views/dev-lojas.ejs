@@ -365,6 +365,7 @@
         .lojas-species-grid { display: flex; flex-direction: column; gap: 6px; max-height: 480px; overflow-y: auto; }
         .lojas-species-row {
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
             gap: 10px;
             padding: 8px 10px;
@@ -373,7 +374,7 @@
             border-radius: 8px;
         }
         .lojas-species-name { flex: 1; min-width: 0; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 0.8rem; color: #F8DCC0; }
-        .lojas-species-form { display: flex; align-items: center; gap: 6px; flex: none; }
+        .lojas-species-form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; flex: none; }
         .lojas-species-form select {
             background: #1F1D20;
             border: 1px solid rgba(217, 163, 98, 0.3);
@@ -510,9 +511,34 @@
         %>
         <section class="titan-card-premium flex-col gap-4" id="especie-dieta">
             <h2 class="section-title text-lg">Dieta por Espécie (<%= speciesDiet.length %>)</h2>
-            <p class="text-xs opacity-50">Define se cada dinossauro usa o ícone de carnívoro ou herbívoro na pílula de espécie do card de perfil. Lista junta toda espécie já jogada em qualquer servidor com qualquer uma já configurada aqui.</p>
+            <p class="text-xs opacity-50">Define se cada dinossauro usa o ícone de carnívoro ou herbívoro na pílula de espécie do card de perfil, e agrupa em categorias de habitat pra facilitar seleção futura na criação de itens da Loja de Jogo. Lista junta toda espécie já jogada em qualquer servidor com qualquer uma já configurada aqui.</p>
+            <%#
+                Cadastro manual (pedido do dono, 2026-08-21: "Lista de
+                especies... não possui ainda nenhuma especie ou não esta
+                aparecendo a lista") — a lista só existia via
+                pot_dinosaur_picks, que fica vazia até algum jogador
+                realmente spawnar como aquela espécie em algum servidor.
+                Esse form deixa cadastrar QUALQUER espécie na mão,
+                independente de já ter sido jogada — mesma rota/upsert de
+                salvar dieta (setSpeciesDiet), só com o nome vindo de um
+                <input> em vez de já existir na lista.
+            %>
+            <form action="/dev/Loja/especie/nova" method="POST" class="lojas-species-form" style="flex-wrap: wrap;">
+                <input type="text" name="species" placeholder="Nome da espécie (ex: Tyrannosaurus)" required style="flex: 1 1 220px; min-width: 0; background: #1F1D20; border: 1px solid rgba(217, 163, 98, 0.3); border-radius: 6px; padding: 4px 8px; color: #F8DCC0; font-family: 'Poppins', sans-serif; font-size: 0.75rem;">
+                <select name="diet">
+                    <option value="carnivore">Carnívoro</option>
+                    <option value="herbivore" selected>Herbívoro</option>
+                </select>
+                <select name="category">
+                    <option value="">Sem categoria</option>
+                    <% Object.entries(speciesCategories).forEach(([key, label]) => { %>
+                        <option value="<%= key %>"><%= label %></option>
+                    <% }); %>
+                </select>
+                <button type="submit" class="pool-price-submit" style="width: auto; padding-left: 16px; padding-right: 16px;">Adicionar espécie</button>
+            </form>
             <% if (speciesDiet.length === 0) { %>
-                <p class="text-sm opacity-40">Nenhuma espécie registrada ainda — aparecem aqui assim que algum jogador spawnar em algum servidor.</p>
+                <p class="text-sm opacity-40">Nenhuma espécie cadastrada ainda — adicione uma acima, ou espere algum jogador spawnar em algum servidor.</p>
             <% } else { %>
                 <div class="lojas-species-grid">
                     <% speciesDiet.forEach(sp => { %>
@@ -529,6 +555,12 @@
                                 <select name="diet">
                                     <option value="carnivore" <%= sp.diet === 'carnivore' ? 'selected' : '' %>>Carnívoro</option>
                                     <option value="herbivore" <%= sp.diet === 'herbivore' ? 'selected' : '' %>>Herbívoro</option>
+                                </select>
+                                <select name="category">
+                                    <option value="">Sem categoria</option>
+                                    <% Object.entries(speciesCategories).forEach(([key, label]) => { %>
+                                        <option value="<%= key %>" <%= sp.category === key ? 'selected' : '' %>><%= label %></option>
+                                    <% }); %>
                                 </select>
                                 <button type="submit" class="pool-price-submit">Salvar</button>
                             </form>
