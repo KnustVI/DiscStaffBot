@@ -505,11 +505,16 @@
         .loja-grid .loja-item.loja-item-badge .loja-item-label {
             font-family: 'Tilt Warp', cursive;
             font-weight: 400;
-            font-size: 24px;
-            line-height: 30px;
+            /* Mesmo tamanho do título do card da Loja de Personalização
+               (pedido do dono, 2026-08-21: "deixe do mesmo tamanho da
+               fonte de titulo do card da loja de personalização") — era
+               24px/30px (valor exato do Figma), ver .loja-item-perso
+               .loja-item-label logo abaixo pro valor de referência. */
+            font-size: 17px;
+            line-height: 22px;
             color: #F8DCC0;
             text-align: center;
-            text-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.5), -3px -3px 6px rgba(0, 0, 0, 0.7);
         }
         /* Botão "Ver progresso" — mesmo botão de sempre (.loja-progress-btn,
            compartilhado com Título/Missão), só que dourado (#DCA15E) em
@@ -530,7 +535,12 @@
             color: #DCA15E;
             text-transform: uppercase;
         }
-        .loja-item-badge .loja-progress-btn i { color: #DCA15E; }
+        <%# Sem ícone (pedido do dono, 2026-08-21: "Botão progresso aqui
+            não precisa de icone") — bate com o "Placeholder" desligado
+            por padrão do próprio Figma pro botão de emblema; display:none
+            em vez de tirar o <i> do HTML compartilhado, que continua
+            servindo Título/Missão com o ícone normal. %>
+        .loja-item-badge .loja-progress-btn i { display: none; }
         /* Barra de progresso compacta, sem número/texto (Figma "Frame
            33918") — pedido do dono, 2026-08-21: "entre o botão e o
            titulo". Dois retângulos LADO A LADO (não um track único com
@@ -1252,7 +1262,13 @@
                                     <% } else if (item.coming_soon) { %>
                                         <span class="loja-item-desc"><i data-lucide="clock" style="width:11px;height:11px;vertical-align:-1px;"></i> <span data-i18n-pt>Resgate liberado em breve.</span><span data-i18n-en>Redemption opens soon.</span></span>
                                     <% } else if (item.redeemable) { %>
-                                        <% if (item.requirementLabel) { %>
+                                        <%# Requisito escondido no card de Emblema (pedido do
+                                            dono, 2026-08-21: "Requisitos não vao ser listador
+                                            no card pequeno, logo vou te enviar o carga grande
+                                            para adicionarmos la") — fica só pro card grande
+                                            que ainda vai ser desenhado, não removido de vez,
+                                            só não mostrado AQUI por ora. %>
+                                        <% if (item.requirementLabel && group.key !== 'badge') { %>
                                             <span class="loja-item-desc"><%= item.requirementLabel %></span>
                                         <% } %>
                                         <form method="POST" action="/perfil/resgatar" class="loja-item-buy-form">
@@ -1263,7 +1279,9 @@
                                             </button>
                                         </form>
                                     <% } else if (item.requirementLabel) { %>
-                                        <span class="loja-item-desc"><i data-lucide="lock" style="width:11px;height:11px;vertical-align:-1px;"></i> <span data-i18n-pt>Requisito:</span><span data-i18n-en>Requirement:</span> <%= item.requirementLabel %></span>
+                                        <% if (group.key !== 'badge') { %>
+                                            <span class="loja-item-desc"><i data-lucide="lock" style="width:11px;height:11px;vertical-align:-1px;"></i> <span data-i18n-pt>Requisito:</span><span data-i18n-en>Requirement:</span> <%= item.requirementLabel %></span>
+                                        <% } %>
                                     <% } else { %>
                                         <span class="loja-item-desc"><span data-i18n-pt>Concedido manualmente pelo dono.</span><span data-i18n-en>Manually granted by the owner.</span></span>
                                     <% } %>
