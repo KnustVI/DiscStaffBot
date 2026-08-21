@@ -491,15 +491,26 @@
            respeitar o padding. contain (não cover) porque isso é uma
            insígnia/ícone, não uma foto — não faz sentido cortar as bordas
            dela como corta numa foto de paisagem. */
+        /* Sem border-radius/background-color aqui (pedido do dono,
+           2026-08-21: "Os efeitos no figma estão errados, o card de
+           emblema tem fundo transparente e apenas o icone do emblema
+           possui esses efeitos") — com essas duas propriedades, o
+           drop-shadow contornava a CAIXA retangular inteira (inclusive
+           o canto arredondado), em vez de só o desenho do emblema em si
+           (silhueta irregular, fundo transparente de verdade). Zerando
+           as duas, o filter passa a "abraçar" só os pixels visíveis do
+           PNG do emblema, exatamente como no print de referência (glow
+           encostado na forma do crânio, não numa caixa quadrada). */
         .loja-grid .loja-item.loja-item-badge .loja-item-thumb {
             width: 100%;
             aspect-ratio: 1 / 1;
             padding: 30px;
             box-sizing: border-box;
+            background-color: transparent;
             background-origin: content-box;
             background-size: contain;
             background-repeat: no-repeat;
-            border-radius: 20px;
+            border-radius: 0;
             filter: drop-shadow(0.5px -0.5px 0.5px #F8DCC0) drop-shadow(-25px 47px 68.1px rgba(0, 0, 0, 0.74));
         }
         .loja-grid .loja-item.loja-item-badge .loja-item-label {
