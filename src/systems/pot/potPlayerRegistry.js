@@ -324,7 +324,18 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
             );
 
             console.log(`🦖 [PoT Registry] Novo jogador cadastrado: ${playerName} (${alderonId})`);
-            if (discordId) _syncGlobalLinkFromWebhook(discordId, alderonId, playerName);
+            if (discordId) {
+                _syncGlobalLinkFromWebhook(discordId, alderonId, playerName);
+                // Recompensa de novo jogador (pedido do dono, 2026-08-20:
+                // "Junto da criação de itens na loja adicione uma criação
+                // recompensa para novos jogadores... entraram no servidor
+                // pela primeira vez") — só concede quando o payload JÁ
+                // trouxe discord_id (Alderon Discord Connect); ver docblock
+                // completo em gameShopSystem.grantNewPlayerReward pro
+                // porquê de não haver caminho retroativo pra quem vincula
+                // depois via /registrar.
+                require('./gameShopSystem').grantNewPlayerReward(guildId, discordId);
+            }
             if (shouldRecordDinosaurPick) _recordDinosaurPick(guildId, alderonId, dinosaurType);
             return { created: true, alderonId };
         }

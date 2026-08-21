@@ -580,6 +580,31 @@
             </form>
         </dialog>
 
+        <%#
+            Recompensa de Novo Jogador (pedido do dono, 2026-08-20: "Junto
+            da criação de itens na loja adicione uma criação recompensa
+            para novos jogadores. (entraram no servidor pela primeira
+            vez.)") — escolhe UM item já criado abaixo pra virar presente
+            automático quando um jogador aparece pela 1ª vez neste
+            servidor (não é comprado, não conta contra estoque limitado —
+            ver gameShopSystem.grantNewPlayerReward). Só concede se o
+            jogador já chegar com Discord vinculado (Alderon Discord
+            Connect) no exato momento do primeiro registro.
+        %>
+        <div class="lj-field-group" style="margin-bottom: 24px;">
+            <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-2"><span data-i18n-pt>Recompensa de Novo Jogador</span><span data-i18n-en>New Player Reward</span></h3>
+            <p class="text-[12px] opacity-50 mb-3"><span data-i18n-pt>Concedida automaticamente pro jogador quando ele aparece pela primeira vez neste servidor (não é vendida, não gasta estoque do item).</span><span data-i18n-en>Automatically granted the first time a player is seen on this server (not sold, doesn't spend the item's stock).</span></p>
+            <form action="/lojajogo/<%= guild.id %>/novo-jogador" method="POST" class="flex items-center gap-3 flex-wrap">
+                <select name="item_id" class="input-premium-field" style="max-width: 320px;">
+                    <option value=""><span data-i18n-pt>Nenhuma</span><span data-i18n-en>None</span></option>
+                    <% shopItems.forEach((item) => { %>
+                        <option value="<%= item.id %>" <%= newPlayerRewardItemId === item.id ? 'selected' : '' %>><%= item.name %></option>
+                    <% }); %>
+                </select>
+                <button type="submit" class="pool-toggle-btn"><span data-i18n-pt>Salvar</span><span data-i18n-en>Save</span></button>
+            </form>
+        </div>
+
         <% if (shopItems.length === 0) { %>
             <p class="text-sm opacity-40"><span data-i18n-pt>Nenhum item criado ainda.</span><span data-i18n-en>No items created yet.</span></p>
         <% } else { %>

@@ -3097,7 +3097,26 @@ function loadDashboard(client) {
             // sem converter, ver script no fim de lojajogo.ejs.
             marksPerBone: CurrencySystem.MARKS_PER_BONE,
             bonesPerHour: PlayerRegistry.BONES_PER_HOUR,
+            // Recompensa de Novo Jogador (pedido do dono, 2026-08-20) — ver
+            // gameShopSystem.js#grantNewPlayerReward.
+            newPlayerRewardItemId: GameShopSystem.getNewPlayerRewardItemId(guildID),
         });
+    });
+
+    // Salva a Recompensa de Novo Jogador (pedido do dono, 2026-08-20:
+    // "Junto da criação de itens na loja adicione uma criação recompensa
+    // para novos jogadores") — item_id vazio remove a recompensa
+    // configurada (sem presente automático). Mesmo gate de admin das
+    // outras rotas de escrita da Loja de Jogo.
+    app.post('/lojajogo/:guildID/novo-jogador', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildID } = req.params;
+        const guild = await requireLojaJogoAdmin(req, res, guildID);
+        if (!guild) return;
+
+        const itemId = parseInt(req.body.item_id, 10);
+        GameShopSystem.setNewPlayerRewardItemId(guildID, Number.isInteger(itemId) ? itemId : null, req.user.id);
+        res.redirect(`/lojajogo/${guildID}?saved=success`);
     });
 
     // Gate de admin compartilhado pelas rotas de escrita da Loja de Jogo

@@ -753,6 +753,80 @@ function migrateLegacyItemsForGuild(guildId) {
     trans();
 }
 
+// ==================== RECOMPENSA DE NOVO JOGADOR (pedido do dono, 2026-08-20) ====================
+// "Junto da criação de itens na loja adicione uma criação recompensa para
+// novos jogadores. (entraram no servidor pela primeira vez.)" — o admin do
+// servidor escolhe UM item JÁ CRIADO no catálogo customizado (mesma lista
+// de createShopItem acima) pra virar um presente automático de boas-vindas.
+// Concedido quando o jogador aparece pela 1ª vez em pot_players NESTE
+// guild (ver upsertPlayerFromEvent, "Jogador novo: cadastro automático"),
+// não por compra — não debita Ossos, não conta contra stock_limit (mesmo
+// item pode continuar sendo vendido normalmente, o presente é uma trilha
+// separada). Só concede se o jogador JÁ chegar com discord_id no payload
+// do próprio webhook (Alderon Discord Connect) — sem isso não tem
+// user_id pra creditar em game_shop_inventory ainda; quem só vincula
+// depois via /registrar não recebe o presente retroativamente (limitação
+// aceita, mesmo espírito "melhor esforço" de outras partes do sistema).
+const NEW_PLAYER_REWARD_KEY = 'pot_new_player_reward_item_id';
+
+/**
+ * @param {string} guildId
+ * @returns {number|null}
+ */
+function getNewPlayerRewardItemId(guildId) {
+    const row = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`).get(guildId, NEW_PLAYER_REWARD_KEY);
+    if (!row) return null;
+    const id = parseInt(row.value, 10);
+    return Number.isInteger(id) ? id : null;
+}
+
+/**
+ * @param {string} guildId
+ * @param {number|null} itemId - null/0 remove a recompensa configurada
+ * @param {string} userId
+ */
+function setNewPlayerRewardItemId(guildId, itemId, userId) {
+    if (!itemId) {
+        db.prepare(`DELETE FROM settings WHERE guild_id = ? AND key = ?`).run(guildId, NEW_PLAYER_REWARD_KEY);
+        return;
+    }
+    db.prepare(`
+        INSERT INTO settings (guild_id, key, value, updated_by, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(guild_id, key) DO UPDATE SET
+            value = excluded.value,
+            updated_by = excluded.updated_by,
+            updated_at = excluded.updated_at
+    `).run(guildId, NEW_PLAYER_REWARD_KEY, String(itemId), userId, Date.now());
+}
+
+/**
+ * Concede a recompensa de novo jogador configurada, se houver — chamada
+ * por potPlayerRegistry.upsertPlayerFromEvent só no ramo "jogador novo"
+ * (1ª linha de pot_players pra este guild+alderon_id). Nunca lança —
+ * mesma postura de todo o resto do fluxo de webhook (um erro aqui não
+ * pode derrubar o cadastro do jogador).
+ * @param {string} guildId
+ * @param {string} discordId - já confirmado truthy pelo chamador
+ */
+function grantNewPlayerReward(guildId, discordId) {
+    try {
+        const itemId = getNewPlayerRewardItemId(guildId);
+        if (!itemId) return;
+        const item = getShopItemById(itemId);
+        if (!item || item.guild_id !== guildId || item.deleted_at) return;
+
+        db.prepare(`
+            INSERT INTO game_shop_inventory (user_id, guild_id, item_key, shop_item_id, purchased_at)
+            VALUES (?, ?, 'custom', ?, ?)
+        `).run(discordId, guildId, itemId, Date.now());
+        db.logActivity(guildId, discordId, 'game_shop_new_player_reward', null, { itemId, itemName: item.name });
+        console.log(`🎁 [GameShop] Recompensa de novo jogador concedida: ${item.name} pra ${discordId} (guild ${guildId}).`);
+    } catch (error) {
+        console.error('❌ [GameShop] Erro ao conceder recompensa de novo jogador:', error);
+    }
+}
+
 module.exports = {
     GAME_SHOP_ITEMS,
     CUSTOM_ACTION_TYPES,
@@ -773,4 +847,7 @@ module.exports = {
     resolveItemImageUrl,
     purchaseCustomShopItem,
     migrateLegacyItemsForGuild,
+    getNewPlayerRewardItemId,
+    setNewPlayerRewardItemId,
+    grantNewPlayerReward,
 };
