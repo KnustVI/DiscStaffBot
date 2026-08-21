@@ -727,6 +727,35 @@
             box-shadow: inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
             pointer-events: none;
         }
+        /* "FOTO POR: X" — só quando a imagem veio do marketplace (pedido
+           do dono, 2026-08-21: "quando a imagem for de alguem que subiu
+           a foto, card expandido adicione o nome do jogador"). flex:1
+           faz ela ocupar todo espaço sobrando na fileira (mesmo truque
+           do Figma "Frame 33940" com flex-grow:1) e empurrar a etiqueta
+           de preço pro canto direito de sempre — sem essa linha (item
+           curado pelo dono, submittedByName null), a etiqueta continua
+           sozinha e o justify-content:flex-end do frame já cuida disso,
+           então não precisa de nenhum caso especial extra no CSS.
+           white-space/overflow/text-overflow são só uma rede de
+           segurança pra nome muito longo não quebrar o layout — o Figma
+           não previa isso porque testava com um texto de exemplo fixo. */
+        .loja-perso-detail-name {
+            flex: 1 1 auto;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            box-sizing: border-box;
+            font-family: 'Tilt Warp', cursive;
+            font-weight: 400;
+            font-size: 24px;
+            line-height: 30px;
+            color: #F8DCC0;
+            text-shadow: 3px 2px 6px #000000, -3px -2px 6px #000000;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
         .loja-perso-detail-pricetag {
             box-sizing: border-box;
             display: flex;
@@ -1363,6 +1392,12 @@
                                     <dialog id="loja-perso-detail-<%= img.id %>" class="loja-perso-detail-dialog">
                                         <button type="button" class="loja-perso-detail-close" onclick="this.closest('dialog').close()" aria-label="Fechar" title="Fechar">&times;</button>
                                         <div class="loja-perso-detail-frame" style="<%= img.url ? `background-image:url('${img.url}')` : '' %>">
+                                            <% if (img.submittedByName) { %>
+                                                <span class="loja-perso-detail-name">
+                                                    <span data-i18n-pt>FOTO POR: <%= img.submittedByName %></span>
+                                                    <span data-i18n-en>PHOTO BY: <%= img.submittedByName %></span>
+                                                </span>
+                                            <% } %>
                                             <div class="loja-perso-detail-pricetag">
                                                 <span><%= img.shop_price %></span>
                                                 <img src="/images/icons/hunt.webp" alt="">

@@ -2114,6 +2114,16 @@ function loadDashboard(client) {
                     ...row,
                     url: await ProfileImagePool.resolveImageUrl(client, type, row.id),
                     owned: ImageShopSystem.ownsImage(req.user.id, type, row.id),
+                    // Nome de quem enviou a imagem pro marketplace (pedido do
+                    // dono, 2026-08-21: "quando a imagem for de alguem que
+                    // subiu a foto, card expandido adicione o nome do
+                    // jogador") — só itens de marketplace de verdade têm
+                    // submitted_by preenchido (ver docblock de
+                    // imageShopSystem.js); itens curados pelo dono ficam
+                    // null aqui, sem "Foto por:" nenhum no dialog de
+                    // detalhe. Mesmo resolveUserDisplayName usado em
+                    // reports.ejs (cache-first, sem fetch por item).
+                    submittedByName: row.submitted_by ? resolveUserDisplayName(client, row.submitted_by) : null,
                     requirement,
                     requirementLabel: AchievementSystem.describeRequirement(requirement),
                     // Progresso por requisito (pedido do dono, 2026-08-19:
