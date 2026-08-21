@@ -324,18 +324,19 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
             );
 
             console.log(`🦖 [PoT Registry] Novo jogador cadastrado: ${playerName} (${alderonId})`);
-            if (discordId) {
-                _syncGlobalLinkFromWebhook(discordId, alderonId, playerName);
-                // Recompensa de novo jogador (pedido do dono, 2026-08-20:
-                // "Junto da criação de itens na loja adicione uma criação
-                // recompensa para novos jogadores... entraram no servidor
-                // pela primeira vez") — só concede quando o payload JÁ
-                // trouxe discord_id (Alderon Discord Connect); ver docblock
-                // completo em gameShopSystem.grantNewPlayerReward pro
-                // porquê de não haver caminho retroativo pra quem vincula
-                // depois via /registrar.
-                require('./gameShopSystem').grantNewPlayerReward(guildId, discordId);
-            }
+            if (discordId) _syncGlobalLinkFromWebhook(discordId, alderonId, playerName);
+            // Recompensa de novo jogador NÃO é concedida aqui de propósito
+            // (pedido do dono, 2026-08-20, revisado no mesmo dia: "normalmente
+            // o jogador entra primeiro em jogo para depois entrar no discord
+            // sem vinculo ao bot, isso vai impedir ele de receber o premio?")
+            // — uma 1ª versão concedia automaticamente aqui, só quando o
+            // payload JÁ trazia discord_id, mas isso é o caso MENOS comum
+            // (a maioria só vincula Discord bem depois de já ter jogado).
+            // Virou RESGATE (não empurrado por webhook) — ver
+            // GameShopSystem.getClaimableNewPlayerReward/claimNewPlayerReward,
+            // exibido em /loja pra qualquer servidor com pot_players já
+            // existente pra este jogador, resgatável a qualquer momento
+            // depois de vincular, sem depender de QUANDO o vínculo aconteceu.
             if (shouldRecordDinosaurPick) _recordDinosaurPick(guildId, alderonId, dinosaurType);
             return { created: true, alderonId };
         }

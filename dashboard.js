@@ -2220,6 +2220,19 @@ function loadDashboard(client) {
             return { guildId: pg.guildId, name: pg.name, items: availableItems };
         }))).filter((catalog) => catalog.items.length > 0);
 
+        // Recompensa de Novo Jogador (pedido do dono, 2026-08-20) — um
+        // "Resgatar" por servidor onde o jogador JÁ TEM registro em
+        // pot_players (jogou lá pelo menos uma vez) E o admin configurou
+        // uma recompensa E ele ainda não reivindicou. Funciona a qualquer
+        // momento depois do vínculo com o Discord, não só no instante do
+        // 1º login (ver docblock completo em
+        // gameShopSystem.js#getClaimableNewPlayerRewardItem pro porquê).
+        const newPlayerRewards = link ? (await Promise.all(playedGuilds.map(async (pg) => {
+            const item = GameShopSystem.getClaimableNewPlayerRewardItem(pg.guildId, link.alderon_id);
+            if (!item) return null;
+            return { guildId: pg.guildId, guildName: pg.name, itemId: item.id, itemName: item.name, url: await GameShopSystem.resolveItemImageUrl(client, item) };
+        }))).filter(Boolean) : [];
+
         // Inventário da Loja de Jogo (reforma 2026-08-12, pedido do dono:
         // "A compra dos itens deve ficar no inventario do jogador, itens
         // usaveis em jogo devem ter botão para usar no inventário deles
@@ -2257,6 +2270,7 @@ function loadDashboard(client) {
             playedGuilds,
             gameShopCatalogs,
             gameShopInventory,
+            newPlayerRewards,
             partnerNews,
             convertResult: req.query.convertido || null,
             convertError: req.query.erro || null,
@@ -2352,6 +2366,22 @@ function loadDashboard(client) {
         if (SHOP_PURCHASES_LOCKED) return res.redirect(`/loja?erro=${encodeURIComponent('Compras estão temporariamente pausadas — a Loja ainda está em fase de testes.')}`);
         const { guildId, itemId } = req.body;
         const result = GameShopSystem.purchaseCustomShopItem(guildId, req.user.id, Number(itemId));
+        if (result.ok) {
+            return res.redirect(`/loja?jogoComprado=${encodeURIComponent(result.label)}`);
+        }
+        return res.redirect(`/loja?erro=${encodeURIComponent(result.error)}`);
+    });
+
+    // Resgate da Recompensa de Novo Jogador (pedido do dono, 2026-08-20) —
+    // grátis, não passa por SHOP_PURCHASES_LOCKED (não é uma compra, ver
+    // gameShopSystem.js#claimNewPlayerReward). Reconfere elegibilidade no
+    // servidor, nunca confia na lista já mostrada.
+    app.post('/loja/resgatar-novo-jogador', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const link = PlayerRegistry.getPlayerByDiscordId(req.user.id);
+        if (!link) return res.redirect(`/loja?erro=${encodeURIComponent('Vincule sua conta com /registrar primeiro.')}`);
+        const { guildId } = req.body;
+        const result = GameShopSystem.claimNewPlayerReward(guildId, req.user.id, link.alderon_id);
         if (result.ok) {
             return res.redirect(`/loja?jogoComprado=${encodeURIComponent(result.label)}`);
         }

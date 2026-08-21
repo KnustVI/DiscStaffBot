@@ -757,16 +757,25 @@ function migrateLegacyItemsForGuild(guildId) {
 // "Junto da criação de itens na loja adicione uma criação recompensa para
 // novos jogadores. (entraram no servidor pela primeira vez.)" — o admin do
 // servidor escolhe UM item JÁ CRIADO no catálogo customizado (mesma lista
-// de createShopItem acima) pra virar um presente automático de boas-vindas.
-// Concedido quando o jogador aparece pela 1ª vez em pot_players NESTE
-// guild (ver upsertPlayerFromEvent, "Jogador novo: cadastro automático"),
-// não por compra — não debita Ossos, não conta contra stock_limit (mesmo
-// item pode continuar sendo vendido normalmente, o presente é uma trilha
-// separada). Só concede se o jogador JÁ chegar com discord_id no payload
-// do próprio webhook (Alderon Discord Connect) — sem isso não tem
-// user_id pra creditar em game_shop_inventory ainda; quem só vincula
-// depois via /registrar não recebe o presente retroativamente (limitação
-// aceita, mesmo espírito "melhor esforço" de outras partes do sistema).
+// de createShopItem acima) pra virar um presente de boas-vindas.
+//
+// RESGATE, não empurrado por webhook (revisado no mesmo dia — 1ª versão
+// concedia automaticamente no momento do 1º registro em pot_players, mas
+// SÓ quando o payload já trazia discord_id; pedido do dono: "normalmente
+// o jogador entra primeiro em jogo para depois entrar no discord sem
+// vinculo ao bot, isso vai impedir ele de receber o premio?" — CORRETO:
+// a maioria só vincula Discord bem depois de já ter jogado, então a
+// versão anterior deixaria a maior parte dos jogadores sem receber nada).
+// Agora funciona como as Missões (ver missionSystem.js): elegibilidade
+// checada sob demanda (getClaimableNewPlayerReward, exibida em /loja pra
+// cada servidor onde o jogador JÁ TEM um registro em pot_players — prova
+// real de "jogou aqui", independente de QUANDO o vínculo com o Discord
+// aconteceu) e reivindicada explicitamente (claimNewPlayerReward) —
+// funciona a qualquer momento depois do vínculo, não só no instante exato
+// do primeiro login. Não debita Ossos, não conta contra stock_limit
+// (mesmo item pode continuar sendo vendido normalmente, o presente é uma
+// trilha separada). "Já reivindicado" é checado via game_shop_inventory
+// (mesma linha que uma compra geraria) — sem tabela nova.
 const NEW_PLAYER_REWARD_KEY = 'pot_new_player_reward_item_id';
 
 /**
@@ -801,30 +810,62 @@ function setNewPlayerRewardItemId(guildId, itemId, userId) {
 }
 
 /**
- * Concede a recompensa de novo jogador configurada, se houver — chamada
- * por potPlayerRegistry.upsertPlayerFromEvent só no ramo "jogador novo"
- * (1ª linha de pot_players pra este guild+alderon_id). Nunca lança —
- * mesma postura de todo o resto do fluxo de webhook (um erro aqui não
- * pode derrubar o cadastro do jogador).
+ * Item elegível pra reivindicar AGORA, ou null — usado pra decidir se
+ * mostra o botão "Resgatar" em /loja. Elegibilidade: recompensa
+ * configurada pra este servidor + item ainda existe (não excluído) +
+ * jogador JÁ TEM registro em pot_players deste guild (prova real de que
+ * já jogou aqui, não só que vinculou o Discord) + ainda não reivindicou
+ * (sem linha correspondente em game_shop_inventory).
  * @param {string} guildId
- * @param {string} discordId - já confirmado truthy pelo chamador
+ * @param {string} alderonId
+ * @returns {object|null} linha parseada de pot_game_shop_items (ver _parseItemRow)
  */
-function grantNewPlayerReward(guildId, discordId) {
-    try {
-        const itemId = getNewPlayerRewardItemId(guildId);
-        if (!itemId) return;
-        const item = getShopItemById(itemId);
-        if (!item || item.guild_id !== guildId || item.deleted_at) return;
+function getClaimableNewPlayerRewardItem(guildId, alderonId) {
+    if (!alderonId) return null;
+    const itemId = getNewPlayerRewardItemId(guildId);
+    if (!itemId) return null;
+    const item = getShopItemById(itemId);
+    if (!item || item.guild_id !== guildId || item.deleted_at) return null;
 
+    const hasPlayedHere = !!db.prepare(`SELECT 1 FROM pot_players WHERE guild_id = ? AND alderon_id = ?`).get(guildId, alderonId);
+    if (!hasPlayedHere) return null;
+
+    return item;
+}
+
+/**
+ * Reivindica a recompensa de novo jogador — reconfere elegibilidade AQUI
+ * (nunca confia só na lista já mostrada, mesmo espírito de
+ * MissionSystem.claimMission), e bloqueia reivindicação dupla via o
+ * mesmo UNIQUE-ish check que já protege compras (uma linha por
+ * user+guild+shop_item_id, checada antes do INSERT — sem coluna nova,
+ * sem tabela nova).
+ * @param {string} guildId
+ * @param {string} discordId
+ * @param {string} alderonId
+ * @returns {{ok:true,label:string}|{ok:false,error:string}}
+ */
+function claimNewPlayerReward(guildId, discordId, alderonId) {
+    const item = getClaimableNewPlayerRewardItem(guildId, alderonId);
+    if (!item) return { ok: false, error: 'Recompensa não disponível pra você neste servidor.' };
+
+    const alreadyClaimed = !!db.prepare(`
+        SELECT 1 FROM game_shop_inventory WHERE user_id = ? AND guild_id = ? AND shop_item_id = ?
+    `).get(discordId, guildId, item.id);
+    if (alreadyClaimed) return { ok: false, error: 'Você já reivindicou esta recompensa.' };
+
+    try {
         db.prepare(`
             INSERT INTO game_shop_inventory (user_id, guild_id, item_key, shop_item_id, purchased_at)
             VALUES (?, ?, 'custom', ?, ?)
-        `).run(discordId, guildId, itemId, Date.now());
-        db.logActivity(guildId, discordId, 'game_shop_new_player_reward', null, { itemId, itemName: item.name });
-        console.log(`🎁 [GameShop] Recompensa de novo jogador concedida: ${item.name} pra ${discordId} (guild ${guildId}).`);
+        `).run(discordId, guildId, item.id, Date.now());
     } catch (error) {
-        console.error('❌ [GameShop] Erro ao conceder recompensa de novo jogador:', error);
+        console.error('❌ [GameShop] Erro ao reivindicar recompensa de novo jogador:', error);
+        return { ok: false, error: 'Erro ao reivindicar — tente novamente.' };
     }
+
+    db.logActivity(guildId, discordId, 'game_shop_new_player_reward', null, { itemId: item.id, itemName: item.name });
+    return { ok: true, label: item.name };
 }
 
 module.exports = {
@@ -849,5 +890,6 @@ module.exports = {
     migrateLegacyItemsForGuild,
     getNewPlayerRewardItemId,
     setNewPlayerRewardItemId,
-    grantNewPlayerReward,
+    getClaimableNewPlayerRewardItem,
+    claimNewPlayerReward,
 };

@@ -989,6 +989,39 @@
                 const lojaJogoIcons = { growth_juvenil: 'sprout', growth_adolescente: 'sprout', growth_subadulto: 'sprout', growth_adulto: 'sprout', skipshed: 'refresh-cw', quest: 'scroll-text', growth: 'sprout', teleport: 'map-pin' };
             %>
 
+            <%#
+                Recompensa de Novo Jogador (pedido do dono, 2026-08-20:
+                "Junto da criação de itens na loja adicione uma criação
+                recompensa para novos jogadores... entraram no servidor
+                pela primeira vez") — resgate grátis (não é compra, não
+                gasta Ossos), aparece só quando o jogador JÁ TEM registro
+                em pot_players daquele servidor (jogou lá pelo menos uma
+                vez) E o admin configurou uma recompensa E ele ainda não
+                resgatou — ver gameShopSystem.js#getClaimableNewPlayerRewardItem.
+            %>
+            <% if (newPlayerRewards.length > 0) { %>
+                <div class="flex flex-col gap-3">
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest"><span data-i18n-pt>Recompensa de Novo Jogador</span><span data-i18n-en>New Player Reward</span></h3>
+                    <div class="loja-grid">
+                        <% newPlayerRewards.forEach(reward => { %>
+                            <div class="loja-item">
+                                <div class="loja-item-thumb" style="<%= reward.url ? `background-image:url('${reward.url}')` : '' %>">
+                                    <% if (!reward.url) { %><i data-lucide="gift"></i><% } %>
+                                </div>
+                                <span class="loja-item-label"><%= reward.itemName %></span>
+                                <span class="loja-item-desc"><%= reward.guildName %></span>
+                                <form method="POST" action="/loja/resgatar-novo-jogador" class="loja-item-buy-form">
+                                    <input type="hidden" name="guildId" value="<%= reward.guildId %>">
+                                    <button type="submit" class="btn-chip btn-chip-success">
+                                        <i data-lucide="gift"></i> <span data-i18n-pt>Resgatar</span><span data-i18n-en>Claim</span>
+                                    </button>
+                                </form>
+                            </div>
+                        <% }); %>
+                    </div>
+                </div>
+            <% } %>
+
             <% if (gameShopInventory.length > 0) { %>
                 <div class="flex flex-col gap-3">
                     <h3 class="text-titan-gold text-sm uppercase tracking-widest"><span data-i18n-pt>Seu Inventário</span><span data-i18n-en>Your Inventory</span></h3>
