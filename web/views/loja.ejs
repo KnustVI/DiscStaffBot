@@ -489,12 +489,24 @@
            (.loja-perso-buy-form acima) — só o TAMANHO (111×26, padding
            5px 20px, fonte 14px) e o ícone maior de Caçadas (32×33)
            precisavam voltar ao valor exato do Figma, feito abaixo. */
+        /* Tamanho/tipografia escalados pro card menor (pedido do dono,
+           2026-08-21: "diminua um pouco o tamanho dos cards para que
+           caiba exatamente 5 em fileira") — os valores do Figma
+           (402px de largura, título 32px etc.) eram pro card GRANDE;
+           mantidos do mesmo jeito num card de ~150-220px o título
+           quebraria/estouraria. Reduzidos proporcionalmente (~55%). O
+           dialog de detalhe (Figma "Property 1=Variant2", 900px)
+           continua no tamanho cheio — ele NÃO faz parte do grid de 5
+           colunas, abre por cima de tudo. max-width aqui é só o
+           FALLBACK de telas estreitas (grid flex-wrap normal, menos de
+           5 por fileira); em telas largas o .loja-grid-perso abaixo
+           assume via CSS Grid de 5 colunas de verdade. */
         .loja-grid .loja-item.loja-item-perso {
             width: 100%;
-            max-width: 402px;
+            max-width: 220px;
             box-sizing: border-box;
-            padding: 20px;
-            gap: 10px;
+            padding: 12px;
+            gap: 8px;
             background: radial-gradient(201.17% 83.37% at -5.41% 84.25%, #803E30 0%, #1F1D20 41.09%, #000000 91.53%);
             border: none;
             border-radius: 10px;
@@ -503,7 +515,6 @@
         .loja-grid .loja-item.loja-item-perso .loja-item-thumb {
             width: 100%;
             aspect-ratio: 362 / 267;
-            max-height: 267px;
             border-radius: 20px;
             box-shadow: inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
             filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5)) drop-shadow(-1px -1px 2px rgba(0, 0, 0, 0.5));
@@ -511,10 +522,10 @@
         .loja-grid .loja-item.loja-item-perso .loja-item-label {
             font-family: 'Tilt Warp', cursive;
             font-weight: 400;
-            font-size: 32px;
-            line-height: 40px;
+            font-size: 17px;
+            line-height: 22px;
             color: #F8DCC0;
-            text-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.5), -3px -3px 6px rgba(0, 0, 0, 0.7);
         }
         .loja-item-perso-head {
             display: flex;
@@ -526,37 +537,69 @@
             display: block;
             font-family: 'Poppins', sans-serif;
             font-weight: 400;
-            font-size: 16px;
-            line-height: 24px;
+            font-size: 11px;
+            line-height: 15px;
             color: #F8DCC0;
         }
         .loja-item-perso-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 10px;
+            gap: 6px;
             width: 100%;
+            flex-wrap: wrap;
         }
         .loja-item-perso-row .loja-item-price.is-hunt {
             margin-top: 0;
-            gap: 10px;
-            font-size: 20px;
-            line-height: 30px;
+            gap: 5px;
+            font-size: 13px;
+            line-height: 19px;
         }
         .loja-item-perso-row .loja-item-price.is-hunt img {
-            width: 32px;
-            height: 33px;
-            border-radius: 4px;
+            width: 18px;
+            height: 19px;
+            border-radius: 3px;
         }
         .loja-item-perso-row .loja-perso-buy-form { margin: 0; flex: none; }
         .loja-item-perso-row .loja-perso-buy-form .btn-chip {
-            width: 111px;
-            min-width: 111px;
-            padding: 5px 20px;
-            gap: 10px;
-            font-size: 14px;
+            width: auto;
+            min-width: 64px;
+            padding: 3px 10px;
+            gap: 5px;
+            font-size: 10px;
         }
-        .loja-item-perso-row .loja-perso-buy-form .btn-chip img { width: 16px; height: 16px; }
+        .loja-item-perso-row .loja-perso-buy-form .btn-chip img { width: 11px; height: 11px; }
+
+        /* Grid de 5 colunas de verdade em telas largas (pedido do dono,
+           2026-08-21: "para que caiba exatamente 5 em fileira") — 1fr×5
+           em vez de um max-width fixo adivinhado: garante exatamente 5
+           card por fileira em QUALQUER largura de conteúdo (depende de
+           monitor/sidebar recolhida ou não), não só numa resolução
+           específica. Abaixo do breakpoint mantém o flex-wrap normal
+           (.loja-grid base) com o max-width:220px acima como teto, pra
+           telas estreitas continuarem encolhendo/quebrando em menos
+           colunas em vez de espremer 5 cards minúsculos no celular. */
+        @media (min-width: 900px) {
+            .loja-grid.loja-grid-perso {
+                display: grid;
+                grid-template-columns: repeat(5, 1fr);
+            }
+            .loja-grid.loja-grid-perso .loja-item.loja-item-perso {
+                width: auto;
+                max-width: none;
+            }
+        }
+
+        /* Fita "Em breve" um pouco maior nesta seção (pedido do dono,
+           2026-08-21, mesma mensagem do encolhimento do card — sem
+           isso ela ficaria desproporcionalmente pequena/apertada num
+           card menor). Só aqui via .loja-item-perso — .loja-soon-ribbon
+           sozinha continua no tamanho de sempre pras outras grades
+           (Missões/Loja de Jogo). */
+        .loja-item-perso .loja-soon-ribbon {
+            font-size: 0.68rem;
+            padding: 4px 34px;
+        }
 
         /* Hover "cresce" no card (pedido do dono, 2026-08-21: "quando a
            pessoa colocar o mouse por cima o card deve aumentar de
@@ -1162,7 +1205,7 @@
                     <% if (group.items.length === 0 && group.key !== 'personalizacao') { %>
                         <p class="text-sm opacity-40"><span data-i18n-pt>Nenhuma imagem pública no pool ainda.</span><span data-i18n-en>No public image in the pool yet.</span></p>
                     <% } else { %>
-                        <div class="loja-grid">
+                        <div class="loja-grid loja-grid-perso">
                             <%#
                                 MARKETPLACE — jogador vai poder pagar Caçadas
                                 pra enviar uma imagem própria pra venda
