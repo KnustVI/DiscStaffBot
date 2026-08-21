@@ -462,7 +462,8 @@
                         <div class="pf-id-level-track-wrap">
                             <span class="pf-id-level-count"><%= levelProgress.xpTotal %> XP</span>
                             <div class="pf-id-level-track"><div class="pf-id-level-fill" style="width: <%= levelProgress.percent.toFixed(1) %>%;"></div></div>
-                            <span class="pf-id-level-caption"><span data-i18n-pt>XP para o próximo nível</span><span data-i18n-en>XP to next level</span></span>
+                            <%# Mesmo pedido do dono (2026-08-21) aplicado em perfil.ejs — número real de XP faltando, não só o texto genérico. %>
+                            <span class="pf-id-level-caption"><span data-i18n-pt>Faltam <%= levelProgress.xpRemainingForNextLevel %> XP para o próximo nível</span><span data-i18n-en><%= levelProgress.xpRemainingForNextLevel %> XP left to next level</span></span>
                         </div>
                     </div>
                     <div class="pf-id-hunt">

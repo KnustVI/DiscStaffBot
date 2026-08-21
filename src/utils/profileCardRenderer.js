@@ -488,35 +488,52 @@ async function renderXpHuntBar({ tier, levelProgress, huntBalance }) {
     ctx.stroke(levelPath);
 
     const levelIcon = await loadImage(path.join(ICONS_DIR, 'DinoFootprint.webp'));
-    const iconSize = 40 * SCALE;
+    // Ícone/fontes aumentados (pedido do dono, 2026-08-21: "aumente um
+    // pouco os icones e aumente o tamanho da fonte de todos os textos
+    // nesta barra") — 40→46 e cada fonte um degrau acima do valor
+    // original (comentado ao lado de cada uma).
+    const iconSize = 46 * SCALE;
     const innerPad = 20 * SCALE;
     const iconX = LEVEL_BOX_X * SCALE + innerPad;
     const iconY = BOX_Y * SCALE + (BOX_H * SCALE - iconSize) / 2;
     drawIconShadow(ctx, () => ctx.drawImage(levelIcon, iconX, iconY, iconSize, iconSize));
 
-    ctx.font = `${20 * SCALE}px "Tilt Warp"`;
+    ctx.font = `${24 * SCALE}px "Tilt Warp"`; // era 20
     ctx.fillStyle = palette.text;
     ctx.textBaseline = 'middle';
     const levelLabel = `NÍVEL ${levelProgress.level}`;
     ctx.fillText(levelLabel, iconX + iconSize + 14 * SCALE, BOX_Y * SCALE + BOX_H * SCALE / 2 + 1 * SCALE);
     const levelLabelWidth = ctx.measureText(levelLabel).width;
 
-    // Track-wrap: conta acima, barra no meio, legenda abaixo — mesma
-    // composição vertical de .pf-id-level-track-wrap.
+    // Track-wrap: conta acima, barra embaixo — legenda "XP pro próximo
+    // nível" removida (pedido do dono, 2026-08-21: "remova a frase xp
+    // para o proximo nivel"), então o bloco conta+barra é centralizado
+    // verticalmente na caixa (igual o ícone/NÍVEL ao lado) em vez de
+    // ficar colado no topo sobrando espaço vazio embaixo, como ficava
+    // quando a legenda preenchia aquela linha.
     const trackWrapX = iconX + iconSize + 14 * SCALE + levelLabelWidth + 20 * SCALE;
     const trackWrapRight = (LEVEL_BOX_X + LEVEL_BOX_W) * SCALE - innerPad;
-    const trackWrapW = trackWrapRight - trackWrapX;
-    const trackWrapCenterX = trackWrapX + trackWrapW / 2;
+    const trackWrapFullW = trackWrapRight - trackWrapX;
+    // Barra um pouco mais estreita que o espaço disponível (pedido do
+    // dono: "diminua um pouco a largura da barra de xp"), centralizada
+    // nesse mesmo espaço em vez de esticar de ponta a ponta.
+    const trackWrapW = trackWrapFullW * 0.82;
+    const trackWrapCenterX = trackWrapX + trackWrapFullW / 2;
+    const trackWrapStartX = trackWrapCenterX - trackWrapW / 2;
 
-    ctx.font = `${13 * SCALE}px "Tilt Warp"`;
+    const trackH = 10 * SCALE;
+    const blockH = 20 * SCALE + 8 * SCALE + trackH; // texto + gap + barra
+    const blockY = BOX_Y * SCALE + (BOX_H * SCALE - blockH) / 2;
+
+    ctx.font = `${16 * SCALE}px "Tilt Warp"`; // era 13
     ctx.fillStyle = palette.text;
     ctx.textAlign = 'center';
-    ctx.fillText(`${levelProgress.xpIntoLevel}/${levelProgress.xpNeededForNextLevel}`, trackWrapCenterX, BOX_Y * SCALE + 24 * SCALE);
+    ctx.fillText(`${levelProgress.xpIntoLevel}/${levelProgress.xpNeededForNextLevel}`, trackWrapCenterX, blockY + 14 * SCALE);
+    ctx.textAlign = 'left';
 
-    const trackH = 8 * SCALE;
-    const trackY = BOX_Y * SCALE + 36 * SCALE;
+    const trackY = blockY + 20 * SCALE + 8 * SCALE;
     const trackPath = new Path2D();
-    trackPath.roundRect(trackWrapX, trackY, trackWrapW, trackH, 10 * SCALE);
+    trackPath.roundRect(trackWrapStartX, trackY, trackWrapW, trackH, 10 * SCALE);
     ctx.fillStyle = '#3E3D38';
     ctx.fill(trackPath);
     ctx.strokeStyle = '#2A2A2A';
@@ -526,19 +543,12 @@ async function renderXpHuntBar({ tier, levelProgress, huntBalance }) {
     if (fillW > 0) {
         ctx.save();
         ctx.beginPath();
-        ctx.roundRect(trackWrapX, trackY, fillW, trackH, 10 * SCALE);
+        ctx.roundRect(trackWrapStartX, trackY, fillW, trackH, 10 * SCALE);
         ctx.clip();
         ctx.fillStyle = '#DCA15E';
-        ctx.fillRect(trackWrapX, trackY, fillW, trackH);
+        ctx.fillRect(trackWrapStartX, trackY, fillW, trackH);
         ctx.restore();
     }
-
-    ctx.font = `${11 * SCALE}px "Tilt Warp"`;
-    ctx.fillStyle = palette.text;
-    ctx.globalAlpha = 0.85;
-    ctx.fillText('XP PARA O PRÓXIMO NÍVEL', trackWrapCenterX, trackY + trackH + 16 * SCALE);
-    ctx.globalAlpha = 1;
-    ctx.textAlign = 'left';
 
     // ── Caixa de Caçadas — gradiente/borda FIXOS (não seguem tier, mesmo
     // comportamento do site — só o texto muda de cor via huntColor). ─────
@@ -555,7 +565,7 @@ async function renderXpHuntBar({ tier, levelProgress, huntBalance }) {
     ctx.stroke(huntPath);
 
     const huntIcon = await loadImage(path.join(ICONS_DIR, 'hunt.webp'));
-    ctx.font = `${20 * SCALE}px "Poppins SemiBold"`;
+    ctx.font = `${24 * SCALE}px "Poppins SemiBold"`; // era 20
     const huntText = String(huntBalance);
     const huntTextWidth = ctx.measureText(huntText).width;
     const huntGroupW = iconSize + 12 * SCALE + huntTextWidth;

@@ -688,7 +688,15 @@
                         <div class="pf-id-level-track-wrap">
                             <span class="pf-id-level-count"><%= levelProgress.xpTotal %> XP</span>
                             <div class="pf-id-level-track"><div class="pf-id-level-fill" style="width: <%= levelProgress.percent.toFixed(1) %>%;"></div></div>
-                            <span class="pf-id-level-caption"><span data-i18n-pt>XP para o próximo nível</span><span data-i18n-en>XP to next level</span></span>
+                            <%
+                                // Falta quanto XP pro próximo nível (pedido do dono,
+                                // 2026-08-21: "não mostra quando xp falta para o
+                                // proximo nivel, adicione") — xpRemainingForNextLevel
+                                // já vem pronto de LevelSystem.getLevelProgress, só
+                                // não estava sendo usado aqui (a legenda era só o
+                                // texto genérico, sem número nenhum).
+                            %>
+                            <span class="pf-id-level-caption"><span data-i18n-pt>Faltam <%= levelProgress.xpRemainingForNextLevel %> XP para o próximo nível</span><span data-i18n-en><%= levelProgress.xpRemainingForNextLevel %> XP left to next level</span></span>
                         </div>
                     </div>
                     <div class="pf-id-hunt">
