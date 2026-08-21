@@ -453,6 +453,42 @@
         }
         .loja-perso-buy-form .btn-chip img { width: 12px; height: 12px; border-radius: 3px; object-fit: cover; }
 
+        /* Botão "Reivindicar" do Emblema (requisito já cumprido) — pedido
+           do dono, 2026-08-21: "trocar botão de progresso para esse",
+           mesmo processo dos blocos acima, 3º componente Figma com os
+           mesmos 4 estados. Diferença real desta vez: a borda já nasce
+           verde (#A5FFA1) no estado Primary (nos blocos acima, a borda só
+           vira a cor de destaque no Hover) — só o TEXTO muda de cor
+           (cream #F8DCC0 → verde #A5FFA1) entre Primary e Hover/Pressed,
+           batendo com o Figma exatamente como veio. Tamanho compacto
+           mantido (não o 119×26px do Figma), mesma decisão de sempre
+           nesta sessão. */
+        .loja-badge-claim-form .btn-chip.btn-chip-success {
+            background: radial-gradient(225.25% 94.36% at 0% 86.37%, #111111 0%, #1F1D20 57.07%, #29272A 91.53%);
+            border-color: #A5FFA1;
+            border-radius: 15px;
+            box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+            color: #F8DCC0;
+        }
+        .loja-badge-claim-form .btn-chip.btn-chip-success:hover:not(:disabled) {
+            background: radial-gradient(225.25% 94.36% at 0% 86.37%, #111111 0%, #1F1D20 57.07%, #29272A 91.53%);
+            box-shadow: -5px -5px 10px rgba(0, 0, 0, 0.5), 5px 5px 10px rgba(0, 0, 0, 0.5), 10px 10px 20px rgba(0, 0, 0, 0.5), -10px -10px 20px rgba(0, 0, 0, 0.5);
+            color: #A5FFA1;
+        }
+        .loja-badge-claim-form .btn-chip.btn-chip-success:active:not(:disabled) {
+            background: #1F1D20;
+            border-color: #A5FFA1;
+            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5), inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
+            color: #A5FFA1;
+        }
+        .loja-badge-claim-form .btn-chip.btn-chip-success:disabled {
+            background: #2A2A2A;
+            border-color: #3E3D38;
+            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5);
+            color: #3E3D38;
+            opacity: 1;
+        }
+
         /* Card de EMBLEMA (Missões e Recompensas) — componente Figma
            "Emblema card" trazido pixel-a-pixel (pedido do dono,
            2026-08-21: "Esse vai ser o card dos emblemas"), mesmo
@@ -1282,11 +1318,20 @@
                                         <% if (item.requirementLabel && group.key !== 'badge') { %>
                                             <span class="loja-item-desc"><%= item.requirementLabel %></span>
                                         <% } %>
-                                        <form method="POST" action="/perfil/resgatar" class="loja-item-buy-form">
+                                        <%# Botão vira "Reivindicar" (verde #A5FFA1) só em
+                                            Emblema (pedido do dono, 2026-08-21: "trocar botão
+                                            de progresso para esse") — Título/Missão continuam
+                                            "Resgatar" no visual de sempre. %>
+                                        <form method="POST" action="/perfil/resgatar" class="loja-item-buy-form<%= group.key === 'badge' ? ' loja-badge-claim-form' : '' %>">
                                             <input type="hidden" name="item" value="<%= group.key %>:<%= item.id %>">
                                             <input type="hidden" name="redirectTo" value="loja">
                                             <button type="submit" class="btn-chip btn-chip-success">
-                                                <i data-lucide="gift"></i> <span data-i18n-pt>Resgatar</span><span data-i18n-en>Redeem</span>
+                                                <i data-lucide="gift"></i>
+                                                <% if (group.key === 'badge') { %>
+                                                    <span data-i18n-pt>Reivindicar</span><span data-i18n-en>Claim</span>
+                                                <% } else { %>
+                                                    <span data-i18n-pt>Resgatar</span><span data-i18n-en>Redeem</span>
+                                                <% } %>
                                             </button>
                                         </form>
                                     <% } else if (item.requirementLabel) { %>
@@ -1306,8 +1351,17 @@
                                         dashboard.js) e o item ainda não foi
                                         conquistado (progresso deixa de fazer
                                         sentido depois de já ter/concluído).
+
+                                        Emblema com requisito CUMPRIDO
+                                        (redeemable) também não mostra mais
+                                        barra/botão de progresso (pedido do
+                                        dono, 2026-08-21: "Se requisitos
+                                        concluidos, [tirar] a barra de
+                                        progresso") — o botão Reivindicar
+                                        (acima) já cobre esse estado, mostrar
+                                        os dois juntos seria redundante.
                                     %>
-                                    <% if (item.progress && item.progress.length > 0 && !item.owned) { %>
+                                    <% if (item.progress && item.progress.length > 0 && !item.owned && !(group.key === 'badge' && item.redeemable)) { %>
                                         <%
                                             // Barra compacta "sem letras" (pedido do dono,
                                             // 2026-08-21: "Adicione uma barra de progresso
