@@ -513,7 +513,17 @@
             padding: 20px 40px;
             gap: 15px;
             align-items: center;
-            justify-content: center;
+            /* flex-start em vez de center (pedido do dono, 2026-08-21:
+               "eles tem que estar alinhado no topo do card, [senão] quando
+               o titulo de um for maior que outro, eles ficam
+               desalinhados") — com center, o ícone ficava numa posição Y
+               diferente em cada card dependendo de quantas linhas o
+               título ocupava (1 vs 2), já que o BLOCO inteiro (ícone+
+               título+barra+botão) era centralizado como um todo. Com
+               flex-start, o ícone sempre fica colado no mesmo lugar
+               (logo após o padding do topo) em qualquer card da fileira
+               — só o conteúdo ABAIXO dele cresce/empurra pra baixo. */
+            justify-content: flex-start;
             background: transparent;
             border: none;
             border-radius: 20px;
@@ -547,7 +557,14 @@
             background-size: contain;
             background-repeat: no-repeat;
             border-radius: 0;
-            filter: drop-shadow(0.5px -0.5px 0.5px #F8DCC0) drop-shadow(-25px 47px 68.1px rgba(0, 0, 0, 0.74));
+            /* Sombra simplificada (pedido do dono, 2026-08-21: "Embelemas
+               estão com uma sombra ruim, muito clara de muito desfocada,
+               torne uma sombra mais simples") — o valor exato do Figma
+               (glow claro + sombra gigante 68px de blur/47px de offset)
+               ficava lavado/quase invisível nos emblemas reais (viu no
+               print). Uma sombra só, mais curta e mais opaca, sem o
+               realce claro. */
+            filter: drop-shadow(4px 6px 6px rgba(0, 0, 0, 0.6));
         }
         .loja-grid .loja-item.loja-item-badge .loja-item-label {
             font-family: 'Tilt Warp', cursive;
@@ -665,7 +682,10 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            filter: drop-shadow(0.5px -0.5px 0.5px #F8DCC0) drop-shadow(-25px 47px 68.1px rgba(0, 0, 0, 0.74));
+            /* Mesma sombra simplificada do card pequeno (ver
+               .loja-item-badge .loja-item-thumb acima) — consistência
+               entre os dois lugares que mostram o mesmo ícone. */
+            filter: drop-shadow(4px 6px 6px rgba(0, 0, 0, 0.6));
         }
         .loja-badge-detail-icon i { width: 40px; height: 40px; color: #803E30; }
         .loja-badge-detail-title {
