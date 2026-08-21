@@ -621,6 +621,126 @@
             border-radius: 0 10px 10px 0;
         }
 
+        /* Card de detalhe de Emblema (Figma "Frame 33928") — pedido do
+           dono, 2026-08-21, "o card grande" prometido pra receber a lista
+           de requisitos que saiu do card pequeno. Mesmo padrão de <dialog>
+           nativo já usado em .loja-perso-detail-dialog (um dialog por
+           item, showModal() no clique, [open] no seletor por causa do
+           footgun de especificidade já documentado ali, mousedown+
+           e.target===dialog fecha ao clicar fora). Tamanho MÁXIMO/fluido
+           (800px), mesmo tratamento padrão desta sessão. */
+        dialog.loja-badge-detail-dialog[open] {
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            gap: 10px;
+            width: 100%;
+            max-width: 800px;
+            max-height: calc(100vh - 64px);
+            overflow-y: auto;
+            background: radial-gradient(201.17% 83.37% at -5.41% 84.25%, #803E30 0%, #1F1D20 41.09%, #000000 91.53%);
+            box-shadow: 0px 0px 2.3px #DCA15E, 12px 15px 11.5px rgba(0, 0, 0, 0.36), inset 0px 4px 4px rgba(0, 0, 0, 0.25);
+            border: none;
+            border-radius: 10px;
+            color: #F8DCC0;
+        }
+        dialog.loja-badge-detail-dialog::backdrop { background: rgba(0, 0, 0, 0.65); }
+        /* Mesmo tratamento "ícone só, sem caixa" do card pequeno
+           (.loja-item-badge .loja-item-thumb) — a sombra abraça o desenho
+           do emblema, não um retângulo (mesmo motivo/pedido já corrigido
+           lá). max-width:100% é só rede de segurança pra tela MUITO
+           estreita; 174px é o valor exato do Figma. */
+        .loja-badge-detail-icon {
+            width: 174px;
+            max-width: 100%;
+            aspect-ratio: 1 / 1;
+            padding: 30px;
+            box-sizing: border-box;
+            background-color: transparent;
+            background-origin: content-box;
+            background-size: contain;
+            background-repeat: no-repeat;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            filter: drop-shadow(0.5px -0.5px 0.5px #F8DCC0) drop-shadow(-25px 47px 68.1px rgba(0, 0, 0, 0.74));
+        }
+        .loja-badge-detail-icon i { width: 40px; height: 40px; color: #803E30; }
+        .loja-badge-detail-title {
+            margin: 0;
+            font-family: 'Tilt Warp', cursive;
+            font-weight: 400;
+            font-size: 32px;
+            line-height: 40px;
+            color: #F8DCC0;
+            text-align: center;
+            text-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+        }
+        /* Painel "REQUISITOS" — mesma receita PressedButton já usada em
+           .loja-perso-detail-frame::after, só que aqui é a caixa inteira
+           (não um ::after por cima de algo), já que não tem nada
+           embaixo pra "abraçar". */
+        .loja-badge-detail-reqs {
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            width: 100%;
+            padding: 20px;
+            gap: 10px;
+            background: #1F1D20;
+            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5), inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
+            border-radius: 20px;
+        }
+        .loja-badge-detail-reqs-head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'Tilt Warp', cursive;
+            font-weight: 400;
+            font-size: 32px;
+            line-height: 40px;
+            color: #F8DCC0;
+            text-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+        }
+        .loja-badge-detail-reqs-head i { width: 24px; height: 24px; flex: none; color: #F8DCC0; }
+        /* Uma linha por requisito — SÓ a descrição real (pedido do dono:
+           "Lista de requisitos só mostra a descrição do requisito e não
+           o nome 'requisito' em si, isso tambem vale para a versão
+           verde") — sem o rótulo genérico "Requisito"/"Requisito
+           concluído!" do Figma, e sem número current/target por linha
+           (a barra logo acima já é a fonte do progresso numérico). Cor +
+           ícone (círculo vazio/check preenchido) comunicam o status
+           sozinhos. */
+        .loja-badge-detail-req-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 400;
+            font-size: 16px;
+            line-height: 24px;
+            color: #F8DCC0;
+        }
+        .loja-badge-detail-req-row i { width: 15px; height: 15px; flex: none; }
+        .loja-badge-detail-req-row.is-met { color: #A5FFA1; }
+        /* Botão Reivindicar deste dialog reaproveita as CORES de
+           .loja-badge-claim-form (já definido acima), só o TAMANHO muda
+           pro valor maior do Figma aqui (149×40, era compacto no card
+           pequeno) — mesmo padrão já usado entre .loja-perso-buy-form
+           (compacto) e .loja-perso-detail-buy .loja-perso-buy-form
+           (grande, no dialog de detalhe da personalização). */
+        .loja-badge-detail-claim-form { width: 100%; display: flex; justify-content: center; margin-top: 8px; }
+        .loja-badge-detail-claim-form .btn-chip {
+            width: 149px;
+            min-width: 149px;
+            padding: 5px 20px;
+            gap: 8px;
+            font-size: 14px;
+        }
+
         /* Card da LOJA DE PERSONALIZAÇÃO (compra e venda de imagens) —
            componente Figma do card "Property 1=Variant4" (card de
            compra) trazido pixel-a-pixel (pedido do dono, 2026-08-21:
@@ -1381,32 +1501,95 @@
                                                 <div class="loja-item-badge-progress-track"></div>
                                             </div>
                                         <% } %>
-                                        <button type="button" class="btn-chip loja-progress-btn" onclick="document.getElementById('lp-<%= group.key %>-<%= item.id %>-dialog').showModal()">
-                                            <i data-lucide="trending-up"></i> <span data-i18n-pt>Ver progresso</span><span data-i18n-en>View progress</span>
-                                        </button>
-                                        <dialog id="lp-<%= group.key %>-<%= item.id %>-dialog" class="loja-progress-dialog">
-                                            <div class="loja-progress-dialog-head">
-                                                <h3><%= item.label %></h3>
-                                                <button type="button" class="loja-progress-dialog-close" onclick="this.closest('dialog').close()" aria-label="Fechar" title="Fechar">&times;</button>
-                                            </div>
-                                            <div class="loja-progress-rows">
-                                                <% item.progress.forEach(p => { %>
-                                                    <div class="loja-progress-row">
-                                                        <div class="loja-progress-row-head">
-                                                            <span class="loja-progress-row-label"><%= p.label %></span>
-                                                            <span class="loja-progress-row-status<%= p.met ? ' is-met' : '' %>"><i data-lucide="<%= p.met ? 'check' : 'lock' %>"></i></span>
-                                                        </div>
-                                                        <% if (p.isBoolean) { %>
-                                                            <span class="loja-progress-caption"><span data-i18n-pt><%= p.met ? 'Cumprido' : 'Ainda não cumprido' %></span><span data-i18n-en><%= p.met ? 'Met' : 'Not met yet' %></span></span>
-                                                        <% } else { %>
-                                                            <div class="loja-progress-track" role="progressbar" aria-valuenow="<%= p.percent.toFixed(0) %>" aria-valuemin="0" aria-valuemax="100">
-                                                                <div class="loja-progress-fill<%= p.met ? ' is-met' : '' %>" style="width: <%= p.percent.toFixed(1) %>%;"></div>
+                                        <% if (group.key === 'badge') { %>
+                                            <button type="button" class="btn-chip loja-progress-btn" onclick="document.getElementById('loja-badge-detail-<%= item.id %>').showModal()">
+                                                <i data-lucide="trending-up"></i> <span data-i18n-pt>Ver progresso</span><span data-i18n-en>View progress</span>
+                                            </button>
+                                        <% } else { %>
+                                            <button type="button" class="btn-chip loja-progress-btn" onclick="document.getElementById('lp-<%= group.key %>-<%= item.id %>-dialog').showModal()">
+                                                <i data-lucide="trending-up"></i> <span data-i18n-pt>Ver progresso</span><span data-i18n-en>View progress</span>
+                                            </button>
+                                            <dialog id="lp-<%= group.key %>-<%= item.id %>-dialog" class="loja-progress-dialog">
+                                                <div class="loja-progress-dialog-head">
+                                                    <h3><%= item.label %></h3>
+                                                    <button type="button" class="loja-progress-dialog-close" onclick="this.closest('dialog').close()" aria-label="Fechar" title="Fechar">&times;</button>
+                                                </div>
+                                                <div class="loja-progress-rows">
+                                                    <% item.progress.forEach(p => { %>
+                                                        <div class="loja-progress-row">
+                                                            <div class="loja-progress-row-head">
+                                                                <span class="loja-progress-row-label"><%= p.label %></span>
+                                                                <span class="loja-progress-row-status<%= p.met ? ' is-met' : '' %>"><i data-lucide="<%= p.met ? 'check' : 'lock' %>"></i></span>
                                                             </div>
-                                                            <span class="loja-progress-caption"><%= p.current %> / <%= p.target %></span>
-                                                        <% } %>
+                                                            <% if (p.isBoolean) { %>
+                                                                <span class="loja-progress-caption"><span data-i18n-pt><%= p.met ? 'Cumprido' : 'Ainda não cumprido' %></span><span data-i18n-en><%= p.met ? 'Met' : 'Not met yet' %></span></span>
+                                                            <% } else { %>
+                                                                <div class="loja-progress-track" role="progressbar" aria-valuenow="<%= p.percent.toFixed(0) %>" aria-valuemin="0" aria-valuemax="100">
+                                                                    <div class="loja-progress-fill<%= p.met ? ' is-met' : '' %>" style="width: <%= p.percent.toFixed(1) %>%;"></div>
+                                                                </div>
+                                                                <span class="loja-progress-caption"><%= p.current %> / <%= p.target %></span>
+                                                            <% } %>
+                                                        </div>
+                                                    <% }); %>
+                                                </div>
+                                            </dialog>
+                                        <% } %>
+                                    <% } %>
+                                    <%#
+                                        Card de detalhe de Emblema (Figma "Frame 33928") — pedido
+                                        do dono, 2026-08-21, o "card grande" prometido quando o
+                                        requisito saiu do card pequeno. Renderiza SEMPRE que o
+                                        item tem progress (não só quando o botão "Ver progresso"
+                                        aparece acima) — cobre o caso raro de já estar redeemable
+                                        (habilitado a reivindicar) mas sem ter passado pelo botão
+                                        de progresso ainda, mesma lógica de existência que o resto
+                                        do card. Painel "REQUISITOS" mostra a MESMA barra
+                                        compacta do card pequeno (reaproveitada, não duplicada) +
+                                        uma linha por requisito com SÓ a descrição real (pedido do
+                                        dono: "Lista de requisitos só mostra a descrição do
+                                        requisito e não o nome 'requisito' em si, isso tambem
+                                        vale para a versão verde") — sem número current/target
+                                        por linha (diferente do dialog genérico acima), a cor
+                                        (cream/verde) e o ícone (círculo/check) já comunicam o
+                                        status. Botão Reivindicar só quando REALMENTE cumprido
+                                        (pedido do dono: "Mostrar botão reivindicar só quando
+                                        tiver tudo comcluido").
+                                    %>
+                                    <% if (group.key === 'badge' && item.progress && item.progress.length > 0) { %>
+                                        <% const allMet = item.progress.every((p) => p.met); %>
+                                        <dialog id="loja-badge-detail-<%= item.id %>" class="loja-badge-detail-dialog">
+                                            <button type="button" class="loja-perso-detail-close" onclick="this.closest('dialog').close()" aria-label="Fechar" title="Fechar">&times;</button>
+                                            <div
+                                                class="loja-badge-detail-icon"
+                                                style="<%= item.url ? `background-image:url('${item.url}')` : '' %>"
+                                            ><% if (!item.url) { %><i data-lucide="<%= group.icon %>"></i><% } %></div>
+                                            <h3 class="loja-badge-detail-title"><%= item.label %></h3>
+                                            <div class="loja-badge-detail-reqs">
+                                                <div class="loja-badge-detail-reqs-head">
+                                                    <i data-lucide="list-checks"></i>
+                                                    <span data-i18n-pt>REQUISITOS</span><span data-i18n-en>REQUIREMENTS</span>
+                                                </div>
+                                                <% const detailPercent = Math.min(...item.progress.map((p) => p.percent)); %>
+                                                <div class="loja-item-badge-progress" role="progressbar" aria-valuenow="<%= detailPercent.toFixed(0) %>" aria-valuemin="0" aria-valuemax="100">
+                                                    <div class="loja-item-badge-progress-fill" style="width: <%= detailPercent.toFixed(1) %>%;"></div>
+                                                    <div class="loja-item-badge-progress-track"></div>
+                                                </div>
+                                                <% item.progress.forEach((p) => { %>
+                                                    <div class="loja-badge-detail-req-row<%= p.met ? ' is-met' : '' %>">
+                                                        <i data-lucide="<%= p.met ? 'check-circle' : 'circle' %>"></i>
+                                                        <span><%= p.label %></span>
                                                     </div>
                                                 <% }); %>
                                             </div>
+                                            <% if (allMet) { %>
+                                                <form method="POST" action="/perfil/resgatar" class="loja-item-buy-form loja-badge-claim-form loja-badge-detail-claim-form">
+                                                    <input type="hidden" name="item" value="<%= group.key %>:<%= item.id %>">
+                                                    <input type="hidden" name="redirectTo" value="loja">
+                                                    <button type="submit" class="btn-chip btn-chip-success">
+                                                        <i data-lucide="check"></i> <span data-i18n-pt>Reivindicar</span><span data-i18n-en>Claim</span>
+                                                    </button>
+                                                </form>
+                                            <% } %>
                                         </dialog>
                                     <% } %>
                                 </div>
@@ -2213,7 +2396,7 @@
             toque fora, sempre que o alvo pressionado for o próprio
             <dialog> (backdrop) e não um filho de verdade dele.
         %>
-        document.querySelectorAll('.loja-perso-detail-dialog').forEach((dialog) => {
+        document.querySelectorAll('.loja-perso-detail-dialog, .loja-badge-detail-dialog').forEach((dialog) => {
             dialog.addEventListener('mousedown', (e) => {
                 if (e.target === dialog) dialog.close();
             });
