@@ -1979,6 +1979,20 @@ function loadDashboard(client) {
         // acima em vez de consultar de novo.
         const bonesBalance = playedGuilds.reduce((sum, pg) => sum + pg.bones, 0);
 
+        // Servidor sem NENHUM webhook configurado não entra nos CARDS
+        // (pedido do dono, 2026-08-20: "Servidores sem weebhooks
+        // configurados não devem aparecer nesses cards") — pot_players
+        // (fonte de getPlayedGuilds) guarda dado de qualquer servidor que
+        // já teve o gateway inbound configurado alguma vez (RCON/token),
+        // mesmo que o admin nunca tenha configurado NENHUM webhook de
+        // saída (pot_group_webhook_%, ver PoTConfigSystem) ou já tenha
+        // configurado e removido depois. Filtro só nos CARDS visíveis —
+        // DEPOIS de totalPlaytimeSeconds/bonesBalance acima de propósito,
+        // esses totais continuam somando TODO servidor jogado de
+        // verdade (o tempo foi real, independente do servidor ainda ter
+        // webhook configurado hoje).
+        const visiblePlayedGuilds = playedGuilds.filter((pg) => Object.keys(PoTConfigSystem.getAllGroupWebhooks(pg.guildId)).length > 0);
+
         res.render('perfil', {
             nickname: req.user.global_name || req.user.username,
             role: await getSidebarRoleLabel(req),
@@ -2001,7 +2015,7 @@ function loadDashboard(client) {
             ownedItems,
             staffRoles,
             staffHistory,
-            playedGuilds,
+            playedGuilds: visiblePlayedGuilds,
             totalPlaytimeLabel,
             badgeOptions,
             redeemableItems,
@@ -2756,6 +2770,13 @@ function loadDashboard(client) {
         const totalPlaytimeSeconds = playedGuilds.reduce((sum, pg) => sum + (pg.totalPlaytime || 0), 0);
         const totalPlaytimeLabel = totalPlaytimeSeconds > 0 ? StaffPresenceSystem.formatDuration(totalPlaytimeSeconds * 1000) : null;
 
+        // Servidor sem NENHUM webhook configurado não entra nos CARDS
+        // (pedido do dono, 2026-08-20, mesmo critério de /perfil — ver
+        // comentário completo lá) — só filtra os CARDS visíveis, os
+        // totais acima já foram somados com TODO servidor jogado de
+        // verdade.
+        const visiblePlayedGuilds = playedGuilds.filter((pg) => Object.keys(PoTConfigSystem.getAllGroupWebhooks(pg.guildId)).length > 0);
+
         res.render('staff-perfil', {
             nickname: req.user.global_name || req.user.username,
             role: await getSidebarRoleLabel(req),
@@ -2779,7 +2800,7 @@ function loadDashboard(client) {
             ownedItems,
             avatarPreviewUrl,
             backgroundPreviewUrl,
-            playedGuilds,
+            playedGuilds: visiblePlayedGuilds,
             totalPlaytimeLabel,
         });
     });
