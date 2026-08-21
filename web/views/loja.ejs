@@ -557,14 +557,12 @@
             background-size: contain;
             background-repeat: no-repeat;
             border-radius: 0;
-            /* Sombra simplificada (pedido do dono, 2026-08-21: "Embelemas
-               estão com uma sombra ruim, muito clara de muito desfocada,
-               torne uma sombra mais simples") — o valor exato do Figma
-               (glow claro + sombra gigante 68px de blur/47px de offset)
-               ficava lavado/quase invisível nos emblemas reais (viu no
-               print). Uma sombra só, mais curta e mais opaca, sem o
-               realce claro. */
-            filter: drop-shadow(4px 6px 6px rgba(0, 0, 0, 0.6));
+            /* Sombra ajustada (pedido do dono, 2026-08-21) — valor NOVO do
+               Figma, mais curto que o original (offset -7px/11px, blur
+               16.3px, era -25px/47px/68.1px) — mesma receita (glow claro
+               + sombra escura), só reduzida o bastante pra não ficar
+               lavada nos emblemas reais como o valor original ficava. */
+            filter: drop-shadow(0.5px -0.5px 0.5px #F8DCC0) drop-shadow(-7px 11px 16.3px rgba(0, 0, 0, 0.75));
         }
         .loja-grid .loja-item.loja-item-badge .loja-item-label {
             font-family: 'Tilt Warp', cursive;
@@ -682,10 +680,10 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            /* Mesma sombra simplificada do card pequeno (ver
-               .loja-item-badge .loja-item-thumb acima) — consistência
-               entre os dois lugares que mostram o mesmo ícone. */
-            filter: drop-shadow(4px 6px 6px rgba(0, 0, 0, 0.6));
+            /* Mesma sombra do card pequeno (ver .loja-item-badge
+               .loja-item-thumb acima) — consistência entre os dois
+               lugares que mostram o mesmo ícone. */
+            filter: drop-shadow(0.5px -0.5px 0.5px #F8DCC0) drop-shadow(-7px 11px 16.3px rgba(0, 0, 0, 0.75));
         }
         .loja-badge-detail-icon i { width: 40px; height: 40px; color: #803E30; }
         .loja-badge-detail-title {
