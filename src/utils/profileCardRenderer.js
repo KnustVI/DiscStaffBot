@@ -308,7 +308,9 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     const speciesIcon = await loadImage(path.join(ICONS_DIR, isCarnivore ? 'CarniSkull.webp' : 'HerbSkull.webp'));
     drawIconShadow(ctx, () => ctx.drawImage(speciesIcon, scaledBbox.x + 10 * SCALE, pillY + (pillH - 24 * SCALE) / 2, 24 * SCALE, 24 * SCALE));
     ctx.textBaseline = 'middle';
-    ctx.font = `700 ${15 * SCALE}px "Tilt Warp"`;
+    // Fonte aumentada (pedido do dono, 2026-08-21: "no campo de dinossauro
+    // no discord também precisamos aumentar um pouco a fonte") — era 15px.
+    ctx.font = `700 ${18 * SCALE}px "Tilt Warp"`;
     ctx.fillStyle = palette.text;
     ctx.fillText((speciesLabel || '').toUpperCase(), scaledBbox.x + 42 * SCALE, pillY + pillH / 2 + 1 * SCALE);
 

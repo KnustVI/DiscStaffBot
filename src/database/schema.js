@@ -288,6 +288,23 @@ const SCHEMA = {
         )
     `,
 
+    // Dieta por espécie CONFIGURÁVEL (pedido do dono, 2026-08-21: "ele ainda
+    // esta considerando alguns dinossauros com dieta errado... adicionar uma
+    // configuração no controle loja") — substitui/complementa a lista
+    // hardcoded CARNIVORE_SPECIES em potPlayerRegistry.js (best-effort, só
+    // corrigível via código+deploy) por uma tabela que o dono edita direto
+    // em /dev/Loja. species sempre lowercase (mesma convenção do Set
+    // hardcoded), PRIMARY KEY natural (sem id redundante). Global, não por
+    // guild — dieta é um fato da espécie, não do servidor.
+    pot_species_diet: `
+        CREATE TABLE IF NOT EXISTS pot_species_diet (
+            species TEXT PRIMARY KEY,
+            diet TEXT NOT NULL CHECK(diet IN ('carnivore', 'herbivore')),
+            updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+            updated_by TEXT
+        )
+    `,
+
     // Contagem de vezes que cada especie foi ABATIDA (como vitima) por
     // jogador — mesmo padrao de pot_dinosaur_picks acima (espécie JOGADA),
     // so que pro requisito NOVO "species_kills" de achievementSystem.js

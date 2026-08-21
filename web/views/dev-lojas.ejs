@@ -354,6 +354,60 @@
         .lojas-guild-card img { width: 32px; height: 32px; border-radius: 50%; }
         .lojas-guild-card span { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 0.85rem; }
 
+        <%#
+            Dieta por espécie (pedido do dono, 2026-08-21: "adicionar uma
+            configuração no controle loja que consigo configurar e
+            categorizar os dinossauros") — grade de linhas compactas em vez
+            de cards com thumb (não tem imagem por espécie aqui, só nome +
+            estado), uma por espécie conhecida (pot_dinosaur_picks de
+            qualquer servidor + qualquer uma já configurada manualmente).
+        %>
+        .lojas-species-grid { display: flex; flex-direction: column; gap: 6px; max-height: 480px; overflow-y: auto; }
+        .lojas-species-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            background: #131314;
+            border: 1px solid rgba(217, 163, 98, 0.2);
+            border-radius: 8px;
+        }
+        .lojas-species-name { flex: 1; min-width: 0; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 0.8rem; color: #F8DCC0; }
+        .lojas-species-form { display: flex; align-items: center; gap: 6px; flex: none; }
+        .lojas-species-form select {
+            background: #1F1D20;
+            border: 1px solid rgba(217, 163, 98, 0.3);
+            border-radius: 6px;
+            padding: 4px 6px;
+            color: #F8DCC0;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.72rem;
+        }
+        .lojas-species-form .pool-price-submit { width: auto; padding: 5px 12px; }
+        .lojas-species-override-badge {
+            flex: none;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: #DCA15E;
+            background: rgba(220, 161, 94, 0.12);
+            padding: 3px 8px;
+            border-radius: 10px;
+        }
+        .lojas-species-restore-btn {
+            flex: none;
+            background: transparent;
+            border: 1px solid rgba(217, 163, 98, 0.3);
+            border-radius: 6px;
+            padding: 4px 8px;
+            color: #F8DCC0;
+            opacity: 0.6;
+            font-size: 0.65rem;
+            cursor: pointer;
+        }
+        .lojas-species-restore-btn:hover { opacity: 1; border-color: #DCA15E; }
+
         .lojas-pending-card {
             display: flex;
             gap: 14px;
@@ -435,6 +489,53 @@
                 <button type="submit" class="pool-price-submit" style="width: auto; padding-left: 16px; padding-right: 16px;">Salvar</button>
             </form>
             <p class="text-[11px] opacity-60" id="devSubmissionFeeCalc"></p>
+        </section>
+
+        <%#
+            ==================== DIETA POR ESPÉCIE ====================
+            Pedido do dono, 2026-08-21: "ele ainda esta considerando alguns
+            dinossauros com dieta errado. Consegue adicionar uma
+            configuração no controle loja que consigo configurar e
+            categorizar os dinossauros para esse fim?" — substitui, espécie
+            por espécie, a lista hardcoded (CARNIVORE_SPECIES em
+            potPlayerRegistry.js) que só podia ser corrigida via código +
+            deploy. Afeta o ícone da pílula de espécie (CarniSkull/
+            HerbSkull) no card de perfil, site e Discord — só isso, não
+            mexe em nenhuma outra lógica de jogo.
+
+            Cada linha já vem com isOverride (ver PlayerRegistry.
+            getAllKnownSpeciesWithDiet) — mostra um selo "Configurado" +
+            botão "Restaurar padrão" só quando o dono já mexeu naquela
+            espécie manualmente, senão o select reflete só o fallback.
+        %>
+        <section class="titan-card-premium flex-col gap-4" id="especie-dieta">
+            <h2 class="section-title text-lg">Dieta por Espécie (<%= speciesDiet.length %>)</h2>
+            <p class="text-xs opacity-50">Define se cada dinossauro usa o ícone de carnívoro ou herbívoro na pílula de espécie do card de perfil. Lista junta toda espécie já jogada em qualquer servidor com qualquer uma já configurada aqui.</p>
+            <% if (speciesDiet.length === 0) { %>
+                <p class="text-sm opacity-40">Nenhuma espécie registrada ainda — aparecem aqui assim que algum jogador spawnar em algum servidor.</p>
+            <% } else { %>
+                <div class="lojas-species-grid">
+                    <% speciesDiet.forEach(sp => { %>
+                        <div class="lojas-species-row">
+                            <span class="lojas-species-name"><%= sp.species %></span>
+                            <% if (sp.isOverride) { %>
+                                <span class="lojas-species-override-badge">Configurado</span>
+                                <form action="/dev/Loja/especie/dieta/<%= encodeURIComponent(sp.species) %>/restaurar" method="POST">
+                                    <button type="submit" class="lojas-species-restore-btn" title="Volta pro padrão da lista interna">Restaurar padrão</button>
+                                </form>
+                            <% } %>
+                            <form action="/dev/Loja/especie/dieta" method="POST" class="lojas-species-form">
+                                <input type="hidden" name="species" value="<%= sp.species %>">
+                                <select name="diet">
+                                    <option value="carnivore" <%= sp.diet === 'carnivore' ? 'selected' : '' %>>Carnívoro</option>
+                                    <option value="herbivore" <%= sp.diet === 'herbivore' ? 'selected' : '' %>>Herbívoro</option>
+                                </select>
+                                <button type="submit" class="pool-price-submit">Salvar</button>
+                            </form>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } %>
         </section>
 
         <%# ==================== FILA DE APROVAÇÃO ==================== %>

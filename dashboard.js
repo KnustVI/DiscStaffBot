@@ -1223,6 +1223,13 @@ function loadDashboard(client) {
             configuredServers,
             requirementTypes: AchievementSystem.REQUIREMENT_TYPES,
             personalizationConfig: ImageShopSystem.getPersonalizationShopConfig(),
+            // Dieta por espécie (pedido do dono, 2026-08-21: "ele ainda esta
+            // considerando alguns dinossauros com dieta errado... adicionar
+            // uma configuração no controle loja") — cada linha já vem com a
+            // dieta ATUAL (override configurado ou fallback hardcoded) e um
+            // flag isOverride pra UI distinguir "configurado manualmente" de
+            // "usando o padrão" (ver PlayerRegistry.getAllKnownSpeciesWithDiet).
+            speciesDiet: PlayerRegistry.getAllKnownSpeciesWithDiet(),
             saved: req.query.saved,
             // Calculadora de preço nos campos de Caçadas (item da Loja de
             // Personalização, taxa de envio) e na recompensa de Missão em
@@ -1512,6 +1519,28 @@ function loadDashboard(client) {
             acceptingSubmissions: req.body.accepting_submissions === '1',
         });
         res.redirect('/dev/Loja?saved=success');
+    });
+
+    // Dieta por espécie (pedido do dono, 2026-08-21: "ele ainda esta
+    // considerando alguns dinossauros com dieta errado... adicionar uma
+    // configuração no controle loja que consigo configurar e categorizar os
+    // dinossauros") — substitui, espécie por espécie, o fallback hardcoded
+    // (CARNIVORE_SPECIES em potPlayerRegistry.js) sem precisar de código +
+    // deploy pra corrigir uma classificação errada.
+    app.post('/dev/Loja/especie/dieta', checkAuth, async (req, res) => {
+        if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
+        const { species, diet } = req.body;
+        const ok = PlayerRegistry.setSpeciesDiet(species, diet, req.user.id);
+        res.redirect(`/dev/Loja?saved=${ok ? 'success' : 'error'}#especie-dieta`);
+    });
+
+    // Restaura a espécie pro fallback hardcoded (remove o override) — útil
+    // se uma configuração manual foi feita errada e o dono quer voltar ao
+    // padrão em vez de simplesmente trocar pro outro valor.
+    app.post('/dev/Loja/especie/dieta/:species/restaurar', checkAuth, async (req, res) => {
+        if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
+        PlayerRegistry.clearSpeciesDiet(req.params.species);
+        res.redirect('/dev/Loja?saved=success#especie-dieta');
     });
 
     // ==================== PERFIL (do usuário logado) ====================

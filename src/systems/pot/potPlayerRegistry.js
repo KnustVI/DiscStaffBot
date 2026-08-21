@@ -563,12 +563,104 @@ const CARNIVORE_SPECIES = new Set([
  * True se a espécie for carnívora, false se for herbívora (ou desconhecida
  * — fallback herbívoro, mais comum no elenco jogável hoje). Comparação
  * case-insensitive (dinosaur_type já vem do jogo, mas por segurança).
+ *
+ * Checa pot_species_diet PRIMEIRO (pedido do dono, 2026-08-21: "ele ainda
+ * esta considerando alguns dinossauros com dieta errado... adicionar uma
+ * configuração no controle loja") — override configurável em /dev/Loja
+ * (ver setSpeciesDiet abaixo) sempre vence a lista hardcoded, que vira só
+ * o fallback pra espécie ainda não configurada manualmente.
  * @param {string|null} dinosaurType
  * @returns {boolean}
  */
 function isDinosaurCarnivore(dinosaurType) {
     if (!dinosaurType) return false;
-    return CARNIVORE_SPECIES.has(String(dinosaurType).trim().toLowerCase());
+    const species = String(dinosaurType).trim().toLowerCase();
+    try {
+        const override = db.prepare('SELECT diet FROM pot_species_diet WHERE species = ?').get(species);
+        if (override) return override.diet === 'carnivore';
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao checar dieta configurada da espécie:', error);
+    }
+    return CARNIVORE_SPECIES.has(species);
+}
+
+/**
+ * Grava/atualiza a dieta configurada manualmente pro dono via /dev/Loja —
+ * sempre vence a lista hardcoded (ver isDinosaurCarnivore acima). Upsert
+ * simples (species é PRIMARY KEY).
+ * @param {string} species
+ * @param {'carnivore'|'herbivore'} diet
+ * @param {string} [updatedBy] - Discord ID de quem configurou, só pra auditoria.
+ * @returns {boolean} true se salvou
+ */
+function setSpeciesDiet(species, diet, updatedBy = null) {
+    if (!species || (diet !== 'carnivore' && diet !== 'herbivore')) return false;
+    try {
+        db.prepare(`
+            INSERT INTO pot_species_diet (species, diet, updated_at, updated_by)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(species) DO UPDATE SET diet = excluded.diet, updated_at = excluded.updated_at, updated_by = excluded.updated_by
+        `).run(String(species).trim().toLowerCase(), diet, Math.floor(Date.now() / 1000), updatedBy);
+        return true;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao salvar dieta da espécie:', error);
+        return false;
+    }
+}
+
+/**
+ * Remove o override de dieta de uma espécie — volta a cair no fallback
+ * hardcoded (CARNIVORE_SPECIES) em vez de continuar travada na última
+ * configuração manual.
+ * @param {string} species
+ */
+function clearSpeciesDiet(species) {
+    if (!species) return;
+    try {
+        db.prepare('DELETE FROM pot_species_diet WHERE species = ?').run(String(species).trim().toLowerCase());
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao remover dieta configurada da espécie:', error);
+    }
+}
+
+/**
+ * Todas as espécies já vistas em QUALQUER servidor (pot_dinosaur_picks,
+ * sem filtro de guild_id — diferente de getKnownSpecies abaixo, que é por
+ * servidor) UNIDO com qualquer espécie já configurada manualmente em
+ * pot_species_diet (cobre o caso de o dono querer pré-configurar uma
+ * espécie que ainda ninguém jogou neste elenco). Usado pelo painel de
+ * dieta em /dev/Loja — cada linha já vem com a dieta ATUAL calculada
+ * (override configurado ou fallback hardcoded), pra a UI mostrar o estado
+ * real sem duplicar a lógica de isDinosaurCarnivore.
+ * @returns {{species: string, diet: 'carnivore'|'herbivore', isOverride: boolean}[]}
+ */
+function getAllKnownSpeciesWithDiet() {
+    try {
+        const picked = db.prepare(`
+            SELECT DISTINCT dinosaur_type AS species FROM pot_dinosaur_picks
+            WHERE dinosaur_type IS NOT NULL AND dinosaur_type != ''
+        `).all();
+        const configured = db.prepare('SELECT species FROM pot_species_diet').all();
+        const names = new Map();
+        picked.forEach((r) => names.set(r.species.toLowerCase(), r.species));
+        configured.forEach((r) => { if (!names.has(r.species)) names.set(r.species, r.species); });
+        const overrides = new Map(
+            db.prepare('SELECT species, diet FROM pot_species_diet').all().map((r) => [r.species, r.diet])
+        );
+        return Array.from(names.entries())
+            .map(([lower, displayName]) => {
+                const override = overrides.get(lower);
+                return {
+                    species: displayName,
+                    diet: override || (CARNIVORE_SPECIES.has(lower) ? 'carnivore' : 'herbivore'),
+                    isOverride: !!override,
+                };
+            })
+            .sort((a, b) => a.species.localeCompare(b.species));
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao montar lista de dieta por espécie:', error);
+        return [];
+    }
 }
 
 /**
@@ -1928,6 +2020,11 @@ module.exports = {
     getMostPlayedDinosaur,
     isDinosaurCarnivore,
     getKnownSpecies,
+    // Dieta configurável por espécie (pedido do dono, 2026-08-21) — ver
+    // isDinosaurCarnivore acima pro fluxo completo.
+    setSpeciesDiet,
+    clearSpeciesDiet,
+    getAllKnownSpeciesWithDiet,
     recordKillEvent,
     // Grupo (matilha/pack) atual do jogador — ver PlayerJoinedGroup/
     // PlayerLeftGroup em gatewayServer.js e docblock de setGroupMembership.
