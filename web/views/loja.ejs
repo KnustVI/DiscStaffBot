@@ -644,6 +644,13 @@
            footgun de especificidade já documentado ali, mousedown+
            e.target===dialog fecha ao clicar fora). Tamanho MÁXIMO/fluido
            (800px), mesmo tratamento padrão desta sessão. */
+        /* Sem fundo/sombra no dialog em si (pedido do dono, 2026-08-21:
+           "Card maior de emblema é sem fundo, transparente") — diferente
+           do dialog de detalhe da Personalização (que TEM fundo
+           preenchido), este segue a mesma filosofia do card pequeno de
+           Emblema: o peso visual vem do ícone (sombra própria) e do
+           painel "REQUISITOS" (que já tem seu próprio fundo #1F1D20 +
+           sombra), não de uma caixa externa. */
         dialog.loja-badge-detail-dialog[open] {
             box-sizing: border-box;
             display: flex;
@@ -655,8 +662,8 @@
             max-width: 800px;
             max-height: calc(100vh - 64px);
             overflow-y: auto;
-            background: radial-gradient(201.17% 83.37% at -5.41% 84.25%, #803E30 0%, #1F1D20 41.09%, #000000 91.53%);
-            box-shadow: 0px 0px 2.3px #DCA15E, 12px 15px 11.5px rgba(0, 0, 0, 0.36), inset 0px 4px 4px rgba(0, 0, 0, 0.25);
+            background: transparent;
+            box-shadow: none;
             border: none;
             border-radius: 10px;
             color: #F8DCC0;
