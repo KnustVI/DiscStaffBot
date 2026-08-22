@@ -592,8 +592,23 @@
             <% if (speciesDiet.length === 0) { %>
                 <p class="text-sm opacity-40">Nenhuma espécie cadastrada ainda — adicione uma acima, ou espere algum jogador spawnar em algum servidor.</p>
             <% } else { %>
+                <%#
+                    Salvar em lote (pedido do dono, 2026-08-21: "posso
+                    selecionar as categorias e salvar tudo?" — antes cada
+                    linha tinha seu próprio <form>+botão "Salvar", 1 POST
+                    por espécie). Este <form> fica vazio de propósito: cada
+                    select/input de cada linha se associa a ELE via o
+                    atributo form="..." (HTML5, não precisa ser ancestral
+                    no DOM) — assim o botão "Restaurar padrão" de cada
+                    linha continua sendo o SEU PRÓPRIO <form> pequeno
+                    (forms não podem ser aninhados), sem precisar reorganizar
+                    o layout. species[]/diet[]/category[] chegam como
+                    arrays paralelos no POST, mesmo padrão já usado em
+                    requirement_species[] do formulário de requisito.
+                %>
+                <form id="lojas-species-bulk-form" action="/dev/Loja/especie/dieta/lote" method="POST"></form>
                 <div class="lojas-species-grid">
-                    <% speciesDiet.forEach(sp => { %>
+                    <% speciesDiet.forEach((sp, i) => { %>
                         <div class="lojas-species-row">
                             <span class="lojas-species-name"><%= sp.species %></span>
                             <% if (!sp.isConfirmed) { %>
@@ -605,23 +620,23 @@
                                     <button type="submit" class="lojas-species-restore-btn" title="Volta pro padrão da lista interna">Restaurar padrão</button>
                                 </form>
                             <% } %>
-                            <form action="/dev/Loja/especie/dieta" method="POST" class="lojas-species-form">
-                                <input type="hidden" name="species" value="<%= sp.species %>">
-                                <select name="diet">
+                            <div class="lojas-species-form">
+                                <input type="hidden" name="species[]" value="<%= sp.species %>" form="lojas-species-bulk-form">
+                                <select name="diet[]" form="lojas-species-bulk-form">
                                     <option value="carnivore" <%= sp.diet === 'carnivore' ? 'selected' : '' %>>Carnívoro</option>
                                     <option value="herbivore" <%= sp.diet === 'herbivore' ? 'selected' : '' %>>Herbívoro</option>
                                 </select>
-                                <select name="category">
+                                <select name="category[]" form="lojas-species-bulk-form">
                                     <option value="">Sem categoria</option>
                                     <% Object.entries(speciesCategories).forEach(([key, label]) => { %>
                                         <option value="<%= key %>" <%= sp.category === key ? 'selected' : '' %>><%= label %></option>
                                     <% }); %>
                                 </select>
-                                <button type="submit" class="pool-price-submit">Salvar</button>
-                            </form>
+                            </div>
                         </div>
                     <% }); %>
                 </div>
+                <button type="submit" form="lojas-species-bulk-form" class="pool-price-submit" style="width: auto; align-self: flex-end; padding-left: 20px; padding-right: 20px;">Salvar tudo</button>
             <% } %>
         </section>
 

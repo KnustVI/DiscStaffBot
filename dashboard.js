@@ -1542,6 +1542,25 @@ function loadDashboard(client) {
         res.redirect(`/dev/Loja?saved=${ok ? 'success' : 'error'}#especie-dieta`);
     });
 
+    // Salvar em lote (pedido do dono, 2026-08-21: "posso selecionar as
+    // categorias e salvar tudo?" — a rota acima exigia 1 POST por espécie,
+    // um clique em "Salvar" por linha). Arrays paralelos (species[]/diet[]/
+    // category[]), mesmo padrão já usado em requirement_species[] do
+    // formulário de requisito (ver POST /dev/Loja/:id/requisitos acima) —
+    // reaproveita o mesmo upsert de cima, só que em loop.
+    app.post('/dev/Loja/especie/dieta/lote', checkAuth, async (req, res) => {
+        if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
+        const speciesList = [].concat(req.body.species || []);
+        const dietList = [].concat(req.body.diet || []);
+        const categoryList = [].concat(req.body.category || []);
+        let ok = true;
+        for (let i = 0; i < speciesList.length; i++) {
+            const saved = PlayerRegistry.setSpeciesDiet(speciesList[i], dietList[i], req.user.id, categoryList[i] || null);
+            if (!saved) ok = false;
+        }
+        res.redirect(`/dev/Loja?saved=${ok ? 'success' : 'error'}#especie-dieta`);
+    });
+
     // Restaura a espécie pro fallback hardcoded (remove o override) — útil
     // se uma configuração manual foi feita errada e o dono quer voltar ao
     // padrão em vez de simplesmente trocar pro outro valor.
